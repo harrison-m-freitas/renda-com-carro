@@ -1,0 +1,18 @@
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: renda_com_carro
+      POSTGRES_USER: renda
+      POSTGRES_PASSWORD: renda_dev_password
+    ports:
+      - "5438:5432"
+    volumes:
+      - postgres_dev:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U renda -d renda_com_carro"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+volumes:
+  postgres_dev:
