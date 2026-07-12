@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="pt-BR" xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{layouts/app :: layout(~{::section}, 'Dashboard')}">
+<section>
+  <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4">
+    <div>
+      <h1 class="h2 mb-1">Operação de hoje</h1>
+      <p class="text-secondary mb-0">Acompanhe turnos, metas e resultado líquido.</p>
+    </div>
+    <button class="btn btn-primary btn-touch" type="button">Iniciar turno</button>
+  </div>
+
+  <div class="row g-3">
+    <div class="col-12 col-sm-6 col-xl-3">
+      <div class="card h-100"><div class="card-body"><div class="text-secondary small">Receita do dia</div><div class="metric-value fs-3 fw-bold">R$ 0,00</div></div></div>
+    </div>
+    <div class="col-12 col-sm-6 col-xl-3">
+      <div class="card h-100"><div class="card-body"><div class="text-secondary small">Resultado líquido</div><div class="metric-value fs-3 fw-bold">R$ 0,00</div></div></div>
+    </div>
+    <div class="col-12 col-sm-6 col-xl-3">
+      <div class="card h-100"><div class="card-body"><div class="text-secondary small">Horas trabalhadas</div><div class="metric-value fs-3 fw-bold">0h 00min</div></div></div>
+    </div>
+    <div class="col-12 col-sm-6 col-xl-3">
+      <div class="card h-100"><div class="card-body"><div class="text-secondary small">Distância profissional</div><div class="metric-value fs-3 fw-bold">0,0 km</div></div></div>
+    </div>
+  </div>
+</section>
+</html>

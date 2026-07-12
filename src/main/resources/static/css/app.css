@@ -1,0 +1,10 @@
+:root { --app-sidebar-width: 15.5rem; }
+.app-content { min-height: 100vh; }
+.metric-value { font-variant-numeric: tabular-nums; }
+.app-sidebar { width: var(--app-sidebar-width); }
+@media (max-width: 767.98px) {
+  .table-responsive { overflow-x: auto; }
+  .btn-touch { min-height: 44px; }
+  .app-shell { display: block !important; }
+  .app-sidebar { width: 100%; }
+}
