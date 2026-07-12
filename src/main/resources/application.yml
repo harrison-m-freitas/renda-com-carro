@@ -1,0 +1,33 @@
+spring:
+  application:
+    name: renda-com-carro
+  profiles:
+    default: dev
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+  flyway:
+    enabled: true
+  thymeleaf:
+    cache: true
+server:
+  servlet:
+    session:
+      timeout: 30m
+  error:
+    whitelabel:
+      enabled: false
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      probes:
+        enabled: true
+app:
+  timezone: America/Sao_Paulo
+  storage:
+    root: ${APP_STORAGE_ROOT:./var/storage}

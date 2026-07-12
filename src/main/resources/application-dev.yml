@@ -1,0 +1,10 @@
+spring:
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5438/renda_com_carro}
+    username: ${DB_USER:renda}
+    password: ${DB_PASSWORD:renda_dev_password}
+  thymeleaf:
+    cache: false
+logging:
+  level:
+    dev.harrison.rendacomcarro: DEBUG
