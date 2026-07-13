@@ -100,14 +100,6 @@ class AcceptanceFlowTest extends PostgresIntegrationTest {
             new BigDecimal("160.00"),
             Set.of(OPERATION_DATE)
         );
-        mileageClosings.create(new MonthlyOdometerClosingService.CreateCommand(
-            vehicle.getId(),
-            YearMonth.from(OPERATION_DATE),
-            new BigDecimal("50000.0"),
-            new BigDecimal("50100.0"),
-            new BigDecimal("80.0"),
-            null
-        ));
 
         var day = days.openDay(
             OPERATION_DATE,
@@ -212,11 +204,48 @@ class AcceptanceFlowTest extends PostgresIntegrationTest {
         );
         days.closeDay(day.getId(), new BigDecimal("50080.0"));
 
+        var closing = mileageClosings.confirm(
+            new MonthlyOdometerClosingService.ConfirmCommand(
+                vehicle.getId(),
+                YearMonth.from(OPERATION_DATE),
+                false,
+                null,
+                null,
+                null,
+                null,
+                true
+            )
+        );
+        assertThat(closing.isManualAdjustment()).isFalse();
+        assertThat(closing.getProfessionalKilometers()).isEqualByComparingTo("80.0");
+        assertThat(vehicles.get(vehicle.getId()).getCurrentOdometer())
+            .isEqualByComparingTo("50080.0");
+
+        fuelings.create(new FuelingService.CreateFuelingCommand(
+            vehicle.getId(),
+            LocalDateTime.of(2035, 7, 15, 18, 0),
+            new BigDecimal("49900.0"),
+            "Posto histórico",
+            FuelType.GASOLINE,
+            new BigDecimal("10.000"),
+            new BigDecimal("5.000"),
+            new BigDecimal("50.00"),
+            false,
+            "Leitura histórica menor"
+        ));
+        assertThat(vehicles.get(vehicle.getId()).getCurrentOdometer())
+            .isEqualByComparingTo("50080.0");
+
         var snapshot = dashboard.snapshot(OPERATION_DATE);
         assertThat(snapshot.dailyRevenue()).isEqualByComparingTo("250.00");
         assertThat(snapshot.dailyOperatingMargin()).isEqualByComparingTo("210.00");
         assertThat(snapshot.monthlyPersonalCash()).isEqualByComparingTo("-290.00");
         assertThat(snapshot.outstandingDebt()).isEqualByComparingTo("29500.00");
+
+        mvc.perform(get("/expenses/new").session(session))
+            .andExpect(status().isOk())
+            .andExpect(content().string(containsString("Profissional")))
+            .andExpect(content().string(containsString("Proporcional à quilometragem")));
 
         mvc.perform(get("/").session(session))
             .andExpect(status().isOk())
