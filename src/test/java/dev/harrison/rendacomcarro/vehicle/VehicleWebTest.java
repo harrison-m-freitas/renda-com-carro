@@ -55,6 +55,15 @@ class VehicleWebTest extends PostgresIntegrationTest {
             .andExpect(content().string(containsString("Apelido do veículo")))
             .andExpect(content().string(containsString("Cadastrar veículo")))
             .andExpect(content().string(containsString("appMobileNavigation")))
+            .andExpect(content().string(containsString("vehicle-identification-grid")))
+            .andExpect(content().string(containsString("vehicle-operation-grid")))
+            .andExpect(content().string(containsString("vehicle-acquisition-grid")))
+            .andExpect(content().string(containsString("data-normalize-spaces")))
+            .andExpect(content().string(containsString("data-odometer-input")))
+            .andExpect(content().string(containsString("data-money-input")))
+            .andExpect(content().string(containsString("data-max-digits=\"14\"")))
+            .andExpect(content().string(containsString("data-max-integer-digits=\"11\"")))
+            .andExpect(content().string(containsString("type=\"module\"")))
             .andExpect(content().string(not(containsString(">Salvar veículo<"))));
     }
 
@@ -86,6 +95,50 @@ class VehicleWebTest extends PostgresIntegrationTest {
             .andExpect(status().isOk())
             .andExpect(content().string(containsString("Não informado")))
             .andExpect(content().string(not(containsString("R$ 0,00"))));
+    }
+
+    @Test
+    @WithMockUser(username = "harrison", roles = "OWNER")
+    void maskedBrazilianValuesPersistOnCreateAndEdit() throws Exception {
+        mvc.perform(post("/vehicles")
+                .with(csrf())
+                .param("name", "  Sandero   principal  ")
+                .param("make", "Renault")
+                .param("model", "Sandero")
+                .param("year", "2013")
+                .param("plate", "mno-4321")
+                .param("fuelType", "FLEX")
+                .param("initialOdometer", "248.351,5")
+                .param("purchasePrice", "23.990,00"))
+            .andExpect(status().is3xxRedirection())
+            .andExpect(redirectedUrl("/vehicles"));
+
+        var created = vehicleRepository.findAll().stream()
+            .filter(candidate -> candidate.getPlate().equals("MNO4321"))
+            .findFirst()
+            .orElseThrow();
+
+        assertThat(created.getName()).isEqualTo("Sandero principal");
+        assertThat(created.getCurrentOdometer()).isEqualByComparingTo("248351.5");
+        assertThat(created.getPurchasePrice()).isEqualByComparingTo("23990.00");
+
+        mvc.perform(post("/vehicles/{id}", created.getId())
+                .with(csrf())
+                .param("name", "Sandero principal")
+                .param("make", "Renault")
+                .param("model", "Sandero")
+                .param("year", "2013")
+                .param("plate", "mno4p21")
+                .param("fuelType", "FLEX")
+                .param("initialOdometer", "248.352")
+                .param("purchasePrice", "24.500,50"))
+            .andExpect(status().is3xxRedirection())
+            .andExpect(redirectedUrl("/vehicles/" + created.getId()));
+
+        var updated = vehicleRepository.findById(created.getId()).orElseThrow();
+        assertThat(updated.getPlate()).isEqualTo("MNO4P21");
+        assertThat(updated.getCurrentOdometer()).isEqualByComparingTo("248352.0");
+        assertThat(updated.getPurchasePrice()).isEqualByComparingTo("24500.50");
     }
 
     @Test
