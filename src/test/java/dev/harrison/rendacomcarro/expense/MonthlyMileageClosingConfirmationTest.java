@@ -14,7 +14,6 @@ import dev.harrison.rendacomcarro.vehicle.application.VehicleService;
 import dev.harrison.rendacomcarro.vehicle.domain.FuelType;
 import java.math.BigDecimal;
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.time.YearMonth;
 import java.util.Set;
 import java.util.UUID;
@@ -88,8 +87,8 @@ class MonthlyMileageClosingConfirmationTest extends PostgresIntegrationTest {
     @Test
     void blockingPreviewCannotBeConfirmed() {
         var vehicle = createVehicle("D");
-        YearMonth month = YearMonth.now();
-        days.openDay(month.atDay(Math.min(2, month.lengthOfMonth())), vehicle.getId(),
+        YearMonth month = YearMonth.now().plusMonths(1);
+        days.openDay(month.atDay(2), vehicle.getId(),
             new BigDecimal("200.00"), new BigDecimal("10000.0"));
 
         assertThatThrownBy(() -> closings.confirm(
@@ -101,11 +100,8 @@ class MonthlyMileageClosingConfirmationTest extends PostgresIntegrationTest {
 
     private Scenario closedScenario(String suffix) {
         var vehicle = createVehicle(suffix);
-        YearMonth month = YearMonth.now();
-        LocalDate date = LocalDate.now().minusDays(2);
-        if (!YearMonth.from(date).equals(month)) {
-            date = month.atDay(1);
-        }
+        YearMonth month = YearMonth.now().plusMonths(1);
+        LocalDate date = month.atDay(2);
         var day = days.openDay(date, vehicle.getId(), new BigDecimal("200.00"),
             new BigDecimal("10000.0"));
         UUID uberId = platforms.findByCode("UBER").map(Platform::getId).orElseThrow();
