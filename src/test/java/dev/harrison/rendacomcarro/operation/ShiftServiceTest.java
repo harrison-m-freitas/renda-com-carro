@@ -1,5 +1,7 @@
 package dev.harrison.rendacomcarro.operation;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 import dev.harrison.rendacomcarro.operation.application.OperationalDayService;
 import dev.harrison.rendacomcarro.operation.application.ShiftService;
 import dev.harrison.rendacomcarro.operation.domain.Platform;
@@ -11,16 +13,14 @@ import dev.harrison.rendacomcarro.vehicle.domain.FuelType;
 import dev.harrison.rendacomcarro.vehicle.domain.Vehicle;
 import java.math.BigDecimal;
 import java.time.Duration;
-import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.Set;
+import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.TestPropertySource;
-
-import static org.assertj.core.api.Assertions.assertThat;
 
 @SpringBootTest
 @TestPropertySource(properties = {
@@ -33,26 +33,31 @@ class ShiftServiceTest extends PostgresIntegrationTest {
     @Autowired ShiftService shiftService;
     @Autowired PlatformRepository platformRepository;
 
-    private java.util.UUID dayId;
-    private java.util.UUID uberId;
+    private UUID vehicleId;
+    private UUID dayId;
+    private UUID uberId;
+    private LocalDateTime startTime;
 
     @BeforeEach
     void setUp() {
         Vehicle vehicle = vehicleService.create(new VehicleService.CreateVehicleCommand(
-            "Carro dos turnos", "Toyota", "Etios", 2015, "OPS1A23", FuelType.FLEX,
-            new BigDecimal("1000.0"), new BigDecimal("30000.00")));
+            "Carro dos turnos", "Toyota", "Etios", 2015,
+            "S" + UUID.randomUUID().toString().replace("-", "").substring(0, 6).toUpperCase(),
+            FuelType.FLEX, new BigDecimal("1000.0"), new BigDecimal("30000.00")));
         vehicleService.activateAsPrimary(vehicle.getId());
+        vehicleId = vehicle.getId();
+        startTime = vehicle.getCurrentOdometerRecordedAt().plusMinutes(1);
         dayId = dayService.openDay(
-            LocalDate.of(2026, 7, 12), vehicle.getId(), new BigDecimal("180.00"), new BigDecimal("1000.0")
+            startTime.toLocalDate(), vehicle.getId(), new BigDecimal("180.00"), new BigDecimal("1000.0")
         ).getId();
         uberId = platformRepository.findByCode("UBER").map(Platform::getId).orElseThrow();
     }
 
     @Test
-    void closingShiftCalculatesDistanceAndDuration() {
+    void closingShiftCalculatesMetricsAndUpdatesVehicleOdometer() {
         Shift shift = shiftService.openShift(
             dayId,
-            LocalDateTime.of(2026, 7, 12, 8, 0),
+            startTime,
             new BigDecimal("1000.0"),
             "Centro",
             Set.of(uberId)
@@ -60,7 +65,7 @@ class ShiftServiceTest extends PostgresIntegrationTest {
 
         Shift closed = shiftService.closeShift(
             shift.getId(),
-            LocalDateTime.of(2026, 7, 12, 11, 30),
+            startTime.plusHours(3).plusMinutes(30),
             new BigDecimal("1082.4"),
             "Pampulha",
             Set.of("Centro", "Pampulha")
@@ -68,5 +73,6 @@ class ShiftServiceTest extends PostgresIntegrationTest {
 
         assertThat(closed.getDistance()).isEqualByComparingTo("82.4");
         assertThat(closed.getDuration()).isEqualTo(Duration.ofHours(3).plusMinutes(30));
+        assertThat(vehicleService.get(vehicleId).getCurrentOdometer()).isEqualByComparingTo("1082.4");
     }
 }
