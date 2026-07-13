@@ -25,6 +25,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.transaction.annotation.Transactional;
 
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -32,6 +33,7 @@ import org.springframework.test.web.servlet.MockMvc;
     "APP_ADMIN_USERNAME=draft-api-owner",
     "APP_ADMIN_PASSWORD=draft-api-owner-password"
 })
+@Transactional
 class FormDraftApiTest extends PostgresIntegrationTest {
     @Autowired MockMvc mvc;
     @Autowired ObjectMapper mapper;
