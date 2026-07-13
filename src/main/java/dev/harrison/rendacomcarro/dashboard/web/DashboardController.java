@@ -1,12 +1,1 @@
-package dev.harrison.rendacomcarro.dashboard.web;
-
-import org.springframework.stereotype.Controller;
-import org.springframework.web.bind.annotation.GetMapping;
-
-@Controller
-public class DashboardController {
-    @GetMapping("/")
-    public String index() {
-        return "dashboard/index";
-    }
-}
+package dev.harrison.rendacomcarro.dashboard.web;import dev.harrison.rendacomcarro.dashboard.application.DashboardService;import java.time.LocalDate;import org.springframework.stereotype.Controller;import org.springframework.ui.Model;import org.springframework.web.bind.annotation.GetMapping;@Controller public class DashboardController {private final DashboardService service;public DashboardController(DashboardService s){service=s;}@GetMapping("/")public String index(Model model){model.addAttribute("snapshot",service.snapshot(LocalDate.now()));return"dashboard/index";}}
