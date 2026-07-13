@@ -78,18 +78,59 @@
 .vehicle-form-back:hover { color: var(--bs-primary); }
 .vehicle-form-back > span:first-child { font-size: 1.5rem; line-height: 1; }
 .vehicle-form { overflow: visible; }
-.vehicle-form-section { padding: 1.5rem; }
-.vehicle-form-section__header { margin-bottom: 1.25rem; }
-.vehicle-year-plate-grid { display: grid; grid-template-columns: 1fr; gap: 1rem; }
+.vehicle-form-section { padding: 1.25rem 1.5rem; }
+.vehicle-form-section__header { margin-bottom: 1rem; }
+.vehicle-identification-grid,
+.vehicle-year-plate-grid,
+.vehicle-operation-grid,
+.vehicle-acquisition-grid {
+  display: grid;
+  gap: 1rem;
+  align-items: start;
+}
+.vehicle-identification-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.vehicle-year-plate-grid {
+  grid-template-columns: minmax(7ch, .42fr) minmax(12ch, 1.58fr);
+}
+.vehicle-operation-grid {
+  grid-template-columns: minmax(0, .85fr) minmax(0, 1.15fr);
+}
+.vehicle-acquisition-grid {
+  grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+}
+.vehicle-acquisition-grid > * { grid-column: 1; }
 .vehicle-form .form-label { font-weight: 600; }
 .vehicle-form .form-control,
 .vehicle-form .form-select,
 .vehicle-form .input-group-text { min-height: 44px; }
 .vehicle-form .form-text { max-width: 42rem; }
+.vehicle-form .input-group:focus-within {
+  border-radius: var(--bs-border-radius);
+  outline: 3px solid rgba(13, 110, 253, .25);
+  outline-offset: 1px;
+}
+.vehicle-form .input-group .form-control:focus {
+  box-shadow: none;
+  outline: 0;
+}
+.vehicle-form .input-group.is-invalid-group {
+  border-radius: var(--bs-border-radius);
+  outline: 2px solid rgba(var(--bs-danger-rgb), .35);
+  outline-offset: 1px;
+}
 .vehicle-form-actions { background: var(--bs-body-bg); }
 
-@media (min-width: 390px) {
-  .vehicle-year-plate-grid { grid-template-columns: minmax(7rem, .42fr) minmax(0, 1fr); }
+@media (max-width: 47.99rem) {
+  .vehicle-identification-grid,
+  .vehicle-operation-grid,
+  .vehicle-acquisition-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .vehicle-acquisition-grid > * { grid-column: auto; }
+}
+
+@media (max-width: 22rem) {
+  .vehicle-year-plate-grid { grid-template-columns: minmax(0, 1fr); }
 }
 
 @media (max-width: 767.98px) {
