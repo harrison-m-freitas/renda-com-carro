@@ -64,6 +64,22 @@ class OperationalDayFlowTest extends PostgresIntegrationTest {
             .isEqualByComparingTo("50075.5");
     }
 
+    @Test
+    void closingHistoricalDayDoesNotReduceCurrentOdometer() {
+        var vehicle = createVehicle("50000.0");
+        var historicalDay = dayService.openDay(
+            LocalDate.now().minusMonths(2),
+            vehicle.getId(),
+            new BigDecimal("180.00"),
+            new BigDecimal("47000.0")
+        );
+
+        dayService.closeDay(historicalDay.getId(), new BigDecimal("47080.0"));
+
+        assertThat(vehicleService.get(vehicle.getId()).getCurrentOdometer())
+            .isEqualByComparingTo("50000.0");
+    }
+
     private dev.harrison.rendacomcarro.vehicle.domain.Vehicle createVehicle(String odometer) {
         String plate = "D" + UUID.randomUUID().toString().replace("-", "").substring(0, 6).toUpperCase();
         var vehicle = vehicleService.create(new VehicleService.CreateVehicleCommand(
