@@ -33,8 +33,29 @@ public class FormDraftService {
         int currentStep,
         Long expectedVersion,
         ObjectNode payload,
+        boolean validateCurrentStep,
         boolean force
     ) {
+        public SaveDraftCommand(
+            FormDraftType formType,
+            String contextKey,
+            int schemaVersion,
+            int currentStep,
+            Long expectedVersion,
+            ObjectNode payload,
+            boolean force
+        ) {
+            this(
+                formType,
+                contextKey,
+                schemaVersion,
+                currentStep,
+                expectedVersion,
+                payload,
+                false,
+                force
+            );
+        }
     }
 
     public record DraftView(
@@ -108,7 +129,8 @@ public class FormDraftService {
         String contextKey = normalizeAndCheckKey(definition, command.contextKey());
         ObjectNode normalized = definition.normalizeAndValidate(
             command.payload().deepCopy(),
-            command.currentStep()
+            command.currentStep(),
+            command.validateCurrentStep()
         );
         String json = writeAndCheckSize(normalized);
         LocalDateTime now = LocalDateTime.now(clock);
