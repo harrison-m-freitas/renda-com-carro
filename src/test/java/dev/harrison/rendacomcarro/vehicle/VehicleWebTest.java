@@ -55,6 +55,15 @@ class VehicleWebTest extends PostgresIntegrationTest {
             .andExpect(content().string(containsString("Apelido do veículo")))
             .andExpect(content().string(containsString("Cadastrar veículo")))
             .andExpect(content().string(containsString("appMobileNavigation")))
+            .andExpect(content().string(containsString("vehicle-identification-grid")))
+            .andExpect(content().string(containsString("vehicle-operation-grid")))
+            .andExpect(content().string(containsString("vehicle-acquisition-grid")))
+            .andExpect(content().string(containsString("data-normalize-spaces")))
+            .andExpect(content().string(containsString("data-odometer-input")))
+            .andExpect(content().string(containsString("data-money-input")))
+            .andExpect(content().string(containsString("data-max-digits=\"14\"")))
+            .andExpect(content().string(containsString("data-max-integer-digits=\"11\"")))
+            .andExpect(content().string(containsString("type=\"module\"")))
             .andExpect(content().string(not(containsString(">Salvar veículo<"))));
     }
 
