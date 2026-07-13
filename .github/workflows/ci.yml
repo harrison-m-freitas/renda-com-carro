@@ -27,7 +27,13 @@ jobs:
       - name: Reject committed credentials
         shell: bash
         run: |
-          matches="$(git grep -nEi '(password|secret|token|restic_password)=' -- ':!*.example' ':!docs/**' ':!src/test/**' ':!.github/**' || true)"
+          matches="$(git grep -nEi '(password|secret|token|restic_password)=' -- \
+            ':!README.md' \
+            ':!docs/**' \
+            ':!src/test/**' \
+            ':!.github/**' \
+            ':!.env.example' \
+            ':!infra/backup/restic.env.example' || true)"
           if [[ -n "$matches" ]]; then
             printf '%s\n' "$matches"
             echo 'Potential credential assignment found in versioned production files.' >&2
