@@ -18,6 +18,9 @@ class FlexibleBigDecimalEditorTest {
         editor.setAsText("1234.56");
         assertThat(editor.getValue()).isEqualTo(new BigDecimal("1234.56"));
 
+        editor.setAsText("248.351");
+        assertThat(editor.getValue()).isEqualTo(new BigDecimal("248351"));
+
         editor.setAsText("75");
         assertThat(editor.getValue()).isEqualTo(new BigDecimal("75"));
 
