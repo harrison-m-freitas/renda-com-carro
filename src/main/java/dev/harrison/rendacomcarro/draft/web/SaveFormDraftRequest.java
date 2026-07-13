@@ -9,6 +9,7 @@ public record SaveFormDraftRequest(
     int schemaVersion,
     int currentStep,
     Long version,
+    boolean validateCurrentStep,
     boolean force,
     ObjectNode payload
 ) {
@@ -20,6 +21,7 @@ public record SaveFormDraftRequest(
             currentStep,
             version,
             payload,
+            validateCurrentStep,
             force
         );
     }
