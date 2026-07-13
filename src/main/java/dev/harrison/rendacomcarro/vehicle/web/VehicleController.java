@@ -1,14 +1,18 @@
 package dev.harrison.rendacomcarro.vehicle.web;
 
+import dev.harrison.rendacomcarro.shared.web.BrazilianBigDecimalEditor;
 import dev.harrison.rendacomcarro.vehicle.application.VehicleService;
 import dev.harrison.rendacomcarro.vehicle.domain.FuelType;
 import dev.harrison.rendacomcarro.vehicle.domain.Vehicle;
 import jakarta.validation.Valid;
+import java.math.BigDecimal;
 import java.util.UUID;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.validation.BindingResult;
+import org.springframework.web.bind.WebDataBinder;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.InitBinder;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -22,6 +26,20 @@ public class VehicleController {
 
     public VehicleController(VehicleService service) {
         this.service = service;
+    }
+
+    @InitBinder("vehicleForm")
+    void bindBrazilianVehicleNumbers(WebDataBinder binder) {
+        binder.registerCustomEditor(
+            BigDecimal.class,
+            "initialOdometer",
+            new BrazilianBigDecimalEditor()
+        );
+        binder.registerCustomEditor(
+            BigDecimal.class,
+            "purchasePrice",
+            new BrazilianBigDecimalEditor()
+        );
     }
 
     @ModelAttribute("fuelTypes")
@@ -88,9 +106,7 @@ public class VehicleController {
             form.setPlate(vehicle.getPlate());
             form.setFuelType(vehicle.getFuelType());
             form.setInitialOdometer(vehicle.getCurrentOdometer());
-            if (vehicle.getPurchasePrice().signum() > 0) {
-                form.setPurchasePrice(vehicle.getPurchasePrice());
-            }
+            form.setPurchasePrice(vehicle.getPurchasePrice());
             model.addAttribute("vehicleForm", form);
         }
         model.addAttribute("vehicle", vehicle);
