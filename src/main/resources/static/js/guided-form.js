@@ -145,62 +145,67 @@ export class GuidedFormController {
     if (!this.type || !this.contextKey()) return null;
     if (this.savePromise && !immediate) return this.savePromise;
 
-    const payload = serializeEditableFields(this.form);
-    const detail = {
-      form: this.form,
-      payload,
-      currentStep: this.currentStep,
-      contextKey: this.contextKey(),
+    const runSave = () => {
+      const payload = serializeEditableFields(this.form);
+      const detail = {
+        form: this.form,
+        payload,
+        currentStep: this.currentStep,
+        contextKey: this.contextKey(),
+      };
+      document.dispatchEvent(new CustomEvent("guided-form:before-save", { detail }));
+
+      if (!detail.contextKey) return Promise.resolve(null);
+      if (detail.contextKey !== this.lastContextKey) {
+        this.version = null;
+        this.form.dataset.draftVersion = "";
+        this.lastContextKey = detail.contextKey;
+      }
+      this.form.dataset.draftContextKey = detail.contextKey;
+
+      const state = {
+        contextKey: detail.contextKey,
+        schemaVersion: this.schemaVersion,
+        currentStep: this.currentStep,
+        version: this.version,
+        validateCurrentStep,
+        force,
+        payload: detail.payload,
+      };
+
+      if (!quiet) this.setSaveStatus("Salvando…", "saving");
+      return this.client.save(this.type, state, { keepalive })
+        .then((saved) => {
+          this.version = saved.version;
+          this.lastContextKey = saved.contextKey;
+          this.form.dataset.draftVersion = String(saved.version);
+          this.form.dataset.draftContextKey = saved.contextKey;
+          if (!quiet) {
+            this.setSaveStatus(
+              `Rascunho salvo às ${formatTime(saved.updatedAt ?? new Date())}`,
+              "saved",
+            );
+          }
+          return saved;
+        })
+        .catch((error) => {
+          if (error instanceof DraftConflictError) {
+            this.pendingConflict = error;
+            this.populateConflict(error.current);
+            this.showDialog("conflict");
+          }
+          if (!quiet) this.setSaveStatus("Falha ao salvar — tentar novamente", "error");
+          throw error;
+        });
     };
-    document.dispatchEvent(new CustomEvent("guided-form:before-save", { detail }));
 
-    if (!detail.contextKey) return null;
-    if (detail.contextKey !== this.lastContextKey) {
-      this.version = null;
-      this.form.dataset.draftVersion = "";
-      this.lastContextKey = detail.contextKey;
-    }
-    this.form.dataset.draftContextKey = detail.contextKey;
-
-    const state = {
-      contextKey: detail.contextKey,
-      schemaVersion: this.schemaVersion,
-      currentStep: this.currentStep,
-      version: this.version,
-      validateCurrentStep,
-      force,
-      payload: detail.payload,
-    };
-
-    if (!quiet) this.setSaveStatus("Salvando…", "saving");
-    const operation = this.client.save(this.type, state, { keepalive })
-      .then((saved) => {
-        this.version = saved.version;
-        this.lastContextKey = saved.contextKey;
-        this.form.dataset.draftVersion = String(saved.version);
-        this.form.dataset.draftContextKey = saved.contextKey;
-        if (!quiet) {
-          this.setSaveStatus(
-            `Rascunho salvo às ${formatTime(saved.updatedAt ?? new Date())}`,
-            "saved",
-          );
-        }
-        return saved;
-      })
-      .catch((error) => {
-        if (error instanceof DraftConflictError) {
-          this.pendingConflict = error;
-          this.populateConflict(error.current);
-          this.showDialog("conflict");
-        }
-        if (!quiet) this.setSaveStatus("Falha ao salvar — tentar novamente", "error");
-        throw error;
-      })
-      .finally(() => {
-        if (this.savePromise === operation) this.savePromise = null;
-      });
-    this.savePromise = operation;
-    return operation;
+    const previousSave = this.savePromise;
+    const operation = previousSave ? previousSave.then(runSave) : runSave();
+    const trackedOperation = operation.finally(() => {
+      if (this.savePromise === trackedOperation) this.savePromise = null;
+    });
+    this.savePromise = trackedOperation;
+    return trackedOperation;
   }
 
   validateCurrentStep() {
