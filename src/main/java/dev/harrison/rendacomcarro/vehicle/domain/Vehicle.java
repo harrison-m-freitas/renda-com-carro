@@ -82,20 +82,21 @@ public class Vehicle {
         BigDecimal initialOdometer,
         BigDecimal purchasePrice
     ) {
+        BigDecimal normalizedPrice = defaultZero(purchasePrice);
         validateNonNegative(initialOdometer, "Odômetro inicial");
-        validateNonNegative(purchasePrice, "Preço de compra");
+        validateNonNegative(normalizedPrice, "Preço de compra");
         this.id = UUID.randomUUID();
-        this.name = requireText(name, "Nome");
         this.make = requireText(make, "Marca");
         this.model = requireText(model, "Modelo");
+        this.name = resolveName(name, this.make, this.model);
         this.year = year;
-        this.plate = requireText(plate, "Placa").toUpperCase(Locale.ROOT);
-        this.fuelType = fuelType;
+        this.plate = normalizePlate(plate);
+        this.fuelType = requireFuelType(fuelType);
         this.status = VehicleStatus.ACTIVE;
         this.primaryVehicle = false;
         this.initialOdometer = DecimalPolicy.distance(initialOdometer);
         this.currentOdometer = this.initialOdometer;
-        this.purchasePrice = DecimalPolicy.money(purchasePrice);
+        this.purchasePrice = DecimalPolicy.money(normalizedPrice);
         this.createdAt = LocalDateTime.now();
         this.updatedAt = this.createdAt;
         this.currentOdometerRecordedAt = this.createdAt;
@@ -125,14 +126,15 @@ public class Vehicle {
         FuelType fuelType,
         BigDecimal purchasePrice
     ) {
-        validateNonNegative(purchasePrice, "Preço de compra");
-        this.name = requireText(name, "Nome");
+        BigDecimal normalizedPrice = defaultZero(purchasePrice);
+        validateNonNegative(normalizedPrice, "Preço de compra");
         this.make = requireText(make, "Marca");
         this.model = requireText(model, "Modelo");
+        this.name = resolveName(name, this.make, this.model);
         this.year = year;
-        this.plate = requireText(plate, "Placa").toUpperCase(Locale.ROOT);
-        this.fuelType = fuelType;
-        this.purchasePrice = DecimalPolicy.money(purchasePrice);
+        this.plate = normalizePlate(plate);
+        this.fuelType = requireFuelType(fuelType);
+        this.purchasePrice = DecimalPolicy.money(normalizedPrice);
         this.updatedAt = LocalDateTime.now();
     }
 
@@ -177,6 +179,34 @@ public class Vehicle {
             throw new IllegalArgumentException(field + " é obrigatório");
         }
         return value.trim();
+    }
+
+    private static FuelType requireFuelType(FuelType value) {
+        if (value == null) {
+            throw new IllegalArgumentException("Combustível é obrigatório");
+        }
+        return value;
+    }
+
+    private static String resolveName(String value, String make, String model) {
+        if (value == null || value.isBlank()) {
+            return make + " " + model;
+        }
+        return value.trim();
+    }
+
+    private static String normalizePlate(String value) {
+        String normalized = requireText(value, "Placa")
+            .replaceAll("[\\s-]", "")
+            .toUpperCase(Locale.ROOT);
+        if (!normalized.matches("[A-Z]{3}[0-9][A-Z0-9][0-9]{2}")) {
+            throw new IllegalArgumentException("Informe uma placa no formato ABC-1234 ou ABC1D23");
+        }
+        return normalized;
+    }
+
+    private static BigDecimal defaultZero(BigDecimal value) {
+        return value == null ? BigDecimal.ZERO : value;
     }
 
     private static void validateNonNegative(BigDecimal value, String field) {
