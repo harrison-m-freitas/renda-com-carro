@@ -21,5 +21,11 @@ public interface FormDraftRepository extends JpaRepository<FormDraft, UUID> {
         LocalDateTime now
     );
 
+    long deleteByOwnerUsernameAndFormTypeAndContextKey(
+        String username,
+        FormDraftType formType,
+        String contextKey
+    );
+
     long deleteByExpiresAtLessThanEqual(LocalDateTime cutoff);
 }
