@@ -196,13 +196,9 @@ public class Vehicle {
     }
 
     private static String normalizePlate(String value) {
-        String normalized = requireText(value, "Placa")
+        return requireText(value, "Placa")
             .replaceAll("[\\s-]", "")
             .toUpperCase(Locale.ROOT);
-        if (!normalized.matches("[A-Z]{3}[0-9][A-Z0-9][0-9]{2}")) {
-            throw new IllegalArgumentException("Informe uma placa no formato ABC-1234 ou ABC1D23");
-        }
-        return normalized;
     }
 
     private static BigDecimal defaultZero(BigDecimal value) {
