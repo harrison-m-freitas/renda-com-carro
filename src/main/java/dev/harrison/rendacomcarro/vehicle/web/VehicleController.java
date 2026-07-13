@@ -88,7 +88,9 @@ public class VehicleController {
             form.setPlate(vehicle.getPlate());
             form.setFuelType(vehicle.getFuelType());
             form.setInitialOdometer(vehicle.getCurrentOdometer());
-            form.setPurchasePrice(vehicle.getPurchasePrice());
+            if (vehicle.getPurchasePrice().signum() > 0) {
+                form.setPurchasePrice(vehicle.getPurchasePrice());
+            }
             model.addAttribute("vehicleForm", form);
         }
         model.addAttribute("vehicle", vehicle);
