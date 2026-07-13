@@ -12,6 +12,27 @@ const trimLeadingZeros = (digits) => {
 const groupThousands = (digits) => trimLeadingZeros(digits)
   .replace(/\B(?=(\d{3})+(?!\d))/g, '.');
 
+export const applyMoneyEdit = (
+  currentDigits,
+  {
+    inputType = '',
+    data = '',
+    replaceAll = false,
+    maxDigits = DEFAULT_MONEY_DIGITS
+  } = {}
+) => {
+  const current = digitsOnly(currentDigits).slice(0, maxDigits);
+  if (inputType.startsWith('delete')) {
+    return replaceAll ? '' : current.slice(0, -1);
+  }
+
+  const inserted = digitsOnly(data);
+  if (!inserted) return current;
+
+  const base = replaceAll ? '' : current;
+  return `${base}${inserted}`.slice(0, maxDigits);
+};
+
 export const formatMoneyInput = (raw, maxDigits = DEFAULT_MONEY_DIGITS) => {
   const digits = digitsOnly(raw).slice(0, maxDigits);
   if (!digits) return '';
