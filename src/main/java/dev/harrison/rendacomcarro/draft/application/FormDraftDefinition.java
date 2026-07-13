@@ -12,5 +12,13 @@ public interface FormDraftDefinition {
 
     String normalizeContextKey(String contextKey);
 
-    ObjectNode normalizeAndValidate(ObjectNode payload, int currentStep);
+    default ObjectNode normalizeAndValidate(ObjectNode payload, int currentStep) {
+        return normalizeAndValidate(payload, currentStep, true);
+    }
+
+    ObjectNode normalizeAndValidate(
+        ObjectNode payload,
+        int currentStep,
+        boolean validateCurrentStep
+    );
 }
