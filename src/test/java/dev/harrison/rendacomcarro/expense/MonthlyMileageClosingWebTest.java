@@ -2,6 +2,7 @@ package dev.harrison.rendacomcarro.expense;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.containsString;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
@@ -67,6 +68,7 @@ class MonthlyMileageClosingWebTest extends PostgresIntegrationTest {
         Scenario scenario = closedScenario();
 
         mvc.perform(post("/mileage-closings")
+                .with(csrf())
                 .param("vehicleId", scenario.vehicleId().toString())
                 .param("month", scenario.month().toString())
                 .param("manualAdjustment", "false")
@@ -89,6 +91,7 @@ class MonthlyMileageClosingWebTest extends PostgresIntegrationTest {
         Scenario scenario = closedScenario();
 
         mvc.perform(post("/mileage-closings")
+                .with(csrf())
                 .param("vehicleId", scenario.vehicleId().toString())
                 .param("month", scenario.month().toString())
                 .param("manualAdjustment", "true")
@@ -106,7 +109,7 @@ class MonthlyMileageClosingWebTest extends PostgresIntegrationTest {
     @WithMockUser(username = "harrison", roles = "OWNER")
     void blockingPreviewDoesNotOfferConfirmation() throws Exception {
         var vehicle = createVehicle();
-        YearMonth month = YearMonth.now();
+        YearMonth month = YearMonth.now().plusMonths(1);
         days.openDay(month.atDay(1), vehicle.getId(), new BigDecimal("200.00"),
             new BigDecimal("10000.0"));
 
@@ -120,11 +123,8 @@ class MonthlyMileageClosingWebTest extends PostgresIntegrationTest {
 
     private Scenario closedScenario() {
         var vehicle = createVehicle();
-        YearMonth month = YearMonth.now();
-        LocalDate date = LocalDate.now().minusDays(2);
-        if (!YearMonth.from(date).equals(month)) {
-            date = month.atDay(1);
-        }
+        YearMonth month = YearMonth.now().plusMonths(1);
+        LocalDate date = month.atDay(2);
         var day = days.openDay(date, vehicle.getId(), new BigDecimal("200.00"),
             new BigDecimal("10000.0"));
         UUID uberId = platforms.findByCode("UBER").map(Platform::getId).orElseThrow();
