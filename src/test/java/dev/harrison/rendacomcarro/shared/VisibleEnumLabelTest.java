@@ -21,6 +21,7 @@ import dev.harrison.rendacomcarro.shared.domain.LabeledEnum;
 import dev.harrison.rendacomcarro.vehicle.domain.FuelType;
 import dev.harrison.rendacomcarro.vehicle.domain.VehicleStatus;
 import java.util.List;
+import java.util.Set;
 import org.junit.jupiter.api.Test;
 
 class VisibleEnumLabelTest {
@@ -41,6 +42,8 @@ class VisibleEnumLabelTest {
         OwnerType.class
     );
 
+    private static final Set<String> APPROVED_ACRONYM_LABELS = Set.of("API");
+
     @Test
     void everyVisibleEnumHasFriendlyPortugueseLabel() {
         for (Class<? extends Enum<?>> type : VISIBLE_ENUMS) {
@@ -49,8 +52,11 @@ class VisibleEnumLabelTest {
                 String label = ((LabeledEnum) constant).getLabel();
                 assertNotNull(label, constant.name());
                 assertFalse(label.isBlank(), constant.name());
-                assertNotEquals(constant.name(), label, constant.name());
-                assertFalse(label.matches("[A-Z0-9_]+"), constant.name());
+
+                if (!APPROVED_ACRONYM_LABELS.contains(label)) {
+                    assertNotEquals(constant.name(), label, constant.name());
+                    assertFalse(label.matches("[A-Z0-9_]+"), constant.name());
+                }
             }
         }
     }
