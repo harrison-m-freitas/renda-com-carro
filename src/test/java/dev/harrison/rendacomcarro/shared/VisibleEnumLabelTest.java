@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import dev.harrison.rendacomcarro.attachment.domain.OwnerType;
+import dev.harrison.rendacomcarro.expense.application.OdometerOrigin;
 import dev.harrison.rendacomcarro.expense.domain.AllocationMethod;
 import dev.harrison.rendacomcarro.expense.domain.ExpenseClassification;
 import dev.harrison.rendacomcarro.finance.domain.InstallmentStatus;
@@ -39,7 +40,8 @@ class VisibleEnumLabelTest {
         ObligationMode.class,
         ObligationStatus.class,
         InstallmentStatus.class,
-        OwnerType.class
+        OwnerType.class,
+        OdometerOrigin.class
     );
 
     private static final Set<String> APPROVED_ACRONYM_LABELS = Set.of("API");
@@ -52,7 +54,6 @@ class VisibleEnumLabelTest {
                 String label = ((LabeledEnum) constant).getLabel();
                 assertNotNull(label, constant.name());
                 assertFalse(label.isBlank(), constant.name());
-
                 if (!APPROVED_ACRONYM_LABELS.contains(label)) {
                     assertNotEquals(constant.name(), label, constant.name());
                     assertFalse(label.matches("[A-Z0-9_]+"), constant.name());
