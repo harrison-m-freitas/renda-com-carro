@@ -18,6 +18,22 @@ A instalação no Raspberry só deve ser considerada pronta após concluir os it
 - implantação privada em Raspberry Pi por Tailscale;
 - Restic + rclone para backup criptografado.
 
+## Usabilidade e fechamento mensal
+
+Os valores técnicos dos enums continuam persistidos em inglês, preservando estabilidade no Java e no PostgreSQL. A interface apresenta rótulos em português por meio do contrato `LabeledEnum`, inclusive em selects, tabelas, detalhes e badges.
+
+O fechamento mensal de quilometragem não exige mais a digitação normal de início, fim e quilômetros profissionais. O fluxo é:
+
+1. selecionar veículo e mês;
+2. revisar a prévia inferida a partir de dias, turnos e abastecimentos;
+3. verificar a origem das leituras e os alertas;
+4. confirmar os valores automáticos;
+5. usar **Corrigir valores** somente quando necessário, com justificativa obrigatória.
+
+O fechamento armazena os valores inferidos e confirmados, as origens das leituras, as datas de cálculo/confirmação e o motivo da correção. Turnos ou dias abertos, duplicidade e regressões de odômetro bloqueiam a confirmação.
+
+O odômetro atual do veículo é atualizado por um serviço central e rastreável. Leituras históricas permanecem registradas, mas não reduzem a leitura atual.
+
 ## Desenvolvimento
 
 Pré-requisitos: Java 21 e Docker.
