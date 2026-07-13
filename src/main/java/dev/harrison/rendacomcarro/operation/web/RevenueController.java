@@ -40,7 +40,7 @@ public class RevenueController {
     @GetMapping("/new")
     public String form(@PathVariable UUID shiftId, Model model) {
         model.addAttribute("shift", shiftService.get(shiftId));
-        model.addAttribute("platforms", platformRepository.findAllByActiveTrueOrderByName());
+        model.addAttribute("platforms", platformRepository.findAllByActiveTrueOrderByNameAsc());
         if (!model.containsAttribute("revenueForm")) model.addAttribute("revenueForm", new RevenueForm());
         return "revenues/form";
     }
@@ -53,7 +53,7 @@ public class RevenueController {
                          RedirectAttributes redirectAttributes) {
         if (bindingResult.hasErrors()) {
             model.addAttribute("shift", shiftService.get(shiftId));
-            model.addAttribute("platforms", platformRepository.findAllByActiveTrueOrderByName());
+            model.addAttribute("platforms", platformRepository.findAllByActiveTrueOrderByNameAsc());
             return "revenues/form";
         }
         revenueService.create(new RevenueService.CreateRevenueCommand(
