@@ -1,6 +1,10 @@
 package dev.harrison.rendacomcarro.vehicle;
 
 import dev.harrison.rendacomcarro.support.PostgresIntegrationTest;
+import dev.harrison.rendacomcarro.vehicle.application.VehicleService;
+import dev.harrison.rendacomcarro.vehicle.domain.FuelType;
+import dev.harrison.rendacomcarro.vehicle.infrastructure.VehicleRepository;
+import java.math.BigDecimal;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -9,9 +13,13 @@ import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.not;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.redirectedUrl;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.view;
@@ -24,6 +32,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 })
 class VehicleWebTest extends PostgresIntegrationTest {
     @Autowired MockMvc mvc;
+    @Autowired VehicleService vehicleService;
+    @Autowired VehicleRepository vehicleRepository;
 
     @Test
     @WithMockUser(username = "harrison", roles = "OWNER")
@@ -31,6 +41,60 @@ class VehicleWebTest extends PostgresIntegrationTest {
         mvc.perform(get("/vehicles"))
             .andExpect(status().isOk())
             .andExpect(view().name("vehicles/list"));
+    }
+
+    @Test
+    @WithMockUser(username = "harrison", roles = "OWNER")
+    void newVehicleFormUsesGroupedResponsiveLayout() throws Exception {
+        mvc.perform(get("/vehicles/new"))
+            .andExpect(status().isOk())
+            .andExpect(view().name("vehicles/form"))
+            .andExpect(content().string(containsString("Identificação")))
+            .andExpect(content().string(containsString("Dados de operação")))
+            .andExpect(content().string(containsString("Aquisição")))
+            .andExpect(content().string(containsString("Apelido do veículo")))
+            .andExpect(content().string(containsString("Cadastrar veículo")))
+            .andExpect(content().string(containsString("appMobileNavigation")))
+            .andExpect(content().string(not(containsString(">Salvar veículo<"))));
+    }
+
+    @Test
+    @WithMockUser(username = "harrison", roles = "OWNER")
+    void blankNicknameLegacyPlateAndBlankPriceAreNormalized() throws Exception {
+        mvc.perform(post("/vehicles")
+                .with(csrf())
+                .param("name", "")
+                .param("make", "Toyota")
+                .param("model", "Etios")
+                .param("year", "2015")
+                .param("plate", "xyz-9876")
+                .param("fuelType", "FLEX")
+                .param("initialOdometer", "248.351")
+                .param("purchasePrice", ""))
+            .andExpect(status().is3xxRedirection())
+            .andExpect(redirectedUrl("/vehicles"));
+
+        var vehicle = vehicleRepository.findAll().stream()
+            .filter(candidate -> candidate.getPlate().equals("XYZ9876"))
+            .findFirst()
+            .orElseThrow();
+        assertThat(vehicle.getName()).isEqualTo("Toyota Etios");
+        assertThat(vehicle.getCurrentOdometer()).isEqualByComparingTo("248351.0");
+        assertThat(vehicle.getPurchasePrice()).isEqualByComparingTo(BigDecimal.ZERO);
+    }
+
+    @Test
+    @WithMockUser(username = "harrison", roles = "OWNER")
+    void editVehicleUsesSpecificActionAndTechnicalSummary() throws Exception {
+        var vehicle = vehicleService.create(new VehicleService.CreateVehicleCommand(
+            "Sandero principal", "Renault", "Sandero", 2013, "QWE1R23", FuelType.FLEX,
+            new BigDecimal("120000"), new BigDecimal("23990")));
+
+        mvc.perform(get("/vehicles/{id}/edit", vehicle.getId()))
+            .andExpect(status().isOk())
+            .andExpect(content().string(containsString("Salvar alterações")))
+            .andExpect(content().string(containsString("Renault Sandero")))
+            .andExpect(content().string(containsString("QWE1R23")));
     }
 
     @Test
@@ -44,8 +108,8 @@ class VehicleWebTest extends PostgresIntegrationTest {
                 .param("year", "2015")
                 .param("plate", "ABC1D23")
                 .param("fuelType", "FLEX")
-                .param("initialOdometer", "0.0")
-                .param("purchasePrice", "30000.00"))
+                .param("initialOdometer", "0,0")
+                .param("purchasePrice", "30.000,00"))
             .andExpect(status().is3xxRedirection())
             .andExpect(redirectedUrl("/vehicles"));
     }
