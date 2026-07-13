@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="pt-BR" xmlns:th="http://www.thymeleaf.org">
+<body>
+  <th:block th:fragment="draft-status">
+    <div class="guided-save-status text-secondary small"
+         data-guided-save-status
+         aria-live="polite"></div>
+  </th:block>
+
+  <th:block th:fragment="recovery-modal(prefix)">
+    <div class="modal fade" tabindex="-1"
+         th:id="${prefix + '-draft-recovery'}"
+         data-guided-dialog="recovery"
+         aria-hidden="true">
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h2 class="modal-title fs-5">Rascunho encontrado</h2>
+          </div>
+          <div class="modal-body">
+            <p class="mb-0">
+              Existe um rascunho salvo em
+              <strong data-draft-saved-at>horário desconhecido</strong>.
+            </p>
+          </div>
+          <div class="modal-footer flex-column flex-sm-row">
+            <button class="btn btn-outline-danger" type="button" data-draft-discard>
+              Começar novamente
+            </button>
+            <button class="btn btn-primary" type="button" data-draft-recover>
+              Continuar rascunho
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </th:block>
+
+  <th:block th:fragment="conflict-modal(prefix)">
+    <div class="modal fade" tabindex="-1"
+         th:id="${prefix + '-draft-conflict'}"
+         data-guided-dialog="conflict"
+         aria-hidden="true">
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h2 class="modal-title fs-5">Rascunho alterado em outro dispositivo</h2>
+          </div>
+          <div class="modal-body">
+            <p>Este rascunho foi alterado em outro dispositivo.</p>
+            <dl class="row mb-0 small">
+              <dt class="col-6">Versão deste dispositivo</dt>
+              <dd class="col-6" data-conflict-local-time>horário desconhecido</dd>
+              <dt class="col-6">Versão salva no servidor</dt>
+              <dd class="col-6" data-conflict-server-time>horário desconhecido</dd>
+            </dl>
+          </div>
+          <div class="modal-footer d-grid d-sm-flex">
+            <button class="btn btn-outline-secondary" type="button"
+                    data-conflict-review-local>
+              Revisar minhas alterações
+            </button>
+            <button class="btn btn-outline-danger" type="button"
+                    data-conflict-force-local>
+              Substituir versão do servidor
+            </button>
+            <button class="btn btn-primary" type="button"
+                    data-conflict-use-server>
+              Usar versão mais recente
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </th:block>
+
+  <th:block th:fragment="mobile-actions(finalLabel)">
+    <div class="guided-mobile-actions" aria-label="Navegação das etapas">
+      <div class="guided-mobile-actions__status">
+        <strong data-guided-progress>Etapa 1 de 1</strong>
+        <span th:replace="~{fragments/guided-form :: draft-status}"></span>
+      </div>
+      <div class="d-flex gap-2">
+        <button class="btn btn-outline-secondary flex-fill" type="button"
+                data-guided-previous>
+          Voltar
+        </button>
+        <button class="btn btn-primary flex-fill" type="button"
+                data-guided-next>
+          Continuar
+        </button>
+        <button class="btn btn-primary flex-fill" type="submit"
+                data-guided-final
+                th:text="${finalLabel}">
+          Revisar e salvar
+        </button>
+      </div>
+    </div>
+  </th:block>
+</body>
+</html>

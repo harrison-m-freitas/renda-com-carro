@@ -31,6 +31,13 @@ public class MonthlyOdometerClosingForm {
     private boolean confirmWarnings;
     private String adjustmentReason;
 
+    public String draftContextKey() {
+        if (vehicleId == null || month == null) {
+            return "";
+        }
+        return "vehicle:" + vehicleId + ":month:" + month;
+    }
+
     public UUID getVehicleId() { return vehicleId; }
     public void setVehicleId(UUID vehicleId) { this.vehicleId = vehicleId; }
     public YearMonth getMonth() { return month; }

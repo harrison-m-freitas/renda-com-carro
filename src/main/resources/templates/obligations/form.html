@@ -1,1 +1,192 @@
-<!doctype html><html lang="pt-BR" xmlns:th="http://www.thymeleaf.org" th:replace="~{layouts/app :: layout(~{::section}, 'Nova obrigação')}"><section><h1 class="h2 mb-4">Nova obrigação</h1><div class="card card-body"><form th:action="@{/obligations}" th:object="${obligationForm}" method="post" class="row g-3"><div class="col-md-6"><label class="form-label">Veículo</label><select class="form-select" th:field="*{vehicleId}"><option value="">Sem vínculo</option><option th:each="v:${vehicles}" th:value="${v.id}" th:text="${v.name}"></option></select></div><div class="col-md-6"><label class="form-label">Credor</label><input class="form-control" th:field="*{creditor}"></div><div class="col-md-4"><label class="form-label">Tipo</label><select class="form-select" th:field="*{type}"><option th:each="t:${types}" th:value="${t}" th:text="${t.label}"></option></select></div><div class="col-md-4"><label class="form-label">Modo</label><select class="form-select" th:field="*{mode}"><option th:each="m:${modes}" th:value="${m}" th:text="${m.label}"></option></select></div><div class="col-md-4"><label class="form-label">Principal</label><input class="form-control" type="number" step="0.01" th:field="*{principal}"></div><div class="col-md-3"><label class="form-label">Juros anuais</label><input class="form-control" type="number" step="0.000001" th:field="*{annualRate}"></div><div class="col-md-3"><label class="form-label">Início</label><input class="form-control" type="date" th:field="*{startDate}"></div><div class="col-md-3"><label class="form-label">Primeiro vencimento</label><input class="form-control" type="date" th:field="*{firstDueDate}"></div><div class="col-md-3"><label class="form-label">Parcelas</label><input class="form-control" type="number" th:field="*{termMonths}"></div><div class="col-md-4"><label class="form-label">Parcela prevista</label><input class="form-control" type="number" step="0.01" th:field="*{plannedInstallment}"></div><div class="col-md-4"><label class="form-label">Meta mensal flexível</label><input class="form-control" type="number" step="0.01" th:field="*{monthlyTarget}"></div><div class="col-12"><label class="form-label">Notas</label><textarea class="form-control" th:field="*{notes}"></textarea></div><div class="col-12"><button class="btn btn-primary">Salvar</button></div></form></div></section></html>
+<!doctype html>
+<html lang="pt-BR" xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{layouts/app :: layout(~{::section}, 'Nova obrigação')}">
+<section>
+  <div class="mb-4">
+    <h1 class="h2 mb-1">Nova obrigação</h1>
+    <p class="text-secondary mb-0">Registre o compromisso financeiro, configure o pagamento e revise o cronograma.</p>
+  </div>
+
+  <form id="obligation-form" class="guided-form" th:action="@{/obligations}"
+        th:object="${obligationForm}" method="post"
+        data-guided-form
+        data-draft-type="OBLIGATION"
+        th:attr="data-draft-context-key=${obligationForm.draftContextKey()}"
+        data-draft-schema-version="1"
+        data-draft-current-step="1"
+        data-form-max-step="4">
+    <input type="hidden" th:field="*{draftKey}" data-draft-ignore>
+
+    <div class="alert alert-danger" th:if="${#fields.hasGlobalErrors()}">
+      <div th:each="error : ${#fields.globalErrors()}" th:text="${error}"></div>
+    </div>
+
+    <section class="guided-step" data-form-step="1" aria-labelledby="obligation-step-1-title">
+      <div class="guided-step__header d-flex gap-3 align-items-start">
+        <span class="guided-step__number" aria-hidden="true">1</span>
+        <div>
+          <h2 class="h4 mb-1" id="obligation-step-1-title">Identificação</h2>
+          <p class="text-secondary mb-0">Informe quem receberá, qual é o tipo e se existe vínculo com um veículo.</p>
+        </div>
+      </div>
+      <div class="row g-3">
+        <div class="col-md-6">
+          <label class="form-label" for="creditor">Credor <span class="required-mark">*</span></label>
+          <input class="form-control" id="creditor" th:field="*{creditor}"
+                 placeholder="Ex.: Banco, financeira ou familiar"
+                 aria-describedby="creditor-error" required>
+          <div class="invalid-feedback d-block" id="creditor-error" th:errors="*{creditor}"></div>
+        </div>
+        <div class="col-md-3">
+          <label class="form-label" for="type">Tipo <span class="required-mark">*</span></label>
+          <select class="form-select" id="type" th:field="*{type}"
+                  aria-describedby="type-error" required data-save-on-blur>
+            <option th:each="type : ${types}" th:value="${type}" th:text="${type.label}"></option>
+          </select>
+          <div class="invalid-feedback d-block" id="type-error" th:errors="*{type}"></div>
+        </div>
+        <div class="col-md-3">
+          <label class="form-label" for="vehicleId">Veículo</label>
+          <select class="form-select" id="vehicleId" th:field="*{vehicleId}" data-save-on-blur>
+            <option value="">Sem vínculo com veículo</option>
+            <option th:each="vehicle : ${vehicles}" th:value="${vehicle.id}"
+                    th:text="${vehicle.name + ' · ' + vehicle.plate}"></option>
+          </select>
+        </div>
+      </div>
+    </section>
+
+    <section class="guided-step" data-form-step="2" aria-labelledby="obligation-step-2-title">
+      <div class="guided-step__header d-flex gap-3 align-items-start">
+        <span class="guided-step__number" aria-hidden="true">2</span>
+        <div>
+          <h2 class="h4 mb-1" id="obligation-step-2-title">Valores e forma de pagamento</h2>
+          <p class="text-secondary mb-0">Defina o saldo inicial, a taxa anual e como os pagamentos serão planejados.</p>
+        </div>
+      </div>
+      <div class="row g-3">
+        <div class="col-md-3">
+          <label class="form-label" for="mode">Modo <span class="required-mark">*</span></label>
+          <select class="form-select" id="mode" th:field="*{mode}"
+                  aria-describedby="mode-help mode-error" required>
+            <option th:each="mode : ${modes}" th:value="${mode}" th:text="${mode.label}"></option>
+          </select>
+          <div class="form-text" id="mode-help">Estruturado cria parcelas; flexível usa uma meta mensal.</div>
+          <div class="invalid-feedback d-block" id="mode-error" th:errors="*{mode}"></div>
+        </div>
+        <div class="col-md-3">
+          <label class="form-label" for="principal">Principal <span class="required-mark">*</span></label>
+          <div class="input-group input-unit">
+            <span class="input-group-text">R$</span>
+            <input class="form-control" id="principal" type="text" inputmode="decimal"
+                   placeholder="0,00" th:field="*{principal}"
+                   aria-describedby="principal-error" required>
+          </div>
+          <div class="invalid-feedback d-block" id="principal-error" th:errors="*{principal}"></div>
+        </div>
+        <div class="col-md-3">
+          <label class="form-label" for="annualRatePercent">Juros anuais</label>
+          <div class="input-group input-unit">
+            <input class="form-control" id="annualRatePercent" type="text" inputmode="decimal"
+                   placeholder="12" th:field="*{annualRatePercent}"
+                   aria-describedby="annualRatePercent-help annualRatePercent-error">
+            <span class="input-group-text">%</span>
+          </div>
+          <div class="form-text" id="annualRatePercent-help">Informe de 0 a 100. Ex.: 12 representa 12% ao ano.</div>
+          <div class="invalid-feedback d-block" id="annualRatePercent-error"
+               th:errors="*{annualRatePercent}"></div>
+        </div>
+        <div class="col-md-3">
+          <label class="form-label" for="startDate">Início <span class="required-mark">*</span></label>
+          <input class="form-control" id="startDate" type="date" th:field="*{startDate}"
+                 aria-describedby="startDate-error" required data-save-on-blur>
+          <div class="invalid-feedback d-block" id="startDate-error" th:errors="*{startDate}"></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="guided-step" data-form-step="3" aria-labelledby="obligation-step-3-title">
+      <div class="guided-step__header d-flex gap-3 align-items-start">
+        <span class="guided-step__number" aria-hidden="true">3</span>
+        <div>
+          <h2 class="h4 mb-1" id="obligation-step-3-title">Planejamento do pagamento</h2>
+          <p class="text-secondary mb-0">Preencha o cronograma estruturado ou a meta mensal flexível.</p>
+        </div>
+      </div>
+      <div class="row g-3" data-structured-group>
+        <div class="col-md-4">
+          <label class="form-label" for="firstDueDate">Primeiro vencimento <span class="required-mark">*</span></label>
+          <input class="form-control" id="firstDueDate" type="date" th:field="*{firstDueDate}"
+                 aria-describedby="firstDueDate-error" data-save-on-blur>
+          <div class="invalid-feedback d-block" id="firstDueDate-error" th:errors="*{firstDueDate}"></div>
+        </div>
+        <div class="col-md-4">
+          <label class="form-label" for="termMonths">Parcelas <span class="required-mark">*</span></label>
+          <input class="form-control" id="termMonths" type="number" min="1" step="1"
+                 th:field="*{termMonths}" aria-describedby="termMonths-error">
+          <div class="invalid-feedback d-block" id="termMonths-error" th:errors="*{termMonths}"></div>
+        </div>
+        <div class="col-md-4">
+          <label class="form-label" for="plannedInstallment">Parcela prevista</label>
+          <div class="input-group input-unit">
+            <span class="input-group-text">R$</span>
+            <input class="form-control" id="plannedInstallment" type="text" inputmode="decimal"
+                   placeholder="0,00" th:field="*{plannedInstallment}"
+                   aria-describedby="plannedInstallment-error">
+          </div>
+          <div class="invalid-feedback d-block" id="plannedInstallment-error"
+               th:errors="*{plannedInstallment}"></div>
+        </div>
+      </div>
+      <div class="row g-3" data-flexible-group>
+        <div class="col-md-6">
+          <label class="form-label" for="monthlyTarget">Meta mensal flexível <span class="required-mark">*</span></label>
+          <div class="input-group input-unit">
+            <span class="input-group-text">R$</span>
+            <input class="form-control" id="monthlyTarget" type="text" inputmode="decimal"
+                   placeholder="0,00" th:field="*{monthlyTarget}"
+                   aria-describedby="monthlyTarget-help monthlyTarget-error">
+          </div>
+          <div class="form-text" id="monthlyTarget-help">Valor que pretende amortizar mensalmente, sem cronograma fixo.</div>
+          <div class="invalid-feedback d-block" id="monthlyTarget-error"
+               th:errors="*{monthlyTarget}"></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="guided-step" data-form-step="4" aria-labelledby="obligation-step-4-title">
+      <div class="guided-step__header d-flex gap-3 align-items-start">
+        <span class="guided-step__number" aria-hidden="true">4</span>
+        <div>
+          <h2 class="h4 mb-1" id="obligation-step-4-title">Revisão e notas</h2>
+          <p class="text-secondary mb-0">Confira o compromisso antes de gerar o cronograma.</p>
+        </div>
+      </div>
+      <div class="guided-summary mb-3">
+        <div class="d-flex justify-content-between gap-3 mb-2"><span>Credor</span><strong data-obligation-summary-creditor>—</strong></div>
+        <div class="d-flex justify-content-between gap-3 mb-2"><span>Principal</span><strong data-obligation-summary-principal>R$ 0,00</strong></div>
+        <div class="d-flex justify-content-between gap-3 mb-2"><span>Juros anuais</span><strong data-obligation-summary-rate>0%</strong></div>
+        <div class="d-flex justify-content-between gap-3"><span>Planejamento</span><strong data-obligation-summary-plan>—</strong></div>
+      </div>
+      <label class="form-label" for="notes">Notas</label>
+      <textarea class="form-control" id="notes" rows="4" th:field="*{notes}"
+                placeholder="Condições combinadas, origem do empréstimo ou observações"></textarea>
+    </section>
+
+    <div class="d-none d-md-flex justify-content-between align-items-center gap-2 mt-3">
+      <span th:replace="~{fragments/guided-form :: draft-status}"></span>
+      <div class="d-flex gap-2">
+        <a class="btn btn-outline-secondary" th:href="@{/obligations}">Cancelar</a>
+        <button class="btn btn-primary" type="submit">Salvar obrigação</button>
+      </div>
+    </div>
+
+    <div th:replace="~{fragments/guided-form :: mobile-actions('Revisar e salvar')}"></div>
+    <div th:replace="~{fragments/guided-form :: recovery-modal('obligation')}"></div>
+    <div th:replace="~{fragments/guided-form :: conflict-modal('obligation')}"></div>
+  </form>
+
+  <script type="module" th:src="@{/js/guided-form.js}"></script>
+  <script type="module" th:src="@{/js/obligation-form.js}"></script>
+</section>
+</html>

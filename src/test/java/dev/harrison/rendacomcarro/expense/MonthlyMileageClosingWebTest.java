@@ -2,6 +2,7 @@ package dev.harrison.rendacomcarro.expense;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.not;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -29,6 +30,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.transaction.annotation.Transactional;
 
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -36,6 +38,7 @@ import org.springframework.test.web.servlet.MockMvc;
     "APP_ADMIN_USERNAME=closing-web-owner",
     "APP_ADMIN_PASSWORD=closing-web-owner-credential"
 })
+@Transactional
 class MonthlyMileageClosingWebTest extends PostgresIntegrationTest {
     @Autowired MockMvc mvc;
     @Autowired VehicleService vehicles;
@@ -45,9 +48,10 @@ class MonthlyMileageClosingWebTest extends PostgresIntegrationTest {
     @Autowired MonthlyOdometerClosingRepository closings;
 
     @Test
-    @WithMockUser(username = "harrison", roles = "OWNER")
-    void previewShowsInferredReadonlyValuesOriginsAndRecordCounts() throws Exception {
+    @WithMockUser(username = "closing-web-owner", roles = "OWNER")
+    void previewShowsGuidedInferredValuesOriginsAndDraftContext() throws Exception {
         Scenario scenario = closedScenario();
+        String expectedKey = "vehicle:" + scenario.vehicleId() + ":month:" + scenario.month();
 
         mvc.perform(get("/mileage-closings/new")
                 .param("vehicleId", scenario.vehicleId().toString())
@@ -59,11 +63,18 @@ class MonthlyMileageClosingWebTest extends PostgresIntegrationTest {
             .andExpect(content().string(containsString("1 dia fechado")))
             .andExpect(content().string(containsString("1 turno fechado")))
             .andExpect(content().string(containsString("readonly")))
-            .andExpect(content().string(containsString("Corrigir valores")));
+            .andExpect(content().string(containsString("Corrigir valores")))
+            .andExpect(content().string(containsString("data-guided-form")))
+            .andExpect(content().string(containsString("data-draft-type=\"MILEAGE_CLOSING\"")))
+            .andExpect(content().string(containsString("data-draft-context-key=\"" + expectedKey + "\"")))
+            .andExpect(content().string(containsString("data-form-step=\"1\"")))
+            .andExpect(content().string(containsString("data-form-step=\"2\"")))
+            .andExpect(content().string(containsString("data-form-step=\"3\"")))
+            .andExpect(content().string(containsString("type=\"module\"")));
     }
 
     @Test
-    @WithMockUser(username = "harrison", roles = "OWNER")
+    @WithMockUser(username = "closing-web-owner", roles = "OWNER")
     void postingPreviewWithoutChangesCreatesAutomaticClosing() throws Exception {
         Scenario scenario = closedScenario();
 
@@ -72,9 +83,9 @@ class MonthlyMileageClosingWebTest extends PostgresIntegrationTest {
                 .param("vehicleId", scenario.vehicleId().toString())
                 .param("month", scenario.month().toString())
                 .param("manualAdjustment", "false")
-                .param("initialOdometer", "10000.0")
-                .param("finalOdometer", "10030.0")
-                .param("professionalKilometers", "30.0")
+                .param("initialOdometer", "10000,0")
+                .param("finalOdometer", "10030,0")
+                .param("professionalKilometers", "30,0")
                 .param("confirmWarnings", "true"))
             .andExpect(status().is3xxRedirection())
             .andExpect(redirectedUrl("/mileage-closings"));
@@ -86,8 +97,8 @@ class MonthlyMileageClosingWebTest extends PostgresIntegrationTest {
     }
 
     @Test
-    @WithMockUser(username = "harrison", roles = "OWNER")
-    void manualChangeWithoutReasonReturnsThePreviewWithValidationError() throws Exception {
+    @WithMockUser(username = "closing-web-owner", roles = "OWNER")
+    void manualChangeWithoutReasonReturnsTheGuidedPreviewWithValidationError() throws Exception {
         Scenario scenario = closedScenario();
 
         mvc.perform(post("/mileage-closings")
@@ -95,21 +106,22 @@ class MonthlyMileageClosingWebTest extends PostgresIntegrationTest {
                 .param("vehicleId", scenario.vehicleId().toString())
                 .param("month", scenario.month().toString())
                 .param("manualAdjustment", "true")
-                .param("initialOdometer", "10000.0")
-                .param("finalOdometer", "10030.0")
-                .param("professionalKilometers", "25.0")
+                .param("initialOdometer", "10000,0")
+                .param("finalOdometer", "10030,0")
+                .param("professionalKilometers", "25,0")
                 .param("adjustmentReason", "")
                 .param("confirmWarnings", "true"))
             .andExpect(status().isOk())
             .andExpect(content().string(containsString("justificativa")))
-            .andExpect(content().string(containsString("Prévia calculada")));
+            .andExpect(content().string(containsString("Prévia calculada")))
+            .andExpect(content().string(containsString("data-guided-form")));
     }
 
     @Test
-    @WithMockUser(username = "harrison", roles = "OWNER")
+    @WithMockUser(username = "closing-web-owner", roles = "OWNER")
     void blockingPreviewDoesNotOfferConfirmation() throws Exception {
         var vehicle = createVehicle();
-        YearMonth month = YearMonth.now().plusMonths(1);
+        YearMonth month = YearMonth.now().plusMonths(3);
         days.openDay(month.atDay(1), vehicle.getId(), new BigDecimal("200.00"),
             new BigDecimal("10000.0"));
 
@@ -118,12 +130,13 @@ class MonthlyMileageClosingWebTest extends PostgresIntegrationTest {
                 .param("month", month.toString()))
             .andExpect(status().isOk())
             .andExpect(content().string(containsString("Existe dia operacional em andamento")))
-            .andExpect(content().string(containsString("Fechamento bloqueado")));
+            .andExpect(content().string(containsString("Fechamento bloqueado")))
+            .andExpect(content().string(not(containsString("Salvar fechamento"))));
     }
 
     private Scenario closedScenario() {
         var vehicle = createVehicle();
-        YearMonth month = YearMonth.now().plusMonths(1);
+        YearMonth month = YearMonth.now().plusMonths(2);
         LocalDate date = month.atDay(2);
         var day = days.openDay(date, vehicle.getId(), new BigDecimal("200.00"),
             new BigDecimal("10000.0"));
@@ -144,5 +157,6 @@ class MonthlyMileageClosingWebTest extends PostgresIntegrationTest {
             FuelType.FLEX, new BigDecimal("10000.0"), new BigDecimal("35000.00")));
     }
 
-    private record Scenario(UUID vehicleId, YearMonth month) {}
+    private record Scenario(UUID vehicleId, YearMonth month) {
+    }
 }

@@ -16,9 +16,47 @@ Legenda:
 - [x] healthcheck da aplicação responde;
 - [x] valores técnicos dos enums permanecem persistidos sem aparecer nos formulários principais;
 - [x] selects e badges usam rótulos amigáveis em português;
+- [x] API de rascunhos exige autenticação e CSRF;
+- [x] rascunhos ficam isolados pelo proprietário autenticado;
 - [ ] confirmar login pela URL HTTPS do Tailscale no celular;
 - [ ] confirmar que a aplicação não é alcançável pela internet pública;
 - [ ] confirmar dois dispositivos administrativos confiáveis na tailnet.
+
+## Formulários guiados e rascunhos
+
+- [x] gastos, fechamentos de km, metas e obrigações usam seções guiadas;
+- [x] formulários simples de veículo e abertura do dia permanecem compactos;
+- [x] desktop mantém todas as seções visíveis;
+- [x] celular exibe uma etapa por vez quando existe navegação de etapas;
+- [x] botão **Continuar** aguarda validação e sincronização do rascunho;
+- [x] autosave usa atraso de 1,5 segundo após a última alteração;
+- [x] rascunhos são persistidos no PostgreSQL e sincronizados entre dispositivos;
+- [x] gasto admite somente o rascunho `current`;
+- [x] fechamento admite um rascunho por veículo e mês;
+- [x] meta admite um rascunho por mês;
+- [x] obrigações admitem vários rascunhos e aparecem na listagem;
+- [x] expiração ocorre após sete dias sem edição e é renovada em cada salvamento;
+- [x] rotina diária remove rascunhos expirados de forma idempotente;
+- [x] recuperação pergunta se deve continuar ou começar novamente;
+- [x] conflito de versão retorna HTTP 409 e não sobrescreve silenciosamente;
+- [x] substituição da versão do servidor exige ação explícita;
+- [x] cópia local emergencial é usada somente quando a sincronização falha;
+- [x] campos desconhecidos e payload maior que 64 KiB são rejeitados;
+- [x] envio final recalcula valores derivados;
+- [x] registro definitivo e exclusão do rascunho pertencem à mesma transação;
+- [x] falha no envio definitivo preserva o rascunho;
+- [x] formulário completo continua enviável sem JavaScript;
+- [x] valores monetários aceitam vírgula e mostram `R$`;
+- [x] percentuais são informados de 0 a 100;
+- [x] competências usam mês e ano e distâncias exibem `km`;
+- [x] foco visível, associação de erro e alvos móveis de 44 px estão presentes;
+- [ ] validar larguras de 360 px e 412 px em celular Android real;
+- [ ] validar largura mínima de 1280 px em desktop real;
+- [ ] iniciar no computador e continuar o mesmo rascunho no celular;
+- [ ] editar offline, reconectar e confirmar a sincronização;
+- [ ] provocar conflito entre computador e celular e revisar as três ações;
+- [ ] validar navegação somente por teclado e leitor de tela;
+- [ ] desabilitar JavaScript no navegador e concluir um envio final.
 
 ## Veículos
 

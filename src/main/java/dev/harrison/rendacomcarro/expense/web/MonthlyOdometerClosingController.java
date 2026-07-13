@@ -1,5 +1,6 @@
 package dev.harrison.rendacomcarro.expense.web;
 
+import dev.harrison.rendacomcarro.expense.application.MonthlyClosingFormSubmissionService;
 import dev.harrison.rendacomcarro.expense.application.MonthlyMileagePreview;
 import dev.harrison.rendacomcarro.expense.application.MonthlyOdometerClosingService;
 import dev.harrison.rendacomcarro.shared.domain.DomainValidationException;
@@ -8,6 +9,7 @@ import jakarta.validation.Valid;
 import java.time.YearMonth;
 import java.util.UUID;
 import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.validation.BindingResult;
@@ -23,13 +25,16 @@ import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 @RequestMapping("/mileage-closings")
 public class MonthlyOdometerClosingController {
     private final MonthlyOdometerClosingService service;
+    private final MonthlyClosingFormSubmissionService submissions;
     private final VehicleService vehicles;
 
     public MonthlyOdometerClosingController(
         MonthlyOdometerClosingService service,
+        MonthlyClosingFormSubmissionService submissions,
         VehicleService vehicles
     ) {
         this.service = service;
+        this.submissions = submissions;
         this.vehicles = vehicles;
     }
 
@@ -79,23 +84,15 @@ public class MonthlyOdometerClosingController {
         @Valid @ModelAttribute("closingForm") MonthlyOdometerClosingForm form,
         BindingResult result,
         Model model,
-        RedirectAttributes redirect
+        RedirectAttributes redirect,
+        Authentication authentication
     ) {
         if (result.hasErrors()) {
             return showInvalidForm(form, model);
         }
 
         try {
-            var closing = service.confirm(new MonthlyOdometerClosingService.ConfirmCommand(
-                form.getVehicleId(),
-                form.getMonth(),
-                form.isManualAdjustment(),
-                form.getInitialOdometer(),
-                form.getFinalOdometer(),
-                form.getProfessionalKilometers(),
-                form.getAdjustmentReason(),
-                form.isConfirmWarnings()
-            ));
+            var closing = submissions.submit(authentication.getName(), form);
             redirect.addFlashAttribute(
                 "successMessage",
                 closing.isManualAdjustment()
