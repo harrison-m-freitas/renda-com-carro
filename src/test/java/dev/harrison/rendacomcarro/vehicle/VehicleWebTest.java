@@ -99,6 +99,50 @@ class VehicleWebTest extends PostgresIntegrationTest {
 
     @Test
     @WithMockUser(username = "harrison", roles = "OWNER")
+    void maskedBrazilianValuesPersistOnCreateAndEdit() throws Exception {
+        mvc.perform(post("/vehicles")
+                .with(csrf())
+                .param("name", "  Sandero   principal  ")
+                .param("make", "Renault")
+                .param("model", "Sandero")
+                .param("year", "2013")
+                .param("plate", "mno-4321")
+                .param("fuelType", "FLEX")
+                .param("initialOdometer", "248.351,5")
+                .param("purchasePrice", "23.990,00"))
+            .andExpect(status().is3xxRedirection())
+            .andExpect(redirectedUrl("/vehicles"));
+
+        var created = vehicleRepository.findAll().stream()
+            .filter(candidate -> candidate.getPlate().equals("MNO4321"))
+            .findFirst()
+            .orElseThrow();
+
+        assertThat(created.getName()).isEqualTo("Sandero principal");
+        assertThat(created.getCurrentOdometer()).isEqualByComparingTo("248351.5");
+        assertThat(created.getPurchasePrice()).isEqualByComparingTo("23990.00");
+
+        mvc.perform(post("/vehicles/{id}", created.getId())
+                .with(csrf())
+                .param("name", "Sandero principal")
+                .param("make", "Renault")
+                .param("model", "Sandero")
+                .param("year", "2013")
+                .param("plate", "mno4p21")
+                .param("fuelType", "FLEX")
+                .param("initialOdometer", "248.352")
+                .param("purchasePrice", "24.500,50"))
+            .andExpect(status().is3xxRedirection())
+            .andExpect(redirectedUrl("/vehicles/" + created.getId()));
+
+        var updated = vehicleRepository.findById(created.getId()).orElseThrow();
+        assertThat(updated.getPlate()).isEqualTo("MNO4P21");
+        assertThat(updated.getCurrentOdometer()).isEqualByComparingTo("248352.0");
+        assertThat(updated.getPurchasePrice()).isEqualByComparingTo("24500.50");
+    }
+
+    @Test
+    @WithMockUser(username = "harrison", roles = "OWNER")
     void editVehicleUsesSpecificActionAndTechnicalSummary() throws Exception {
         var vehicle = vehicleService.create(new VehicleService.CreateVehicleCommand(
             "Sandero principal", "Renault", "Sandero", 2013, "QWE1R23", FuelType.FLEX,
