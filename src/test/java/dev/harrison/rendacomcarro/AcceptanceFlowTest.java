@@ -223,7 +223,7 @@ class AcceptanceFlowTest extends PostgresIntegrationTest {
 
         fuelings.create(new FuelingService.CreateFuelingCommand(
             vehicle.getId(),
-            LocalDateTime.of(2035, 7, 15, 18, 0),
+            LocalDateTime.of(2035, 6, 15, 18, 0),
             new BigDecimal("49900.0"),
             "Posto histórico",
             FuelType.GASOLINE,
@@ -238,8 +238,8 @@ class AcceptanceFlowTest extends PostgresIntegrationTest {
 
         var snapshot = dashboard.snapshot(OPERATION_DATE);
         assertThat(snapshot.dailyRevenue()).isEqualByComparingTo("250.00");
-        assertThat(snapshot.dailyOperatingMargin()).isEqualByComparingTo("210.00");
-        assertThat(snapshot.monthlyPersonalCash()).isEqualByComparingTo("-290.00");
+        assertThat(snapshot.dailyOperatingMargin()).isEqualByComparingTo("200.00");
+        assertThat(snapshot.monthlyPersonalCash()).isEqualByComparingTo("-300.00");
         assertThat(snapshot.outstandingDebt()).isEqualByComparingTo("29500.00");
 
         mvc.perform(get("/expenses/new").session(session))
