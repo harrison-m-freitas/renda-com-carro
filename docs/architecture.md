@@ -24,6 +24,8 @@ Spring Boot + Thymeleaf
 - **Renderização server-side:** reduz JavaScript, dependências e consumo de memória.
 - **PostgreSQL + Flyway:** garante integridade relacional e evolução reproduzível do esquema.
 - **Usuário único:** não há cadastro público, equipes ou autorização por múltiplos papéis.
+- **Enums estáveis e apresentação amigável:** os valores persistidos permanecem em inglês, enquanto a interface usa `LabeledEnum#getLabel()` para exibir português.
+- **Inferência com auditoria:** o fechamento mensal é calculado a partir dos registros existentes e armazena tanto a prévia quanto os valores confirmados.
 - **Tailscale + Spring Security:** o dispositivo precisa pertencer à rede privada e o usuário ainda precisa autenticar-se na aplicação.
 - **Raspberry Pi + SSD:** oferece baixo custo recorrente e persistência fora de cartão microSD.
 - **Backup Restic:** snapshots criptografados, deduplicados, retidos e restaurados em teste.
@@ -36,19 +38,19 @@ Autenticação, bootstrap da conta proprietária, sessão e regras de acesso.
 
 ### `vehicle`
 
-Cadastro e histórico de veículos. Apenas um veículo ativo pode ser marcado como principal.
+Cadastro e histórico de veículos. Apenas um veículo ativo pode ser marcado como principal. O odômetro atual possui valor, data, origem e referência ao evento que produziu a leitura.
 
 ### `operation`
 
-Dias operacionais, turnos, plataformas, regiões, bairros atendidos, corridas opcionais e receitas.
+Dias operacionais, turnos, plataformas, regiões, bairros atendidos, corridas opcionais e receitas. Fechamentos de turno e de dia encaminham as leituras ao serviço central de odômetro.
 
 ### `expense`
 
-Gastos profissionais, pessoais e mistos. O rateio padrão de gastos mistos usa a proporção mensal de quilômetros profissionais.
+Gastos profissionais, pessoais e mistos. O rateio padrão de gastos mistos usa a proporção mensal de quilômetros profissionais. O módulo também infere, confirma e audita o fechamento mensal de quilometragem.
 
 ### `fuel`
 
-Abastecimentos, preço por litro, tanque cheio/parcial, consumo entre tanques cheios e custo econômico estimado por turno.
+Abastecimentos, preço por litro, tanque cheio/parcial, consumo entre tanques cheios e custo econômico estimado por turno. Abastecimentos funcionam também como leituras rastreáveis de odômetro.
 
 ### `goal`
 
@@ -64,11 +66,11 @@ Validação, armazenamento fora do diretório público, checksum SHA-256 e downl
 
 ### `dashboard`
 
-Agrega dados dos módulos em indicadores operacionais e financeiros sem duplicar desembolsos e custos econômicos.
+Agrega dados dos módulos em indicadores operacionais e financeiros sem duplicar desembolsos e custos econômicos. Gastos mistos por quilometragem usam o fechamento mensal confirmado.
 
 ### `shared`
 
-Políticas decimais, exceções de domínio e tratamento central de erros.
+Políticas decimais, contrato de rótulos amigáveis, exceções de domínio e tratamento central de erros.
 
 ## Dependências entre módulos
 
@@ -94,6 +96,81 @@ O domínio não depende da camada web. Controllers recebem formulários, chamam 
 4. Receitas podem ser consolidadas ou vinculadas a corridas opcionais.
 5. Gastos e abastecimentos podem ser registrados durante ou depois da operação.
 6. O dia só pode ser fechado após o fechamento de todos os turnos.
+7. Ao final do mês, a aplicação calcula uma prévia da quilometragem e o usuário a confirma ou corrige com justificativa.
+
+## Apresentação de enums
+
+Os nomes de constantes, como `PROFESSIONAL`, `MILEAGE_RATIO` e `BANK_FINANCING`, permanecem estáveis no código e no banco. Enums visíveis implementam `LabeledEnum` e expõem rótulos como “Profissional”, “Proporcional à quilometragem” e “Financiamento bancário”.
+
+Templates usam a propriedade `label` em selects, tabelas, badges e detalhes. Um teste contratual exige rótulo amigável para todos os enums registrados como visíveis, e testes web verificam que constantes técnicas não aparecem nas opções principais.
+
+## Odômetro rastreável
+
+`VehicleOdometerService` centraliza decisões sobre novas leituras:
+
+```text
+leitura com data anterior à atual -> preservar o evento e não alterar o veículo
+leitura igual e mais recente       -> atualizar os metadados da origem
+leitura maior e mais recente       -> atualizar valor, data e origem
+leitura menor e mais recente       -> rejeitar como regressão
+```
+
+As origens incluem ajuste manual do veículo, fechamento de turno, fechamento de dia, abastecimento e fechamento mensal. Dias históricos usam a data operacional como instante da leitura, evitando que um lançamento retroativo seja confundido com uma leitura feita hoje.
+
+## Fechamento mensal inferido
+
+`MonthlyMileageInferenceService` recebe veículo e mês e monta uma prévia imutável.
+
+### Odômetro inicial
+
+A prioridade é:
+
+1. fechamento do mês anterior;
+2. primeiro dia operacional válido;
+3. primeiro turno válido;
+4. primeiro abastecimento;
+5. odômetro inicial do veículo.
+
+### Odômetro final
+
+É a leitura cronologicamente mais recente no período entre:
+
+- dia operacional fechado;
+- turno fechado;
+- abastecimento;
+- odômetro atual do veículo, quando a leitura pertence ao mês e possui origem rastreável.
+
+### Quilometragem profissional
+
+Somente distâncias de turnos fechados entram na soma profissional. A diferença entre o total do mês e os turnos é classificada como uso pessoal ou não classificado.
+
+### Alertas
+
+Bloqueios impedem confirmação quando há:
+
+- fechamento duplicado;
+- dia ou turno aberto;
+- ausência de leitura suficiente;
+- regressão cronológica;
+- quilometragem profissional maior que o total.
+
+Avisos informam lacunas entre distância do dia e turnos ou ausência de distância profissional. Avisos exigem confirmação explícita.
+
+### Confirmação e auditoria
+
+Os campos inferidos iniciam somente para leitura. O botão **Corrigir valores** libera início, fim e quilômetros profissionais. O servidor sempre recalcula a prévia no POST e compara os valores confirmados com os inferidos; qualquer diferença exige justificativa.
+
+O registro armazena:
+
+- valores inferidos;
+- valores confirmados;
+- origem das leituras inicial e final;
+- indicador de ajuste manual;
+- justificativa;
+- data do cálculo;
+- data da confirmação.
+
+Valores derivados — total, pessoal e percentual profissional — são recalculados no servidor. Após a confirmação, a leitura final é enviada ao serviço central de odômetro.
 
 ## Conceitos financeiros
 
@@ -129,8 +206,11 @@ Pagamentos da aquisição reduzem caixa pessoal e saldo devedor, mas não são c
 
 - índices únicos impedem mais de um veículo principal ativo;
 - índices parciais impedem mais de um turno aberto no dia;
-- odômetros não podem regredir;
+- leituras cronologicamente novas não podem reduzir o odômetro;
+- regressões internas do mês bloqueiam o fechamento;
 - o fechamento do dia é bloqueado quando há turno aberto;
+- o fechamento mensal é bloqueado quando há dia ou turno aberto;
+- correções manuais exigem justificativa;
 - pagamentos não podem exceder o saldo;
 - referências externas evitam duplicidade de receitas e pagamentos;
 - operações financeiras usam transações de banco;
@@ -188,7 +268,6 @@ A restauração exige confirmação textual, banco de destino seguro e diretóri
 
 - alertas por Telegram;
 - manutenção preventiva avançada;
-- fechamento mensal bloqueado e auditoria ampliada;
 - coletor Android com fila offline;
 - importações e reconciliação de eventos;
 - comparação preditiva de horários, regiões e plataformas.
