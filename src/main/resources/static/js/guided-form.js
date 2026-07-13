@@ -21,16 +21,20 @@ export class GuidedFormController {
     );
     this.currentStep = clampStep(Number(form.dataset.draftCurrentStep || 1), this.maxStep);
     this.version = parseNullableNumber(form.dataset.draftVersion);
+    this.lastContextKey = this.contextKey();
     this.saveTimer = null;
     this.savePromise = null;
     this.pendingConflict = null;
     this.resizeHandler = () => this.renderSteps();
     this.onlineHandler = () => this.reconcileEmergencyCopy();
-    this.pagehideHandler = () => this.save({ keepalive: true, quiet: true });
+    this.pagehideHandler = () => {
+      this.save({ keepalive: true, quiet: true }).catch(() => {});
+    };
   }
 
   async connect() {
     this.form.classList.add("guided-form--enhanced");
+    this.form.guidedFormController = this;
     this.bindEvents();
     this.renderSteps();
     await this.checkRecovery();
@@ -42,6 +46,7 @@ export class GuidedFormController {
     globalThis.removeEventListener?.("resize", this.resizeHandler);
     globalThis.removeEventListener?.("online", this.onlineHandler);
     globalThis.removeEventListener?.("pagehide", this.pagehideHandler);
+    delete this.form.guidedFormController;
   }
 
   bindEvents() {
@@ -49,7 +54,7 @@ export class GuidedFormController {
     this.form.addEventListener("change", () => this.scheduleSave());
     this.form.addEventListener("blur", (event) => {
       if (event.target?.matches?.("[data-save-on-blur]")) {
-        this.save();
+        this.save().catch(() => {});
       }
     }, true);
 
@@ -57,10 +62,13 @@ export class GuidedFormController {
       button.addEventListener("click", async () => {
         if (!this.validateCurrentStep()) return;
         try {
-          await this.save({ immediate: true });
+          await this.save({
+            immediate: true,
+            validateCurrentStep: true,
+          });
           this.setStep(nextStep(this.currentStep, this.maxStep));
         } catch {
-          // The visible save status/conflict dialog explains why progression stopped.
+          // The visible save status or conflict dialog explains why progression stopped.
         }
       });
     });
@@ -84,6 +92,7 @@ export class GuidedFormController {
         const key = this.contextKey();
         await this.client.discard(this.type, key, this.recoveryDraft?.version ?? null);
         this.version = null;
+        this.lastContextKey = key;
         this.client.clearEmergency(this.type, key);
         this.hideDialog("recovery");
       });
@@ -120,10 +129,18 @@ export class GuidedFormController {
 
   scheduleSave() {
     clearTimeout(this.saveTimer);
-    this.saveTimer = setTimeout(() => this.save(), AUTOSAVE_DELAY_MS);
+    this.saveTimer = setTimeout(() => {
+      this.save().catch(() => {});
+    }, AUTOSAVE_DELAY_MS);
   }
 
-  async save({ immediate = false, keepalive = false, quiet = false, force = false } = {}) {
+  async save({
+    immediate = false,
+    keepalive = false,
+    quiet = false,
+    force = false,
+    validateCurrentStep = false,
+  } = {}) {
     clearTimeout(this.saveTimer);
     if (!this.type || !this.contextKey()) return null;
     if (this.savePromise && !immediate) return this.savePromise;
@@ -137,11 +154,20 @@ export class GuidedFormController {
     };
     document.dispatchEvent(new CustomEvent("guided-form:before-save", { detail }));
 
+    if (!detail.contextKey) return null;
+    if (detail.contextKey !== this.lastContextKey) {
+      this.version = null;
+      this.form.dataset.draftVersion = "";
+      this.lastContextKey = detail.contextKey;
+    }
+    this.form.dataset.draftContextKey = detail.contextKey;
+
     const state = {
       contextKey: detail.contextKey,
       schemaVersion: this.schemaVersion,
       currentStep: this.currentStep,
       version: this.version,
+      validateCurrentStep,
       force,
       payload: detail.payload,
     };
@@ -150,7 +176,9 @@ export class GuidedFormController {
     const operation = this.client.save(this.type, state, { keepalive })
       .then((saved) => {
         this.version = saved.version;
+        this.lastContextKey = saved.contextKey;
         this.form.dataset.draftVersion = String(saved.version);
+        this.form.dataset.draftContextKey = saved.contextKey;
         if (!quiet) {
           this.setSaveStatus(
             `Rascunho salvo às ${formatTime(saved.updatedAt ?? new Date())}`,
@@ -198,7 +226,10 @@ export class GuidedFormController {
   }
 
   renderSteps() {
-    const mobile = isMobileWizard(globalThis.innerWidth ?? 1024);
+    const hasWizardNavigation = Boolean(
+      this.form.querySelector("[data-guided-next], [data-guided-previous]"),
+    );
+    const mobile = hasWizardNavigation && isMobileWizard(globalThis.innerWidth ?? 1024);
     this.form.querySelectorAll("[data-form-step]").forEach((section) => {
       const step = Number(section.dataset.formStep);
       section.hidden = mobile && step !== this.currentStep;
@@ -244,6 +275,8 @@ export class GuidedFormController {
       }
     }
     this.version = draft.version ?? null;
+    this.lastContextKey = draft.contextKey ?? this.contextKey();
+    this.form.dataset.draftContextKey = this.lastContextKey;
     this.form.dataset.draftVersion = this.version === null ? "" : String(this.version);
     this.setStep(draft.currentStep ?? 1);
     document.dispatchEvent(new CustomEvent("guided-form:restored", {
