@@ -1,10 +1,12 @@
 package dev.harrison.rendacomcarro.vehicle.application;
 
 import dev.harrison.rendacomcarro.vehicle.domain.FuelType;
+import dev.harrison.rendacomcarro.vehicle.domain.OdometerReadingSource;
 import dev.harrison.rendacomcarro.vehicle.domain.Vehicle;
 import dev.harrison.rendacomcarro.vehicle.domain.VehicleStatus;
 import dev.harrison.rendacomcarro.vehicle.infrastructure.VehicleRepository;
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
@@ -13,9 +15,11 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class VehicleService {
     private final VehicleRepository repository;
+    private final VehicleOdometerService odometerService;
 
-    public VehicleService(VehicleRepository repository) {
+    public VehicleService(VehicleRepository repository, VehicleOdometerService odometerService) {
         this.repository = repository;
+        this.odometerService = odometerService;
     }
 
     public record CreateVehicleCommand(
@@ -64,10 +68,18 @@ public class VehicleService {
     @Transactional
     public Vehicle update(UUID id, UpdateVehicleCommand command) {
         Vehicle vehicle = get(id);
-        vehicle.update(
+        vehicle.updateDetails(
             command.name(), command.make(), command.model(), command.year(), command.plate(),
-            command.fuelType(), command.currentOdometer(), command.purchasePrice());
-        return repository.save(vehicle);
+            command.fuelType(), command.purchasePrice());
+        repository.save(vehicle);
+        odometerService.registerReading(
+            id,
+            command.currentOdometer(),
+            LocalDateTime.now(),
+            OdometerReadingSource.VEHICLE_MANUAL,
+            id
+        );
+        return vehicle;
     }
 
     @Transactional

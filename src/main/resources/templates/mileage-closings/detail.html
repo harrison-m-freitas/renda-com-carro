@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="pt-BR" xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{layouts/app :: layout(~{::section}, 'Detalhes do fechamento')}">
+<section>
+  <div class="d-flex flex-column flex-md-row justify-content-between gap-3 mb-4">
+    <div>
+      <h1 class="h2 mb-1" th:text="${'Fechamento de ' + #temporals.format(closing.referenceMonth, 'MM/yyyy')}"></h1>
+      <p class="text-secondary mb-0" th:text="${closing.vehicle.name + ' — ' + closing.vehicle.plate}"></p>
+    </div>
+    <a class="btn btn-outline-secondary" th:href="@{/mileage-closings}">Voltar</a>
+  </div>
+
+  <div class="alert" th:classappend="${closing.manualAdjustment ? ' alert-warning' : ' alert-success'}">
+    <strong th:text="${closing.manualAdjustment ? 'Fechamento corrigido manualmente' : 'Fechamento automático'}"></strong>
+    <div th:if="${closing.manualAdjustment}" th:text="${closing.adjustmentReason}"></div>
+  </div>
+
+  <div class="row g-3 mb-4">
+    <div class="col-md-3"><div class="card card-body h-100"><div class="text-secondary">Odômetro inicial</div><div class="h3" th:text="${closing.initialOdometer + ' km'}"></div><div class="small text-secondary" th:if="${closing.initialOdometerOrigin != null}" th:text="${closing.initialOdometerOrigin.label}"></div></div></div>
+    <div class="col-md-3"><div class="card card-body h-100"><div class="text-secondary">Odômetro final</div><div class="h3" th:text="${closing.finalOdometer + ' km'}"></div><div class="small text-secondary" th:if="${closing.finalOdometerOrigin != null}" th:text="${closing.finalOdometerOrigin.label}"></div></div></div>
+    <div class="col-md-3"><div class="card card-body h-100"><div class="text-secondary">Profissional</div><div class="h3" th:text="${closing.professionalKilometers + ' km'}"></div></div></div>
+    <div class="col-md-3"><div class="card card-body h-100"><div class="text-secondary">Pessoal/não classificado</div><div class="h3" th:text="${closing.personalKilometers + ' km'}"></div></div></div>
+  </div>
+
+  <div class="card" th:if="${closing.manualAdjustment}">
+    <div class="card-header"><h2 class="card-title mb-0">Comparação com a prévia</h2></div>
+    <div class="table-responsive">
+      <table class="table card-table mb-0">
+        <thead><tr><th>Valor</th><th>Inferido</th><th>Confirmado</th></tr></thead>
+        <tbody>
+          <tr><td>Odômetro inicial</td><td th:text="${closing.inferredInitialOdometer + ' km'}"></td><td th:text="${closing.initialOdometer + ' km'}"></td></tr>
+          <tr><td>Odômetro final</td><td th:text="${closing.inferredFinalOdometer + ' km'}"></td><td th:text="${closing.finalOdometer + ' km'}"></td></tr>
+          <tr><td>Quilômetros profissionais</td><td th:text="${closing.inferredProfessionalKilometers + ' km'}"></td><td th:text="${closing.professionalKilometers + ' km'}"></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="text-secondary small mt-3">
+    <span th:text="${'Calculado em ' + #temporals.format(closing.calculatedAt, 'dd/MM/yyyy HH:mm')}"></span>
+    <span class="mx-1">•</span>
+    <span th:text="${'Confirmado em ' + #temporals.format(closing.confirmedAt, 'dd/MM/yyyy HH:mm')}"></span>
+  </div>
+</section>
+</html>

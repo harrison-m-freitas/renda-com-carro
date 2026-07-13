@@ -14,6 +14,8 @@ Legenda:
 - [x] acesso não autenticado redireciona para login;
 - [x] senha do proprietário não é versionada;
 - [x] healthcheck da aplicação responde;
+- [x] valores técnicos dos enums permanecem persistidos sem aparecer nos formulários principais;
+- [x] selects e badges usam rótulos amigáveis em português;
 - [ ] confirmar login pela URL HTTPS do Tailscale no celular;
 - [ ] confirmar que a aplicação não é alcançável pela internet pública;
 - [ ] confirmar dois dispositivos administrativos confiáveis na tailnet.
@@ -24,7 +26,10 @@ Legenda:
 - [x] editar veículo;
 - [x] arquivar veículo;
 - [x] manter histórico;
-- [x] impedir mais de um veículo principal ativo.
+- [x] impedir mais de um veículo principal ativo;
+- [x] registrar data e origem da leitura atual do odômetro;
+- [x] impedir leitura cronologicamente nova menor que o odômetro atual;
+- [x] preservar lançamentos históricos sem reduzir o odômetro atual.
 
 ## Dias e turnos
 
@@ -35,6 +40,7 @@ Legenda:
 - [x] impedir segundo turno aberto simultâneo;
 - [x] impedir fechamento do dia com turno aberto;
 - [x] fechar turno e dia;
+- [x] atualizar o odômetro rastreável ao fechar turno ou dia;
 - [ ] executar manualmente um dia com dois turnos pelo celular.
 
 ## Receitas
@@ -52,11 +58,23 @@ Legenda:
 - [x] registrar gasto profissional;
 - [x] registrar gasto pessoal;
 - [x] registrar gasto misto;
+- [x] mostrar somente os campos aplicáveis à classificação e ao método de rateio;
 - [x] ratear por quilometragem;
 - [x] permitir percentual ou valor fixo com justificativa;
 - [x] calcular quilômetros pessoais por diferença;
 - [x] impedir inconsistências de odômetro;
-- [ ] realizar fechamento mensal com odômetro real.
+- [x] gerar prévia automática do fechamento mensal;
+- [x] inferir odômetro inicial por fechamento anterior ou primeiro registro confiável;
+- [x] inferir odômetro final pela leitura cronologicamente mais recente do mês;
+- [x] somar apenas turnos fechados como quilometragem profissional;
+- [x] mostrar origens, quantidades de registros, avisos e bloqueios;
+- [x] impedir confirmação com dia ou turno aberto;
+- [x] detectar regressão cronológica entre leituras do mês;
+- [x] manter os valores calculados bloqueados por padrão;
+- [x] exigir justificativa ao corrigir qualquer valor inferido;
+- [x] persistir valores inferidos e confirmados para auditoria;
+- [x] atualizar o odômetro do veículo após a confirmação;
+- [ ] realizar fechamento mensal com odômetro e dados reais.
 
 ## Combustível
 
@@ -65,6 +83,7 @@ Legenda:
 - [x] calcular consumo somente entre tanques cheios;
 - [x] estimar custo econômico do turno;
 - [x] evitar dupla contagem entre desembolso e consumo;
+- [x] atualizar o odômetro rastreável quando a leitura for atual;
 - [ ] validar consumo com dois abastecimentos reais de tanque cheio.
 
 ## Metas
@@ -105,6 +124,7 @@ Legenda:
 - [x] receita por hora e quilômetro;
 - [x] saldo devedor;
 - [x] estados com turno ativo, dia aberto e nenhum dia;
+- [x] ratear gasto misto usando o fechamento mensal confirmado;
 - [ ] revisar responsividade em pelo menos um celular Android real.
 
 ## Infraestrutura e recuperação

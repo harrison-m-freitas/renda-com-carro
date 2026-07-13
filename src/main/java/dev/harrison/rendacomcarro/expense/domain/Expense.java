@@ -41,26 +41,94 @@ public class Expense {
         if (vehicle == null || category == null || expenseDate == null || competenceDate == null) {
             throw new IllegalArgumentException("Veículo, categoria e datas são obrigatórios");
         }
-        if (amount == null || amount.signum() <= 0) throw new IllegalArgumentException("Valor deve ser maior que zero");
-        if (classification == null) throw new IllegalArgumentException("Classificação é obrigatória");
-        if (classification == ExpenseClassification.MIXED && method == null) throw new IllegalArgumentException("Método de rateio é obrigatório");
-        if (method == AllocationMethod.MANUAL_PERCENTAGE || method == AllocationMethod.FIXED_AMOUNT) {
-            if (adjustmentReason == null || adjustmentReason.isBlank()) throw new IllegalArgumentException("Justificativa do ajuste é obrigatória");
+        if (amount == null || amount.signum() <= 0) {
+            throw new IllegalArgumentException("Valor deve ser maior que zero");
         }
+        if (classification == null) {
+            throw new IllegalArgumentException("Classificação é obrigatória");
+        }
+
+        AllocationMethod normalizedMethod = method;
+        BigDecimal normalizedPercentage = professionalPercentage;
+        BigDecimal normalizedFixedAmount = professionalFixedAmount;
+        String normalizedReason = normalizeText(adjustmentReason);
+
+        if (classification != ExpenseClassification.MIXED) {
+            normalizedMethod = null;
+            normalizedPercentage = null;
+            normalizedFixedAmount = null;
+            normalizedReason = null;
+        } else {
+            if (normalizedMethod == null) {
+                throw new IllegalArgumentException("Método de rateio é obrigatório para gasto misto");
+            }
+            switch (normalizedMethod) {
+                case MILEAGE_RATIO -> {
+                    normalizedPercentage = null;
+                    normalizedFixedAmount = null;
+                    normalizedReason = null;
+                }
+                case MANUAL_PERCENTAGE -> {
+                    if (normalizedPercentage == null || normalizedPercentage.signum() < 0
+                        || normalizedPercentage.compareTo(BigDecimal.ONE) > 0) {
+                        throw new IllegalArgumentException("Percentual profissional deve estar entre 0 e 1");
+                    }
+                    if (normalizedReason == null) {
+                        throw new IllegalArgumentException("Justificativa do ajuste é obrigatória");
+                    }
+                    normalizedFixedAmount = null;
+                }
+                case FIXED_AMOUNT -> {
+                    if (normalizedFixedAmount == null || normalizedFixedAmount.signum() < 0
+                        || normalizedFixedAmount.compareTo(amount) > 0) {
+                        throw new IllegalArgumentException("Valor profissional fixo deve estar entre zero e o valor do gasto");
+                    }
+                    if (normalizedReason == null) {
+                        throw new IllegalArgumentException("Justificativa do ajuste é obrigatória");
+                    }
+                    normalizedPercentage = null;
+                }
+            }
+        }
+
         Expense expense = new Expense();
-        expense.id = UUID.randomUUID(); expense.vehicle = vehicle; expense.operationalDay = day; expense.shift = shift;
-        expense.category = category; expense.expenseDate = expenseDate; expense.competenceDate = competenceDate;
-        expense.paidDate = paidDate; expense.amount = DecimalPolicy.money(amount); expense.classification = classification;
-        expense.allocationMethod = method; expense.professionalPercentage = professionalPercentage;
-        expense.professionalFixedAmount = professionalFixedAmount == null ? null : DecimalPolicy.money(professionalFixedAmount);
-        expense.adjustmentReason = adjustmentReason == null ? null : adjustmentReason.trim(); expense.notes = notes;
-        expense.status = "ACTIVE"; expense.createdAt = LocalDateTime.now(); return expense;
+        expense.id = UUID.randomUUID();
+        expense.vehicle = vehicle;
+        expense.operationalDay = day;
+        expense.shift = shift;
+        expense.category = category;
+        expense.expenseDate = expenseDate;
+        expense.competenceDate = competenceDate;
+        expense.paidDate = paidDate;
+        expense.amount = DecimalPolicy.money(amount);
+        expense.classification = classification;
+        expense.allocationMethod = normalizedMethod;
+        expense.professionalPercentage = normalizedPercentage;
+        expense.professionalFixedAmount = normalizedFixedAmount == null
+            ? null : DecimalPolicy.money(normalizedFixedAmount);
+        expense.adjustmentReason = normalizedReason;
+        expense.notes = notes;
+        expense.status = "ACTIVE";
+        expense.createdAt = LocalDateTime.now();
+        return expense;
+    }
+
+    private static String normalizeText(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        return value.trim();
     }
 
     public static Expense mixed(BigDecimal amount, AllocationMethod method) {
-        Expense expense = new Expense(); expense.id = UUID.randomUUID(); expense.amount = DecimalPolicy.money(amount);
-        expense.classification = ExpenseClassification.MIXED; expense.allocationMethod = method; expense.status = "ACTIVE";
-        expense.createdAt = LocalDateTime.now(); return expense;
+        Expense expense = new Expense();
+        expense.id = UUID.randomUUID();
+        expense.amount = DecimalPolicy.money(amount);
+        expense.classification = ExpenseClassification.MIXED;
+        expense.allocationMethod = method;
+        expense.status = "ACTIVE";
+        expense.createdAt = LocalDateTime.now();
+        return expense;
     }
 
     public void cancel() { status = "CANCELLED"; }
