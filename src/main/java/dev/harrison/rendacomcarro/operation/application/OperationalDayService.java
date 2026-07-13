@@ -11,6 +11,8 @@ import dev.harrison.rendacomcarro.vehicle.application.VehicleService;
 import dev.harrison.rendacomcarro.vehicle.domain.OdometerReadingSource;
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.List;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
@@ -54,7 +56,7 @@ public class OperationalDayService {
         odometerService.registerReading(
             saved.getVehicle().getId(),
             saved.getFinalOdometer(),
-            saved.getClosedAt(),
+            odometerRecordedAt(saved),
             OdometerReadingSource.OPERATIONAL_DAY_CLOSE,
             saved.getId()
         );
@@ -79,5 +81,13 @@ public class OperationalDayService {
     @Transactional(readOnly = true)
     public List<OperationalDay> listAll() {
         return days.findAllByOrderByDateDesc();
+    }
+
+    private static LocalDateTime odometerRecordedAt(OperationalDay day) {
+        LocalDate today = LocalDate.now();
+        if (day.getDate().isEqual(today)) {
+            return LocalDateTime.now();
+        }
+        return day.getDate().atTime(LocalTime.MAX);
     }
 }
