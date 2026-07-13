@@ -40,7 +40,7 @@
           <label class="form-label" for="fuelType">Combustível</label>
           <select class="form-select" id="fuelType" th:field="*{fuelType}" required>
             <option value="">Selecione</option>
-            <option th:each="type : ${fuelTypes}" th:value="${type}" th:text="${type}"></option>
+            <option th:each="type : ${fuelTypes}" th:value="${type}" th:text="${type.label}"></option>
           </select>
           <div class="invalid-feedback d-block" th:errors="*{fuelType}"></div>
         </div>
