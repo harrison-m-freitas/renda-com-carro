@@ -57,7 +57,7 @@ public class VehicleController {
         }
 
         service.create(new VehicleService.CreateVehicleCommand(
-            form.getName(),
+            resolvedName(form),
             form.getMake(),
             form.getModel(),
             form.getYear(),
@@ -111,7 +111,7 @@ public class VehicleController {
         }
 
         service.update(id, new VehicleService.UpdateVehicleCommand(
-            form.getName(),
+            resolvedName(form),
             form.getMake(),
             form.getModel(),
             form.getYear(),
@@ -136,5 +136,11 @@ public class VehicleController {
         service.archive(id);
         redirectAttributes.addFlashAttribute("successMessage", "Veículo arquivado.");
         return "redirect:/vehicles";
+    }
+
+    private static String resolvedName(VehicleForm form) {
+        return form.getName() == null || form.getName().isBlank()
+            ? form.getMake() + " " + form.getModel()
+            : form.getName();
     }
 }
