@@ -20,4 +20,16 @@ public interface RevenueRepository extends JpaRepository<Revenue, UUID> {
 
     @Query("select sum(r.netAmount) from Revenue r where r.receivedDate = :date")
     Optional<BigDecimal> sumNetByReceivedDate(@Param("date") LocalDate date);
+
+    @Query("select sum(r.netAmount) from Revenue r where r.competenceDate between :start and :end")
+    Optional<BigDecimal> sumNetByCompetenceDateBetween(
+        @Param("start") LocalDate start,
+        @Param("end") LocalDate end
+    );
+
+    @Query("select sum(r.netAmount) from Revenue r where r.receivedDate between :start and :end")
+    Optional<BigDecimal> sumNetByReceivedDateBetween(
+        @Param("start") LocalDate start,
+        @Param("end") LocalDate end
+    );
 }

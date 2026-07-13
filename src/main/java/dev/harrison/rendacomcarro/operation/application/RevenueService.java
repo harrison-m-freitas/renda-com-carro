@@ -21,8 +21,11 @@ public class RevenueService {
     private final ShiftRepository shiftRepository;
     private final PlatformRepository platformRepository;
 
-    public RevenueService(RevenueRepository revenueRepository, ShiftRepository shiftRepository,
-                          PlatformRepository platformRepository) {
+    public RevenueService(
+        RevenueRepository revenueRepository,
+        ShiftRepository shiftRepository,
+        PlatformRepository platformRepository
+    ) {
         this.revenueRepository = revenueRepository;
         this.shiftRepository = shiftRepository;
         this.platformRepository = platformRepository;
@@ -51,8 +54,10 @@ public class RevenueService {
         Platform platform = platformRepository.findById(command.platformId())
             .orElseThrow(() -> new IllegalArgumentException("Plataforma não encontrada"));
 
-        if (command.externalReference() != null && !command.externalReference().isBlank()
-            && revenueRepository.existsByPlatformIdAndExternalReference(platform.getId(), command.externalReference().trim())) {
+        if (command.externalReference() != null
+            && !command.externalReference().isBlank()
+            && revenueRepository.existsByPlatformIdAndExternalReference(
+                platform.getId(), command.externalReference().trim())) {
             throw new IllegalArgumentException("Referência externa duplicada para a plataforma");
         }
 
@@ -75,16 +80,42 @@ public class RevenueService {
 
     @Transactional(readOnly = true)
     public BigDecimal sumByCompetence(LocalDate date) {
-        return revenueRepository.sumNetByCompetenceDate(date).orElse(BigDecimal.ZERO).setScale(2);
+        return revenueRepository.sumNetByCompetenceDate(date)
+            .orElse(BigDecimal.ZERO)
+            .setScale(2);
     }
 
     @Transactional(readOnly = true)
     public BigDecimal sumByReceivedDate(LocalDate date) {
-        return revenueRepository.sumNetByReceivedDate(date).orElse(BigDecimal.ZERO).setScale(2);
+        return revenueRepository.sumNetByReceivedDate(date)
+            .orElse(BigDecimal.ZERO)
+            .setScale(2);
+    }
+
+    @Transactional(readOnly = true)
+    public BigDecimal sumByCompetence(LocalDate start, LocalDate end) {
+        validateRange(start, end);
+        return revenueRepository.sumNetByCompetenceDateBetween(start, end)
+            .orElse(BigDecimal.ZERO)
+            .setScale(2);
+    }
+
+    @Transactional(readOnly = true)
+    public BigDecimal sumByReceivedDate(LocalDate start, LocalDate end) {
+        validateRange(start, end);
+        return revenueRepository.sumNetByReceivedDateBetween(start, end)
+            .orElse(BigDecimal.ZERO)
+            .setScale(2);
     }
 
     @Transactional(readOnly = true)
     public List<Revenue> listByShift(UUID shiftId) {
         return revenueRepository.findAllByShiftIdOrderByCompetenceDateDesc(shiftId);
+    }
+
+    private static void validateRange(LocalDate start, LocalDate end) {
+        if (start == null || end == null || end.isBefore(start)) {
+            throw new IllegalArgumentException("Período de receita inválido");
+        }
     }
 }

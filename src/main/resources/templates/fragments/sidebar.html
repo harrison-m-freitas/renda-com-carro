@@ -1,1 +1,16 @@
-<aside class="app-sidebar bg-dark text-white p-3" th:fragment="sidebar" xmlns:th="http://www.thymeleaf.org"><div class="mb-4"><div class="fw-bold">Renda com Carro</div><div class="small text-white-50">Painel operacional</div></div><nav class="nav nav-pills flex-column gap-1"><a class="nav-link text-white" th:href="@{/}">Dashboard</a><a class="nav-link text-white" th:href="@{/operation-days}">Dias de operação</a><a class="nav-link text-white" th:href="@{/vehicles}">Veículos</a><a class="nav-link text-white" th:href="@{/expenses}">Gastos</a><a class="nav-link text-white" th:href="@{/fuelings}">Abastecimentos</a><a class="nav-link text-white" th:href="@{/goals}">Metas</a><a class="nav-link text-white" th:href="@{/obligations}">Obrigações</a></nav></aside>
+<aside class="app-sidebar bg-dark text-white p-3" th:fragment="sidebar" xmlns:th="http://www.thymeleaf.org">
+  <div class="mb-4">
+    <div class="fw-bold">Renda com Carro</div>
+    <div class="small text-white-50">Painel operacional</div>
+  </div>
+  <nav class="nav nav-pills flex-column gap-1">
+    <a class="nav-link text-white" th:href="@{/}">Dashboard</a>
+    <a class="nav-link text-white" th:href="@{/operation-days}">Dias de operação</a>
+    <a class="nav-link text-white" th:href="@{/vehicles}">Veículos</a>
+    <a class="nav-link text-white" th:href="@{/expenses}">Gastos</a>
+    <a class="nav-link text-white" th:href="@{/mileage-closings}">Fechamentos de km</a>
+    <a class="nav-link text-white" th:href="@{/fuelings}">Abastecimentos</a>
+    <a class="nav-link text-white" th:href="@{/goals}">Metas</a>
+    <a class="nav-link text-white" th:href="@{/obligations}">Obrigações</a>
+  </nav>
+</aside>

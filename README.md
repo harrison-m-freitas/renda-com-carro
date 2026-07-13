@@ -2,6 +2,12 @@
 
 Aplicação pessoal para controlar uma operação de renda com veículo por aplicativos. O MVP registra dias, turnos, Uber/99, receitas, gastos, abastecimentos, metas, empréstimos, anexos e indicadores operacionais/financeiros.
 
+## Estado do projeto
+
+O código do MVP é validado por testes de unidade, integração e aceite com PostgreSQL/Testcontainers. A pipeline também constrói a imagem ARM64, inicia a stack de produção e executa backup/restauração isolada.
+
+A instalação no Raspberry só deve ser considerada pronta após concluir os itens manuais de SSD, Tailscale, Google Drive, reboot e soak test registrados no [checklist de aceite](docs/mvp-acceptance-checklist.md).
+
 ## Stack
 
 - Java 21 e Spring Boot 3.5;
@@ -16,10 +22,21 @@ Aplicação pessoal para controlar uma operação de renda com veículo por apli
 
 Pré-requisitos: Java 21 e Docker.
 
+Para executar apenas o PostgreSQL local, use um override ou um comando direto, porque o Compose principal representa a topologia de produção. Exemplo direto:
+
 ```bash
-cp .env.example .env
-docker compose up -d postgres
-export DB_URL=jdbc:postgresql://localhost:5432/renda_com_carro
+docker run --rm --name renda-postgres-dev \
+  -e POSTGRES_DB=renda_com_carro \
+  -e POSTGRES_USER=renda \
+  -e POSTGRES_PASSWORD=senha-local \
+  -p 5438:5432 \
+  postgres:17-alpine
+```
+
+Em outro terminal:
+
+```bash
+export DB_URL=jdbc:postgresql://localhost:5438/renda_com_carro
 export DB_USER=renda
 export DB_PASSWORD='senha-local'
 export APP_ADMIN_USERNAME=harrison
@@ -27,10 +44,11 @@ export APP_ADMIN_PASSWORD='senha-local-com-16-ou-mais-caracteres'
 ./mvnw spring-boot:run
 ```
 
-Para testes:
+Para testes e empacotamento:
 
 ```bash
 ./mvnw clean test
+./mvnw package
 ```
 
 Os testes de integração usam Testcontainers e precisam de um daemon Docker acessível.
@@ -49,8 +67,10 @@ curl --fail http://127.0.0.1:8080/actuator/health
 
 A aplicação é publicada somente em `127.0.0.1`. Use `tailscale serve` para disponibilizá-la por HTTPS aos dispositivos aprovados. O PostgreSQL não publica porta no host.
 
-## Operação
+## Documentação
 
+- [Arquitetura](docs/architecture.md)
+- [Checklist de aceite](docs/mvp-acceptance-checklist.md)
 - [Implantação no Raspberry Pi](docs/operations/raspberry-pi.md)
 - [Acesso privado com Tailscale](docs/operations/tailscale.md)
 - [Backup e restauração](docs/operations/backup-restore.md)

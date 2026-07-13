@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="pt-BR" xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{layouts/app :: layout(~{::section}, 'Novo fechamento de quilometragem')}">
+<section>
+  <div class="mb-4">
+    <h1 class="h2 mb-1">Novo fechamento de quilometragem</h1>
+    <p class="text-secondary mb-0">Informe o odômetro e a distância profissional do mês.</p>
+  </div>
+
+  <form class="card" th:action="@{/mileage-closings}" th:object="${closingForm}" method="post">
+    <div class="card-body">
+      <div class="row g-3">
+        <div class="col-md-7">
+          <label class="form-label" for="vehicleId">Veículo</label>
+          <select class="form-select" id="vehicleId" th:field="*{vehicleId}" required>
+            <option value="">Selecione</option>
+            <option th:each="vehicle : ${vehicles}"
+                    th:value="${vehicle.id}"
+                    th:text="${vehicle.name + ' — ' + vehicle.plate}"></option>
+          </select>
+          <div class="invalid-feedback d-block" th:errors="*{vehicleId}"></div>
+        </div>
+
+        <div class="col-md-5">
+          <label class="form-label" for="month">Mês</label>
+          <input class="form-control" id="month" type="month" th:field="*{month}" required>
+          <div class="invalid-feedback d-block" th:errors="*{month}"></div>
+        </div>
+
+        <div class="col-md-4">
+          <label class="form-label" for="initialOdometer">Odômetro inicial</label>
+          <input class="form-control" id="initialOdometer" type="number" step="0.1"
+                 min="0" th:field="*{initialOdometer}" required>
+          <div class="invalid-feedback d-block" th:errors="*{initialOdometer}"></div>
+        </div>
+
+        <div class="col-md-4">
+          <label class="form-label" for="finalOdometer">Odômetro final</label>
+          <input class="form-control" id="finalOdometer" type="number" step="0.1"
+                 min="0" th:field="*{finalOdometer}" required>
+          <div class="invalid-feedback d-block" th:errors="*{finalOdometer}"></div>
+        </div>
+
+        <div class="col-md-4">
+          <label class="form-label" for="professionalKilometers">Quilômetros profissionais</label>
+          <input class="form-control" id="professionalKilometers" type="number" step="0.1"
+                 min="0" th:field="*{professionalKilometers}" required>
+          <div class="invalid-feedback d-block" th:errors="*{professionalKilometers}"></div>
+        </div>
+
+        <div class="col-12">
+          <label class="form-label" for="adjustmentReason">Observação ou justificativa</label>
+          <textarea class="form-control" id="adjustmentReason" rows="3"
+                    th:field="*{adjustmentReason}"></textarea>
+        </div>
+      </div>
+    </div>
+    <div class="card-footer d-flex gap-2 justify-content-end">
+      <a class="btn btn-outline-secondary" th:href="@{/mileage-closings}">Cancelar</a>
+      <button class="btn btn-primary" type="submit">Salvar fechamento</button>
+    </div>
+  </form>
+</section>
+</html>
