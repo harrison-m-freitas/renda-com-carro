@@ -13,6 +13,7 @@ const createClassList = (initial = []) => {
 };
 
 const createHarness = ({ valid }) => {
+  let currentValid = valid;
   const formListeners = new Map();
   const windowListeners = new Map();
   const group = { classList: createClassList() };
@@ -20,7 +21,7 @@ const createHarness = ({ valid }) => {
     classList: createClassList(valid ? [] : ['is-invalid']),
     focused: false,
     attributes: new Map(),
-    checkValidity: () => valid,
+    checkValidity: () => currentValid,
     closest: (selector) => selector === '.input-group' ? group : null,
     focus() { this.focused = true; },
     setAttribute(name, value) { this.attributes.set(name, value); },
@@ -42,7 +43,7 @@ const createHarness = ({ valid }) => {
   ]);
 
   const form = {
-    checkValidity: () => valid,
+    checkValidity: () => currentValid,
     querySelector: (selector) => selector === '[data-vehicle-submit]' ? button : null,
     querySelectorAll: (selector) => selectorResults.get(selector) || [],
     addEventListener: (type, listener) => formListeners.set(type, listener)
@@ -62,7 +63,8 @@ const createHarness = ({ valid }) => {
     invalidInput,
     windowListeners,
     documentObject,
-    windowObject
+    windowObject,
+    setValid(value) { currentValid = value; }
   };
 };
 
@@ -89,4 +91,15 @@ test('vehicle form: pageshow restores submit button after a valid submission', (
   harness.windowListeners.get('pageshow')({});
   assert.equal(harness.button.disabled, false);
   assert.equal(harness.button.textContent, 'Cadastrar veículo');
+});
+
+test('vehicle form: corrected server error clears invalid state on input', () => {
+  const harness = createHarness({ valid: false });
+  initializeVehicleForm(harness.documentObject, harness.windowObject);
+
+  harness.setValid(true);
+  harness.formListeners.get('input')({ target: harness.invalidInput });
+
+  assert.equal(harness.invalidInput.classList.contains('is-invalid'), false);
+  assert.equal(harness.invalidInput.attributes.has('aria-invalid'), false);
 });
