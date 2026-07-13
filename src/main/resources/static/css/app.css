@@ -96,7 +96,7 @@
   grid-template-columns: minmax(0, .85fr) minmax(0, 1.15fr);
 }
 .vehicle-acquisition-grid {
-  grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+  grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
 }
 .vehicle-acquisition-grid > * { grid-column: 1; }
 .vehicle-form .form-label { font-weight: 600; }
