@@ -20,6 +20,11 @@ jobs:
           distribution: temurin
           java-version: '21'
           cache: maven
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Run JavaScript tests
+        run: npm run test:js
       - name: Run tests
         run: ./mvnw -B clean test
       - name: Upload Maven reports after failure
