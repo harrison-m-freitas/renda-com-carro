@@ -128,7 +128,11 @@ export const initializeVehicleForm = (
 
   form.addEventListener('input', (event) => {
     dirty = true;
-    syncInputValidity(event.target);
+    const input = event.target;
+    if (input?.classList?.contains('is-invalid') && input.checkValidity?.()) {
+      input.classList.remove('is-invalid');
+    }
+    syncInputValidity(input);
   });
 
   form.addEventListener('submit', () => {
