@@ -39,17 +39,22 @@
     }).format(parsed);
   };
 
+  const formatPlate = () => {
+    if (!plateInput) return;
+    let normalized = plateInput.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 7);
+    if (/^[A-Z]{3}\d{1,4}$/.test(normalized) && normalized.length > 3) {
+      normalized = `${normalized.slice(0, 3)}-${normalized.slice(3)}`;
+    }
+    plateInput.value = normalized;
+  };
+
   if (plateInput) {
-    plateInput.addEventListener('input', () => {
-      let normalized = plateInput.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 7);
-      if (/^[A-Z]{3}\d{1,4}$/.test(normalized) && normalized.length > 3) {
-        normalized = `${normalized.slice(0, 3)}-${normalized.slice(3)}`;
-      }
-      plateInput.value = normalized;
-    });
+    formatPlate();
+    plateInput.addEventListener('input', formatPlate);
   }
 
   localizedInputs.forEach((input) => {
+    formatLocalizedNumber(input);
     input.addEventListener('blur', () => formatLocalizedNumber(input));
   });
 
