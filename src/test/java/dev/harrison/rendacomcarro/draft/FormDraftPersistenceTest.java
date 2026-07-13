@@ -3,6 +3,7 @@ package dev.harrison.rendacomcarro.draft;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import dev.harrison.rendacomcarro.draft.domain.FormDraft;
 import dev.harrison.rendacomcarro.draft.domain.FormDraftType;
 import dev.harrison.rendacomcarro.draft.infrastructure.FormDraftRepository;
@@ -24,9 +25,10 @@ import org.springframework.test.context.TestPropertySource;
 class FormDraftPersistenceTest extends PostgresIntegrationTest {
     @Autowired AppUserRepository users;
     @Autowired FormDraftRepository drafts;
+    @Autowired ObjectMapper mapper;
 
     @Test
-    void storesJsonAndEnforcesOneDraftPerOwnerTypeAndContext() {
+    void storesJsonAndEnforcesOneDraftPerOwnerTypeAndContext() throws Exception {
         AppUser owner = users.findByUsername("draft-owner").orElseThrow();
         LocalDateTime now = LocalDateTime.of(2026, 7, 13, 10, 0);
 
@@ -45,7 +47,8 @@ class FormDraftPersistenceTest extends PostgresIntegrationTest {
             "draft-owner", FormDraftType.EXPENSE, "current"
         ).orElseThrow();
 
-        assertThat(restored.getPayloadJson()).isEqualTo("{\"amount\":\"120,50\"}");
+        assertThat(mapper.readTree(restored.getPayloadJson()))
+            .isEqualTo(mapper.readTree("{\"amount\":\"120,50\"}"));
         assertThat(restored.getVersion()).isZero();
 
         assertThatThrownBy(() -> drafts.saveAndFlush(FormDraft.create(
