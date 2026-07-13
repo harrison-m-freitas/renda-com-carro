@@ -1,16 +1,42 @@
-<aside class="app-sidebar bg-dark text-white p-3" th:fragment="sidebar" xmlns:th="http://www.thymeleaf.org">
-  <div class="mb-4">
-    <div class="fw-bold">Renda com Carro</div>
-    <div class="small text-white-50">Painel operacional</div>
+<th:block th:fragment="sidebar" xmlns:th="http://www.thymeleaf.org">
+  <aside class="app-sidebar app-sidebar-desktop bg-dark text-white p-3 d-none d-md-block">
+    <div class="mb-4">
+      <div class="fw-bold">Renda com Carro</div>
+      <div class="small text-white-50">Painel operacional</div>
+    </div>
+    <nav class="nav nav-pills flex-column gap-1" aria-label="Navegação principal">
+      <a class="nav-link text-white" th:href="@{/}">Dashboard</a>
+      <a class="nav-link text-white" th:href="@{/operation-days}">Dias de operação</a>
+      <a class="nav-link text-white" th:href="@{/vehicles}">Veículos</a>
+      <a class="nav-link text-white" th:href="@{/expenses}">Gastos</a>
+      <a class="nav-link text-white" th:href="@{/mileage-closings}">Fechamentos de km</a>
+      <a class="nav-link text-white" th:href="@{/fuelings}">Abastecimentos</a>
+      <a class="nav-link text-white" th:href="@{/goals}">Metas</a>
+      <a class="nav-link text-white" th:href="@{/obligations}">Obrigações</a>
+    </nav>
+  </aside>
+
+  <div class="offcanvas offcanvas-start text-bg-dark d-md-none" tabindex="-1"
+       id="app-mobile-navigation" aria-labelledby="app-mobile-navigation-title">
+    <div class="offcanvas-header border-bottom border-secondary">
+      <div>
+        <h2 class="offcanvas-title h5 mb-0" id="app-mobile-navigation-title">Renda com Carro</h2>
+        <div class="small text-white-50">Painel operacional</div>
+      </div>
+      <button type="button" class="btn-close btn-close-white" data-bs-dismiss="offcanvas"
+              aria-label="Fechar menu"></button>
+    </div>
+    <div class="offcanvas-body">
+      <nav class="nav nav-pills flex-column gap-1" aria-label="Navegação principal mobile">
+        <a class="nav-link text-white" th:href="@{/}">Dashboard</a>
+        <a class="nav-link text-white" th:href="@{/operation-days}">Dias de operação</a>
+        <a class="nav-link text-white" th:href="@{/vehicles}">Veículos</a>
+        <a class="nav-link text-white" th:href="@{/expenses}">Gastos</a>
+        <a class="nav-link text-white" th:href="@{/mileage-closings}">Fechamentos de km</a>
+        <a class="nav-link text-white" th:href="@{/fuelings}">Abastecimentos</a>
+        <a class="nav-link text-white" th:href="@{/goals}">Metas</a>
+        <a class="nav-link text-white" th:href="@{/obligations}">Obrigações</a>
+      </nav>
+    </div>
   </div>
-  <nav class="nav nav-pills flex-column gap-1">
-    <a class="nav-link text-white" th:href="@{/}">Dashboard</a>
-    <a class="nav-link text-white" th:href="@{/operation-days}">Dias de operação</a>
-    <a class="nav-link text-white" th:href="@{/vehicles}">Veículos</a>
-    <a class="nav-link text-white" th:href="@{/expenses}">Gastos</a>
-    <a class="nav-link text-white" th:href="@{/mileage-closings}">Fechamentos de km</a>
-    <a class="nav-link text-white" th:href="@{/fuelings}">Abastecimentos</a>
-    <a class="nav-link text-white" th:href="@{/goals}">Metas</a>
-    <a class="nav-link text-white" th:href="@{/obligations}">Obrigações</a>
-  </nav>
-</aside>
+</th:block>
