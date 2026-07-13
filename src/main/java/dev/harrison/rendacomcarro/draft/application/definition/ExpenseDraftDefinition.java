@@ -27,20 +27,9 @@ public class ExpenseDraftDefinition implements FormDraftDefinition {
         this.validator = validator;
     }
 
-    @Override
-    public FormDraftType type() {
-        return FormDraftType.EXPENSE;
-    }
-
-    @Override
-    public int schemaVersion() {
-        return 1;
-    }
-
-    @Override
-    public int maxStep() {
-        return 3;
-    }
+    @Override public FormDraftType type() { return FormDraftType.EXPENSE; }
+    @Override public int schemaVersion() { return 1; }
+    @Override public int maxStep() { return 3; }
 
     @Override
     public String normalizeContextKey(String contextKey) {
@@ -52,45 +41,34 @@ public class ExpenseDraftDefinition implements FormDraftDefinition {
     }
 
     @Override
-    public ObjectNode normalizeAndValidate(ObjectNode payload, int currentStep) {
+    public ObjectNode normalizeAndValidate(
+        ObjectNode payload,
+        int currentStep,
+        boolean validateCurrentStep
+    ) {
         validator.rejectUnknownFields(payload, ALLOWED_FIELDS);
         ObjectNode normalized = validator.sanitizeTextFields(payload, TEXT_FIELDS);
 
-        if (currentStep >= 1) {
-            normalized.put("vehicleId", validator.requireUuid(
-                normalized, "vehicleId", "Veículo"
-            ).toString());
-            normalized.put("categoryId", validator.requireUuid(
-                normalized, "categoryId", "Categoria"
-            ).toString());
-            normalized.put("expenseDate", validator.requireDate(
-                normalized, "expenseDate", "Data do gasto"
-            ).toString());
-            BigDecimal amount = validator.requireDecimal(normalized, "amount", "Valor");
-            if (amount.signum() <= 0) {
-                throw new DomainValidationException("Valor deve ser maior que zero.");
-            }
-            normalized.put("amount", amount.toPlainString());
-        }
+        normalizeUuid(normalized, "vehicleId", "Veículo", validateCurrentStep && currentStep >= 1);
+        normalizeUuid(normalized, "categoryId", "Categoria", validateCurrentStep && currentStep >= 1);
+        normalizeDate(normalized, "expenseDate", "Data do gasto", validateCurrentStep && currentStep >= 1);
+        normalizePositiveDecimal(normalized, "amount", "Valor", validateCurrentStep && currentStep >= 1);
+        normalizeDate(normalized, "paidDate", "Data do pagamento", false);
 
-        if (normalized.hasNonNull("paidDate")) {
-            var paidDate = validator.optionalDate(normalized, "paidDate", "Data do pagamento");
-            if (paidDate == null) {
-                normalized.remove("paidDate");
-            } else {
-                normalized.put("paidDate", paidDate.toString());
-            }
-        }
+        normalizeMonth(
+            normalized,
+            "competenceMonth",
+            "Competência",
+            validateCurrentStep && currentStep >= 2
+        );
 
-        if (currentStep < 2) {
+        ExpenseClassification classification = optionalClassification(normalized);
+        if (classification == null && validateCurrentStep && currentStep >= 2) {
+            classification = requireClassification(normalized);
+        }
+        if (classification == null) {
             return normalized;
         }
-
-        normalized.put("competenceMonth", validator.requireYearMonth(
-            normalized, "competenceMonth", "Competência"
-        ).toString());
-
-        ExpenseClassification classification = requireClassification(normalized);
         normalized.put("classification", classification.name());
 
         if (classification != ExpenseClassification.MIXED) {
@@ -101,8 +79,15 @@ public class ExpenseDraftDefinition implements FormDraftDefinition {
             return normalized;
         }
 
-        AllocationMethod method = requireAllocationMethod(normalized);
+        AllocationMethod method = optionalAllocationMethod(normalized);
+        if (method == null && validateCurrentStep && currentStep >= 2) {
+            method = requireAllocationMethod(normalized);
+        }
+        if (method == null) {
+            return normalized;
+        }
         normalized.put("allocationMethod", method.name());
+
         switch (method) {
             case MILEAGE_RATIO -> {
                 normalized.remove("professionalPercentagePercent");
@@ -110,34 +95,134 @@ public class ExpenseDraftDefinition implements FormDraftDefinition {
                 normalized.remove("adjustmentReason");
             }
             case MANUAL_PERCENTAGE -> {
-                BigDecimal percentage = validator.requireDecimal(
-                    normalized, "professionalPercentagePercent", "Percentual profissional"
+                normalizePercentage(
+                    normalized,
+                    validateCurrentStep && currentStep >= 2
                 );
-                if (percentage.signum() < 0 || percentage.compareTo(new BigDecimal("100")) > 0) {
-                    throw new DomainValidationException(
-                        "Percentual profissional deve estar entre 0 e 100."
-                    );
-                }
-                normalized.put("professionalPercentagePercent", percentage.toPlainString());
-                validator.requireText(normalized, "adjustmentReason", "Justificativa do ajuste");
+                requireReasonWhenStrict(normalized, validateCurrentStep && currentStep >= 2);
                 normalized.remove("professionalFixedAmount");
             }
             case FIXED_AMOUNT -> {
-                BigDecimal fixedAmount = validator.requireDecimal(
-                    normalized, "professionalFixedAmount", "Valor profissional fixo"
+                normalizeFixedAmount(
+                    normalized,
+                    validateCurrentStep && currentStep >= 2
                 );
-                BigDecimal total = validator.requireDecimal(normalized, "amount", "Valor");
-                if (fixedAmount.signum() < 0 || fixedAmount.compareTo(total) > 0) {
-                    throw new DomainValidationException(
-                        "Valor profissional fixo deve estar entre zero e o valor do gasto."
-                    );
-                }
-                normalized.put("professionalFixedAmount", fixedAmount.toPlainString());
-                validator.requireText(normalized, "adjustmentReason", "Justificativa do ajuste");
+                requireReasonWhenStrict(normalized, validateCurrentStep && currentStep >= 2);
                 normalized.remove("professionalPercentagePercent");
             }
         }
         return normalized;
+    }
+
+    private void normalizeUuid(
+        ObjectNode payload,
+        String field,
+        String label,
+        boolean required
+    ) {
+        if (required) {
+            payload.put(field, validator.requireUuid(payload, field, label).toString());
+        } else if (payload.hasNonNull(field) && validator.optionalText(payload, field) != null) {
+            payload.put(field, validator.optionalUuid(payload, field, label).toString());
+        } else {
+            payload.remove(field);
+        }
+    }
+
+    private void normalizeDate(
+        ObjectNode payload,
+        String field,
+        String label,
+        boolean required
+    ) {
+        if (required) {
+            payload.put(field, validator.requireDate(payload, field, label).toString());
+        } else if (payload.hasNonNull(field) && validator.optionalText(payload, field) != null) {
+            payload.put(field, validator.optionalDate(payload, field, label).toString());
+        } else {
+            payload.remove(field);
+        }
+    }
+
+    private void normalizeMonth(
+        ObjectNode payload,
+        String field,
+        String label,
+        boolean required
+    ) {
+        if (required) {
+            payload.put(field, validator.requireYearMonth(payload, field, label).toString());
+        } else if (payload.hasNonNull(field) && validator.optionalText(payload, field) != null) {
+            payload.put(field, validator.requireYearMonth(payload, field, label).toString());
+        } else {
+            payload.remove(field);
+        }
+    }
+
+    private void normalizePositiveDecimal(
+        ObjectNode payload,
+        String field,
+        String label,
+        boolean required
+    ) {
+        BigDecimal value = required
+            ? validator.requireDecimal(payload, field, label)
+            : validator.optionalDecimal(payload, field, label);
+        if (value == null) {
+            payload.remove(field);
+            return;
+        }
+        if (value.signum() <= 0) {
+            throw new DomainValidationException(label + " deve ser maior que zero.");
+        }
+        payload.put(field, value.toPlainString());
+    }
+
+    private void normalizePercentage(ObjectNode payload, boolean required) {
+        BigDecimal value = required
+            ? validator.requireDecimal(payload, "professionalPercentagePercent", "Percentual profissional")
+            : validator.optionalDecimal(payload, "professionalPercentagePercent", "Percentual profissional");
+        if (value == null) {
+            payload.remove("professionalPercentagePercent");
+            return;
+        }
+        if (value.signum() < 0 || value.compareTo(new BigDecimal("100")) > 0) {
+            throw new DomainValidationException("Percentual profissional deve estar entre 0 e 100.");
+        }
+        payload.put("professionalPercentagePercent", value.toPlainString());
+    }
+
+    private void normalizeFixedAmount(ObjectNode payload, boolean required) {
+        BigDecimal fixed = required
+            ? validator.requireDecimal(payload, "professionalFixedAmount", "Valor profissional fixo")
+            : validator.optionalDecimal(payload, "professionalFixedAmount", "Valor profissional fixo");
+        if (fixed == null) {
+            payload.remove("professionalFixedAmount");
+            return;
+        }
+        BigDecimal total = validator.optionalDecimal(payload, "amount", "Valor");
+        if (fixed.signum() < 0 || (total != null && fixed.compareTo(total) > 0)) {
+            throw new DomainValidationException(
+                "Valor profissional fixo deve estar entre zero e o valor do gasto."
+            );
+        }
+        payload.put("professionalFixedAmount", fixed.toPlainString());
+    }
+
+    private void requireReasonWhenStrict(ObjectNode payload, boolean required) {
+        if (required) {
+            validator.requireText(payload, "adjustmentReason", "Justificativa do ajuste");
+        }
+    }
+
+    private ExpenseClassification optionalClassification(ObjectNode payload) {
+        String value = validator.optionalText(payload, "classification");
+        if (value == null) return null;
+        try {
+            return ExpenseClassification.valueOf(value);
+        } catch (IllegalArgumentException exception) {
+            throw new DomainValidationException("Classificação de gasto inválida.");
+        }
     }
 
     private ExpenseClassification requireClassification(ObjectNode payload) {
@@ -146,6 +231,16 @@ public class ExpenseDraftDefinition implements FormDraftDefinition {
             return ExpenseClassification.valueOf(value);
         } catch (IllegalArgumentException exception) {
             throw new DomainValidationException("Classificação de gasto inválida.");
+        }
+    }
+
+    private AllocationMethod optionalAllocationMethod(ObjectNode payload) {
+        String value = validator.optionalText(payload, "allocationMethod");
+        if (value == null) return null;
+        try {
+            return AllocationMethod.valueOf(value);
+        } catch (IllegalArgumentException exception) {
+            throw new DomainValidationException("Método de rateio inválido.");
         }
     }
 
