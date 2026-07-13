@@ -60,7 +60,7 @@ public class Vehicle {
     @Column(name = "current_odometer_source_id")
     private UUID currentOdometerSourceId;
 
-    @Column(name = "purchase_price", nullable = false, precision = 14, scale = 2)
+    @Column(name = "purchase_price", precision = 14, scale = 2)
     private BigDecimal purchasePrice;
 
     @Column(name = "created_at", nullable = false)
@@ -82,9 +82,7 @@ public class Vehicle {
         BigDecimal initialOdometer,
         BigDecimal purchasePrice
     ) {
-        BigDecimal normalizedPrice = defaultZero(purchasePrice);
         validateNonNegative(initialOdometer, "Odômetro inicial");
-        validateNonNegative(normalizedPrice, "Preço de compra");
         this.id = UUID.randomUUID();
         this.make = requireText(make, "Marca");
         this.model = requireText(model, "Modelo");
@@ -96,7 +94,7 @@ public class Vehicle {
         this.primaryVehicle = false;
         this.initialOdometer = DecimalPolicy.distance(initialOdometer);
         this.currentOdometer = this.initialOdometer;
-        this.purchasePrice = DecimalPolicy.money(normalizedPrice);
+        this.purchasePrice = normalizeOptionalMoney(purchasePrice);
         this.createdAt = LocalDateTime.now();
         this.updatedAt = this.createdAt;
         this.currentOdometerRecordedAt = this.createdAt;
@@ -126,15 +124,13 @@ public class Vehicle {
         FuelType fuelType,
         BigDecimal purchasePrice
     ) {
-        BigDecimal normalizedPrice = defaultZero(purchasePrice);
-        validateNonNegative(normalizedPrice, "Preço de compra");
         this.make = requireText(make, "Marca");
         this.model = requireText(model, "Modelo");
         this.name = resolveName(name, this.make, this.model);
         this.year = year;
         this.plate = normalizePlate(plate);
         this.fuelType = requireFuelType(fuelType);
-        this.purchasePrice = DecimalPolicy.money(normalizedPrice);
+        this.purchasePrice = normalizeOptionalMoney(purchasePrice);
         this.updatedAt = LocalDateTime.now();
     }
 
@@ -201,8 +197,12 @@ public class Vehicle {
             .toUpperCase(Locale.ROOT);
     }
 
-    private static BigDecimal defaultZero(BigDecimal value) {
-        return value == null ? BigDecimal.ZERO : value;
+    private static BigDecimal normalizeOptionalMoney(BigDecimal value) {
+        if (value == null) {
+            return null;
+        }
+        validateNonNegative(value, "Preço de compra");
+        return DecimalPolicy.money(value);
     }
 
     private static void validateNonNegative(BigDecimal value, String field) {
