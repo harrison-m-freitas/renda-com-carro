@@ -107,9 +107,11 @@ public class MileageClosingDraftDefinition implements FormDraftDefinition {
                     "Quilômetros profissionais não podem exceder o total rodado."
                 );
             }
-            validator.requireText(
-                normalized, "adjustmentReason", "Justificativa da correção"
-            );
+            if (validator.optionalText(normalized, "adjustmentReason") == null) {
+                throw new DomainValidationException(
+                    "A justificativa da correção é obrigatória."
+                );
+            }
         }
         return normalized;
     }
