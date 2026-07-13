@@ -61,7 +61,7 @@ CREATE TABLE revenue (
   id UUID PRIMARY KEY,
   shift_id UUID NOT NULL REFERENCES operation_shift(id),
   trip_id UUID REFERENCES trip(id),
-  platform_id UUID REFERENCES platform(id),
+  platform_id UUID NOT NULL REFERENCES platform(id),
   type VARCHAR(30) NOT NULL,
   competence_date DATE NOT NULL,
   received_date DATE,
@@ -71,7 +71,13 @@ CREATE TABLE revenue (
   tip_amount NUMERIC(14,2) NOT NULL DEFAULT 0,
   bonus_amount NUMERIC(14,2) NOT NULL DEFAULT 0,
   source VARCHAR(20) NOT NULL,
-  notes TEXT
+  external_reference VARCHAR(120),
+  notes TEXT,
+  created_at TIMESTAMP NOT NULL
 );
 CREATE INDEX ix_revenue_shift ON revenue(shift_id);
 CREATE INDEX ix_revenue_competence_date ON revenue(competence_date);
+CREATE INDEX ix_revenue_received_date ON revenue(received_date);
+CREATE UNIQUE INDEX ux_revenue_platform_external_reference
+  ON revenue(platform_id, external_reference)
+  WHERE external_reference IS NOT NULL;
