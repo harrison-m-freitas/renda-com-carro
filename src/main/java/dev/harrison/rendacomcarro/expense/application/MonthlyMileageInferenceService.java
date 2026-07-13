@@ -11,8 +11,10 @@ import dev.harrison.rendacomcarro.operation.infrastructure.OperationalDayReposit
 import dev.harrison.rendacomcarro.operation.infrastructure.ShiftRepository;
 import dev.harrison.rendacomcarro.vehicle.application.VehicleService;
 import dev.harrison.rendacomcarro.vehicle.domain.OdometerReadingSource;
+import dev.harrison.rendacomcarro.vehicle.domain.Vehicle;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.YearMonth;
@@ -57,11 +59,11 @@ public class MonthlyMileageInferenceService {
             throw new IllegalArgumentException("Veículo e mês são obrigatórios");
         }
 
-        var vehicle = vehicles.get(vehicleId);
-        var startDate = month.atDay(1);
-        var endDate = month.atEndOfMonth();
-        var startTime = startDate.atStartOfDay();
-        var exclusiveEnd = month.plusMonths(1).atDay(1).atStartOfDay();
+        Vehicle vehicle = vehicles.get(vehicleId);
+        LocalDate startDate = month.atDay(1);
+        LocalDate endDate = month.atEndOfMonth();
+        LocalDateTime startTime = startDate.atStartOfDay();
+        LocalDateTime exclusiveEnd = month.plusMonths(1).atDay(1).atStartOfDay();
 
         List<OperationalDay> monthlyDays = days
             .findAllByVehicleIdAndDateBetweenOrderByDateAsc(vehicleId, startDate, endDate);
@@ -92,6 +94,8 @@ public class MonthlyMileageInferenceService {
             alerts.add(blocking("MISSING_FINAL_ODOMETER", "Não foi possível inferir o odômetro final."));
         }
 
+        addChronologicalRegressionAlert(initial, vehicle, monthlyDays, monthlyShifts, monthlyFuelings, alerts);
+
         BigDecimal professional = distance(monthlyShifts.stream()
             .filter(shift -> shift.getStatus() == ShiftStatus.CLOSED)
             .map(Shift::getDistance)
@@ -104,10 +108,8 @@ public class MonthlyMileageInferenceService {
         if (initial != null && end != null) {
             BigDecimal rawTotal = end.value().subtract(initial.value());
             if (rawTotal.signum() < 0) {
-                alerts.add(blocking(
-                    "ODOMETER_REGRESSION",
-                    "O odômetro final inferido é menor que o odômetro inicial."
-                ));
+                addBlockingOnce(alerts, "ODOMETER_REGRESSION",
+                    "O odômetro final inferido é menor que o odômetro inicial.");
             } else {
                 total = distance(rawTotal);
                 if (professional.compareTo(total) > 0) {
@@ -160,8 +162,8 @@ public class MonthlyMileageInferenceService {
 
     private Reading inferInitial(
         UUID vehicleId,
-        java.time.LocalDate referenceMonth,
-        dev.harrison.rendacomcarro.vehicle.domain.Vehicle vehicle,
+        LocalDate referenceMonth,
+        Vehicle vehicle,
         List<OperationalDay> monthlyDays,
         List<Shift> monthlyShifts,
         List<Fueling> monthlyFuelings
@@ -183,14 +185,17 @@ public class MonthlyMileageInferenceService {
             .filter(day -> day.getStatus() != OperationalDayStatus.CANCELLED)
             .findFirst();
         if (firstDay.isPresent()) {
-            var day = firstDay.get();
+            OperationalDay day = firstDay.get();
             return new Reading(
                 day.getInitialOdometer(), day.getDate().atStartOfDay(),
                 OdometerOrigin.FIRST_OPERATIONAL_DAY, day.getId());
         }
 
-        if (!monthlyShifts.isEmpty()) {
-            Shift shift = monthlyShifts.getFirst();
+        Optional<Shift> firstShift = monthlyShifts.stream()
+            .filter(shift -> shift.getStatus() != ShiftStatus.CANCELLED)
+            .findFirst();
+        if (firstShift.isPresent()) {
+            Shift shift = firstShift.get();
             return new Reading(
                 shift.getInitialOdometer(), shift.getStartedAt(),
                 OdometerOrigin.FIRST_SHIFT, shift.getId());
@@ -212,36 +217,14 @@ public class MonthlyMileageInferenceService {
     }
 
     private Reading inferFinal(
-        dev.harrison.rendacomcarro.vehicle.domain.Vehicle vehicle,
+        Vehicle vehicle,
         LocalDateTime start,
         LocalDateTime exclusiveEnd,
         List<OperationalDay> monthlyDays,
         List<Shift> monthlyShifts,
         List<Fueling> monthlyFuelings
     ) {
-        List<Reading> candidates = new ArrayList<>();
-
-        monthlyDays.stream()
-            .filter(day -> day.getStatus() == OperationalDayStatus.CLOSED)
-            .filter(day -> day.getFinalOdometer() != null)
-            .map(day -> new Reading(
-                day.getFinalOdometer(), day.getDate().atTime(LocalTime.MAX),
-                OdometerOrigin.CLOSED_OPERATIONAL_DAY, day.getId()))
-            .forEach(candidates::add);
-
-        monthlyShifts.stream()
-            .filter(shift -> shift.getStatus() == ShiftStatus.CLOSED)
-            .filter(shift -> shift.getFinalOdometer() != null && shift.getEndedAt() != null)
-            .map(shift -> new Reading(
-                shift.getFinalOdometer(), shift.getEndedAt(),
-                OdometerOrigin.CLOSED_SHIFT, shift.getId()))
-            .forEach(candidates::add);
-
-        monthlyFuelings.stream()
-            .map(fueling -> new Reading(
-                fueling.getOdometer(), fueling.getFueledAt(),
-                OdometerOrigin.FUELING, fueling.getId()))
-            .forEach(candidates::add);
+        List<Reading> candidates = finalReadings(monthlyDays, monthlyShifts, monthlyFuelings);
 
         Set<UUID> representedSources = new HashSet<>();
         candidates.stream().map(Reading::sourceId).filter(java.util.Objects::nonNull)
@@ -260,6 +243,85 @@ public class MonthlyMileageInferenceService {
         }
 
         return candidates.stream().max(Comparator.comparing(Reading::recordedAt)).orElse(null);
+    }
+
+    private List<Reading> finalReadings(
+        List<OperationalDay> monthlyDays,
+        List<Shift> monthlyShifts,
+        List<Fueling> monthlyFuelings
+    ) {
+        List<Reading> readings = new ArrayList<>();
+        monthlyDays.stream()
+            .filter(day -> day.getStatus() == OperationalDayStatus.CLOSED)
+            .filter(day -> day.getFinalOdometer() != null)
+            .map(day -> new Reading(
+                day.getFinalOdometer(), day.getDate().atTime(LocalTime.MAX),
+                OdometerOrigin.CLOSED_OPERATIONAL_DAY, day.getId()))
+            .forEach(readings::add);
+        monthlyShifts.stream()
+            .filter(shift -> shift.getStatus() == ShiftStatus.CLOSED)
+            .filter(shift -> shift.getFinalOdometer() != null && shift.getEndedAt() != null)
+            .map(shift -> new Reading(
+                shift.getFinalOdometer(), shift.getEndedAt(),
+                OdometerOrigin.CLOSED_SHIFT, shift.getId()))
+            .forEach(readings::add);
+        monthlyFuelings.stream()
+            .map(fueling -> new Reading(
+                fueling.getOdometer(), fueling.getFueledAt(),
+                OdometerOrigin.FUELING, fueling.getId()))
+            .forEach(readings::add);
+        return readings;
+    }
+
+    private void addChronologicalRegressionAlert(
+        Reading initial,
+        Vehicle vehicle,
+        List<OperationalDay> monthlyDays,
+        List<Shift> monthlyShifts,
+        List<Fueling> monthlyFuelings,
+        List<MileageAlert> alerts
+    ) {
+        List<Reading> timeline = new ArrayList<>();
+        if (initial != null) {
+            timeline.add(initial);
+        }
+        monthlyDays.stream()
+            .filter(day -> day.getStatus() != OperationalDayStatus.CANCELLED)
+            .map(day -> new Reading(
+                day.getInitialOdometer(), day.getDate().atStartOfDay(),
+                OdometerOrigin.FIRST_OPERATIONAL_DAY, day.getId()))
+            .forEach(timeline::add);
+        monthlyShifts.stream()
+            .filter(shift -> shift.getStatus() != ShiftStatus.CANCELLED)
+            .map(shift -> new Reading(
+                shift.getInitialOdometer(), shift.getStartedAt(),
+                OdometerOrigin.FIRST_SHIFT, shift.getId()))
+            .forEach(timeline::add);
+        timeline.addAll(finalReadings(monthlyDays, monthlyShifts, monthlyFuelings));
+
+        LocalDateTime currentTime = vehicle.getCurrentOdometerRecordedAt();
+        if (currentTime != null) {
+            timeline.add(new Reading(
+                vehicle.getCurrentOdometer(), currentTime,
+                OdometerOrigin.CURRENT_VEHICLE, vehicle.getCurrentOdometerSourceId()));
+        }
+
+        timeline.sort(Comparator.comparing(Reading::recordedAt).thenComparing(Reading::value));
+        for (int index = 1; index < timeline.size(); index++) {
+            Reading previous = timeline.get(index - 1);
+            Reading current = timeline.get(index);
+            if (current.recordedAt().isAfter(previous.recordedAt())
+                && current.value().compareTo(previous.value()) < 0) {
+                addBlockingOnce(
+                    alerts,
+                    "ODOMETER_REGRESSION",
+                    "Há regressão cronológica de odômetro entre "
+                        + previous.recordedAt() + " (" + previous.value() + " km) e "
+                        + current.recordedAt() + " (" + current.value() + " km)."
+                );
+                return;
+            }
+        }
     }
 
     private void addDayShiftGapWarnings(
@@ -286,6 +348,12 @@ public class MonthlyMileageInferenceService {
                     ));
                 }
             });
+    }
+
+    private static void addBlockingOnce(List<MileageAlert> alerts, String code, String message) {
+        if (alerts.stream().noneMatch(alert -> alert.code().equals(code))) {
+            alerts.add(blocking(code, message));
+        }
     }
 
     private static BigDecimal distance(BigDecimal value) {
