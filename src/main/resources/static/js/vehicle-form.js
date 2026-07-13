@@ -5,6 +5,7 @@
   const submitButton = form.querySelector('[data-vehicle-submit]');
   const plateInput = form.querySelector('[data-vehicle-plate]');
   const localizedInputs = form.querySelectorAll('[data-localized-number]');
+  const invalidInputs = form.querySelectorAll('.is-invalid');
   let dirty = false;
   let submitting = false;
 
@@ -57,6 +58,11 @@
     formatLocalizedNumber(input);
     input.addEventListener('blur', () => formatLocalizedNumber(input));
   });
+
+  invalidInputs.forEach((input) => input.setAttribute('aria-invalid', 'true'));
+  if (invalidInputs.length > 0) {
+    window.requestAnimationFrame(() => invalidInputs[0].focus());
+  }
 
   form.addEventListener('input', () => {
     dirty = true;
