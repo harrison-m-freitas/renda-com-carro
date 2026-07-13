@@ -69,6 +69,18 @@ class VehicleWebTest extends PostgresIntegrationTest {
 
     @Test
     @WithMockUser(username = "harrison", roles = "OWNER")
+    void mobileNavigationLinksKeepTheirDefaultNavigation() throws Exception {
+        mvc.perform(get("/vehicles/new"))
+            .andExpect(status().isOk())
+            .andExpect(content().string(not(containsString("data-bs-dismiss=\"offcanvas\">"))))
+            .andExpect(content().string(containsString(
+                "class=\"btn-close btn-close-white\" data-bs-dismiss=\"offcanvas\""
+            )))
+            .andExpect(content().string(containsString("aria-label=\"Fechar menu\"")));
+    }
+
+    @Test
+    @WithMockUser(username = "harrison", roles = "OWNER")
     void blankNicknameLegacyPlateAndBlankPriceArePreservedSemantically() throws Exception {
         mvc.perform(post("/vehicles")
                 .with(csrf())
