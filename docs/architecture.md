@@ -22,7 +22,9 @@ Spring Boot + Thymeleaf
 
 - **Monólito modular:** mantém implantação e transações simples sem misturar regras dos módulos.
 - **Renderização server-side:** reduz JavaScript, dependências e consumo de memória.
+- **Melhoria progressiva:** JavaScript adiciona etapas móveis, autosave e recuperação, mas o formulário completo continua enviável sem scripts.
 - **PostgreSQL + Flyway:** garante integridade relacional e evolução reproduzível do esquema.
+- **Rascunhos sincronizados:** o PostgreSQL é a fonte principal dos rascunhos e permite continuar o preenchimento em outro dispositivo.
 - **Usuário único:** não há cadastro público, equipes ou autorização por múltiplos papéis.
 - **Enums estáveis e apresentação amigável:** os valores persistidos permanecem em inglês, enquanto a interface usa `LabeledEnum#getLabel()` para exibir português.
 - **Inferência com auditoria:** o fechamento mensal é calculado a partir dos registros existentes e armazena tanto a prévia quanto os valores confirmados.
@@ -60,6 +62,10 @@ Metas mensais, dias planejados, distribuição sem domingos e projeção do valo
 
 Empréstimos familiares, financiamentos, obrigações flexíveis/estruturadas, parcelas, pagamentos, amortizações e saldo devedor.
 
+### `draft`
+
+Rascunhos de formulários complexos, sincronização entre dispositivos, bloqueio otimista, expiração, recuperação e limpeza diária. O módulo armazena somente campos editáveis e delega a validação do payload a uma definição específica de cada formulário.
+
 ### `attachment`
 
 Validação, armazenamento fora do diretório público, checksum SHA-256 e download autenticado de comprovantes.
@@ -70,7 +76,7 @@ Agrega dados dos módulos em indicadores operacionais e financeiros sem duplicar
 
 ### `shared`
 
-Políticas decimais, contrato de rótulos amigáveis, exceções de domínio e tratamento central de erros.
+Políticas decimais, parser decimal localizado, contrato de rótulos amigáveis, exceções de domínio, binding web e tratamento central de erros.
 
 ## Dependências entre módulos
 
@@ -83,10 +89,11 @@ vehicle ── finance ────┤               │
 goal ──────────────────┘               │
 attachment ── associa-se por owner ────┘
 
+draft ── integra-se transacionalmente com expense, goal e finance
 security e shared são transversais.
 ```
 
-O domínio não depende da camada web. Controllers recebem formulários, chamam serviços de aplicação e renderizam templates. Repositórios JPA ficam na infraestrutura de cada módulo.
+O domínio não depende da camada web. Controllers recebem formulários, chamam serviços de aplicação e renderizam templates. Repositórios JPA ficam na infraestrutura de cada módulo. Serviços de submissão coordenam a criação do registro definitivo e a exclusão do rascunho na mesma transação.
 
 ## Modelo operacional
 
@@ -103,6 +110,63 @@ O domínio não depende da camada web. Controllers recebem formulários, chamam 
 Os nomes de constantes, como `PROFESSIONAL`, `MILEAGE_RATIO` e `BANK_FINANCING`, permanecem estáveis no código e no banco. Enums visíveis implementam `LabeledEnum` e expõem rótulos como “Profissional”, “Proporcional à quilometragem” e “Financiamento bancário”.
 
 Templates usam a propriedade `label` em selects, tabelas, badges e detalhes. Um teste contratual exige rótulo amigável para todos os enums registrados como visíveis, e testes web verificam que constantes técnicas não aparecem nas opções principais.
+
+## Formulários guiados
+
+Gastos, fechamentos de quilometragem, metas mensais e obrigações financeiras usam um componente guiado compartilhado.
+
+No desktop, todas as seções são renderizadas na mesma página. Em telas menores que 768 px, o JavaScript mostra uma seção por vez, exibe `Etapa N de M` e só avança depois que os campos da etapa são válidos e o rascunho foi sincronizado. Quando um fluxo está bloqueado e não oferece navegação de etapas, todas as informações permanecem visíveis.
+
+Os inputs seguem um padrão localizado:
+
+- moeda aceita vírgula e usa prefixo `R$`;
+- percentuais são informados de `0` a `100` e convertidos para razão no serviço de submissão;
+- competências usam `YearMonth` e o controle `type="month"`;
+- odômetros e distâncias exibem o sufixo `km`;
+- valores calculados começam somente para leitura;
+- erros ficam associados ao campo com `aria-describedby`;
+- alvos móveis têm altura mínima de 44 px.
+
+A interface é uma melhoria progressiva. Sem JavaScript, todas as seções continuam visíveis, campos condicionais podem ser enviados e os serviços de submissão descartam valores incompatíveis com a classificação ou modo selecionado.
+
+## Rascunhos sincronizados
+
+A tabela `form_draft` possui:
+
+```text
+id
+owner_id
+form_type
+context_key
+schema_version
+current_step
+payload_json
+lock_version
+created_at
+updated_at
+expires_at
+```
+
+A combinação `(owner_id, form_type, context_key)` é única. As chaves são:
+
+- gasto: `current`;
+- fechamento: `vehicle:{uuid}:month:{AAAA-MM}`;
+- meta: `month:{AAAA-MM}`;
+- obrigação: `draft:{uuid}`.
+
+`FormDraftDefinitionRegistry` associa cada tipo à sua definição. As definições limitam campos aceitos, normalizam valores, validam a etapa e rejeitam campos derivados ou desconhecidos. O payload serializado não pode ultrapassar 65.536 bytes e não aceita anexos binários.
+
+`FormDraftService` oferece criação, atualização, consulta, listagem, descarte, conclusão e limpeza. Cada atualização válida renova `expiresAt` por sete dias. Uma tarefa agendada diariamente remove rascunhos expirados.
+
+A coluna `lock_version` usa bloqueio otimista. Uma versão antiga recebe HTTP `409 Conflict` com a versão atual do servidor. A interface oferece:
+
+- usar a versão mais recente;
+- revisar as alterações locais;
+- substituir explicitamente a versão do servidor.
+
+Não existe mesclagem automática campo a campo. Uma cópia no `localStorage` é usada somente como proteção emergencial quando a rede falha. Ela não é fonte de verdade e é removida após sincronização bem-sucedida.
+
+O envio definitivo nunca converte o JSON diretamente em entidade. O formulário MVC é validado novamente, cálculos derivados são refeitos e um serviço transacional cria o registro real. O rascunho é removido apenas depois da criação bem-sucedida; em qualquer falha, permanece disponível.
 
 ## Odômetro rastreável
 
@@ -206,6 +270,8 @@ Pagamentos da aquisição reduzem caixa pessoal e saldo devedor, mas não são c
 
 - índices únicos impedem mais de um veículo principal ativo;
 - índices parciais impedem mais de um turno aberto no dia;
+- a combinação proprietário, tipo e contexto impede rascunhos duplicados;
+- bloqueio otimista impede sobrescrita silenciosa de rascunho;
 - leituras cronologicamente novas não podem reduzir o odômetro;
 - regressões internas do mês bloqueiam o fechamento;
 - o fechamento do dia é bloqueado quando há turno aberto;
@@ -213,6 +279,7 @@ Pagamentos da aquisição reduzem caixa pessoal e saldo devedor, mas não são c
 - correções manuais exigem justificativa;
 - pagamentos não podem exceder o saldo;
 - referências externas evitam duplicidade de receitas e pagamentos;
+- criação definitiva e exclusão de rascunho usam a mesma transação;
 - operações financeiras usam transações de banco;
 - exclusões destrutivas são evitadas em favor de arquivamento ou cancelamento.
 
@@ -220,7 +287,10 @@ Pagamentos da aquisição reduzem caixa pessoal e saldo devedor, mas não são c
 
 - credenciais são fornecidas por variáveis de ambiente e nunca ficam no repositório;
 - senhas são armazenadas com BCrypt;
-- CSRF permanece habilitado;
+- CSRF permanece habilitado, inclusive na API JSON de rascunhos;
+- consultas de rascunho são sempre limitadas ao usuário autenticado;
+- payloads possuem lista de campos permitidos e limite de tamanho;
+- textos restaurados são atribuídos por `.value` ou `.checked`, sem `innerHTML`;
 - sessões têm limite e expiração;
 - cookies de produção são `HttpOnly`, `Secure` e `SameSite=Strict`;
 - PostgreSQL não publica porta no host;
@@ -259,6 +329,9 @@ A restauração exige confirmação textual, banco de destino seguro e diretóri
 ## Observabilidade
 
 - endpoint `/actuator/health` público apenas para healthcheck;
+- estados de autosave mostram salvando, salvo e falha;
+- conflitos de rascunho informam as versões local e remota;
+- limpeza de rascunhos expirados é executada diariamente;
 - logs de produção rotacionados no SSD;
 - correlation ID para erros inesperados;
 - healthchecks de aplicação e banco no Compose;
