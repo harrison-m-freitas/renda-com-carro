@@ -1,19 +1,13 @@
-# syntax=docker/dockerfile:1.7
-ARG BUILDPLATFORM
-ARG TARGETPLATFORM
-
-FROM --platform=$BUILDPLATFORM maven:3.9.11-eclipse-temurin-21-alpine AS build
+FROM maven:3.9.11-eclipse-temurin-21-alpine AS build
 WORKDIR /workspace
 
 COPY pom.xml ./
-RUN --mount=type=cache,target=/root/.m2 \
-    mvn -B -q -DskipTests dependency:go-offline
+RUN mvn -B -q -DskipTests dependency:go-offline
 
 COPY src ./src
-RUN --mount=type=cache,target=/root/.m2 \
-    mvn -B -q -DskipTests package
+RUN mvn -B -q -DskipTests package
 
-FROM --platform=$TARGETPLATFORM eclipse-temurin:21-jre-alpine
+FROM eclipse-temurin:21-jre-alpine
 RUN apk add --no-cache tzdata wget \
     && addgroup -S -g 10001 app \
     && adduser -S -D -H -u 10001 -G app app \
