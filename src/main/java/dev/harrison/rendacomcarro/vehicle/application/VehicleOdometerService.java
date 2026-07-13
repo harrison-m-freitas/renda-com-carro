@@ -6,6 +6,7 @@ import dev.harrison.rendacomcarro.vehicle.domain.OdometerReadingSource;
 import dev.harrison.rendacomcarro.vehicle.infrastructure.VehicleRepository;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -36,29 +37,30 @@ public class VehicleOdometerService {
         var vehicle = vehicles.findById(vehicleId)
             .orElseThrow(() -> new IllegalArgumentException("Veículo não encontrado"));
         BigDecimal normalizedReading = DecimalPolicy.distance(reading);
+        LocalDateTime normalizedRecordedAt = recordedAt.truncatedTo(ChronoUnit.MICROS);
         LocalDateTime currentRecordedAt = vehicle.getCurrentOdometerRecordedAt();
 
-        if (currentRecordedAt != null && recordedAt.isBefore(currentRecordedAt)) {
+        if (currentRecordedAt != null && normalizedRecordedAt.isBefore(currentRecordedAt)) {
             return OdometerUpdateResult.IGNORED_HISTORICAL;
         }
 
         int comparison = normalizedReading.compareTo(vehicle.getCurrentOdometer());
         if (comparison < 0) {
             throw new DomainValidationException(
-                "A leitura de " + normalizedReading + " km em " + recordedAt
+                "A leitura de " + normalizedReading + " km em " + normalizedRecordedAt
                     + " é menor que o odômetro atual de " + vehicle.getCurrentOdometer() + " km"
             );
         }
 
         if (comparison == 0) {
-            if (currentRecordedAt == null || recordedAt.isAfter(currentRecordedAt)) {
-                vehicle.applyCurrentOdometer(normalizedReading, recordedAt, source, sourceId);
+            if (currentRecordedAt == null || normalizedRecordedAt.isAfter(currentRecordedAt)) {
+                vehicle.applyCurrentOdometer(normalizedReading, normalizedRecordedAt, source, sourceId);
                 vehicles.save(vehicle);
             }
             return OdometerUpdateResult.IGNORED_EQUAL;
         }
 
-        vehicle.applyCurrentOdometer(normalizedReading, recordedAt, source, sourceId);
+        vehicle.applyCurrentOdometer(normalizedReading, normalizedRecordedAt, source, sourceId);
         vehicles.save(vehicle);
         return OdometerUpdateResult.UPDATED;
     }

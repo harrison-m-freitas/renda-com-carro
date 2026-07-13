@@ -11,6 +11,7 @@ import dev.harrison.rendacomcarro.vehicle.application.VehicleService;
 import dev.harrison.rendacomcarro.vehicle.domain.FuelType;
 import dev.harrison.rendacomcarro.vehicle.domain.OdometerReadingSource;
 import java.math.BigDecimal;
+import java.time.temporal.ChronoUnit;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -39,7 +40,8 @@ class VehicleOdometerServiceTest extends PostgresIntegrationTest {
         var updated = vehicles.get(vehicle.getId());
         assertThat(result).isEqualTo(OdometerUpdateResult.UPDATED);
         assertThat(updated.getCurrentOdometer()).isEqualByComparingTo("10025.4");
-        assertThat(updated.getCurrentOdometerRecordedAt()).isEqualTo(recordedAt);
+        assertThat(updated.getCurrentOdometerRecordedAt())
+            .isEqualTo(recordedAt.truncatedTo(ChronoUnit.MICROS));
         assertThat(updated.getCurrentOdometerSource()).isEqualTo(OdometerReadingSource.FUELING);
         assertThat(updated.getCurrentOdometerSourceId()).isEqualTo(sourceId);
     }
