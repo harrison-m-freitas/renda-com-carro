@@ -5,7 +5,7 @@
   <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4">
     <div>
       <h1 class="h2 mb-1">Fechamentos de quilometragem</h1>
-      <p class="text-secondary mb-0">Rateio mensal entre uso profissional e pessoal.</p>
+      <p class="text-secondary mb-0">Rateio mensal calculado a partir dos registros operacionais.</p>
     </div>
     <a class="btn btn-primary btn-touch" th:href="@{/mileage-closings/new}">Novo fechamento</a>
   </div>
@@ -21,11 +21,13 @@
             <th>Profissional</th>
             <th>Pessoal</th>
             <th>% profissional</th>
+            <th>Confirmação</th>
+            <th></th>
           </tr>
         </thead>
         <tbody>
           <tr th:if="${#lists.isEmpty(closings)}">
-            <td colspan="6" class="text-center text-secondary py-5">Nenhum fechamento cadastrado.</td>
+            <td colspan="8" class="text-center text-secondary py-5">Nenhum fechamento cadastrado.</td>
           </tr>
           <tr th:each="closing : ${closings}">
             <td th:text="${#temporals.format(closing.referenceMonth, 'MM/yyyy')}"></td>
@@ -34,6 +36,13 @@
             <td th:text="${closing.professionalKilometers + ' km'}"></td>
             <td th:text="${closing.personalKilometers + ' km'}"></td>
             <td th:text="${#numbers.formatDecimal(closing.professionalPercentage * 100, 1, 2) + '%'}"></td>
+            <td>
+              <span class="badge"
+                    th:classappend="${closing.manualAdjustment ? ' text-bg-warning' : ' text-bg-success'}"
+                    th:text="${closing.manualAdjustment ? 'Corrigido manualmente' : 'Automático'}"></span>
+            </td>
+            <td class="text-end"><a class="btn btn-sm btn-outline-primary"
+                  th:href="@{/mileage-closings/{id}(id=${closing.id})}">Detalhes</a></td>
           </tr>
         </tbody>
       </table>
