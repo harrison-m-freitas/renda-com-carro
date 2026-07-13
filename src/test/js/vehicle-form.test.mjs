@@ -126,6 +126,7 @@ test('vehicle form: money beforeinput supports terminal typing and deletion to b
     removeAttribute() {}
   };
   const formListeners = new Map();
+  const windowListeners = new Map();
   const form = {
     checkValidity: () => true,
     querySelector: () => null,
@@ -134,7 +135,7 @@ test('vehicle form: money beforeinput supports terminal typing and deletion to b
   };
   const documentObject = { querySelector: () => form };
   const windowObject = {
-    addEventListener() {},
+    addEventListener: (type, listener) => windowListeners.set(type, listener),
     requestAnimationFrame: (callback) => callback()
   };
 
@@ -160,4 +161,11 @@ test('vehicle form: money beforeinput supports terminal typing and deletion to b
   beforeInput('deleteContentBackward');
   beforeInput('deleteContentBackward');
   assert.equal(moneyInput.value, '');
+
+  let unloadPrevented = false;
+  windowListeners.get('beforeunload')({
+    preventDefault() { unloadPrevented = true; },
+    returnValue: null
+  });
+  assert.equal(unloadPrevented, true);
 });
