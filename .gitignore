@@ -12,6 +12,7 @@ replay_pid*
 
 # Environment and local data
 .env
+infra/backup/restic.env
 var/
 
 # Maven wrapper distribution cache

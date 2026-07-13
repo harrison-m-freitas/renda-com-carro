@@ -1,18 +1,110 @@
+name: renda-com-carro
+
 services:
   postgres:
     image: postgres:17-alpine
+    restart: unless-stopped
     environment:
-      POSTGRES_DB: renda_com_carro
-      POSTGRES_USER: renda
-      POSTGRES_PASSWORD: renda_dev_password
-    ports:
-      - "5438:5432"
+      POSTGRES_DB: ${DB_NAME:-renda_com_carro}
+      POSTGRES_USER: ${DB_USER:-renda}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?configure DB_PASSWORD in .env}
+      TZ: ${TZ:-America/Sao_Paulo}
     volumes:
-      - postgres_dev:/var/lib/postgresql/data
+      - ${DATA_ROOT:-./var}/postgres:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U renda -d renda_com_carro"]
-      interval: 5s
-      timeout: 3s
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
       retries: 10
-volumes:
-  postgres_dev:
+      start_period: 15s
+    mem_limit: 768m
+    security_opt:
+      - no-new-privileges:true
+    networks:
+      - backend
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: renda-com-carro:${APP_VERSION:-local}
+    restart: unless-stopped
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      DB_URL: jdbc:postgresql://postgres:5432/${DB_NAME:-renda_com_carro}
+      DB_USER: ${DB_USER:-renda}
+      DB_PASSWORD: ${DB_PASSWORD:?configure DB_PASSWORD in .env}
+      APP_ADMIN_USERNAME: ${APP_ADMIN_USERNAME:?configure APP_ADMIN_USERNAME in .env}
+      APP_ADMIN_PASSWORD: ${APP_ADMIN_PASSWORD:?configure APP_ADMIN_PASSWORD in .env}
+      APP_STORAGE_ROOT: /var/lib/renda-com-carro/storage
+      TZ: ${TZ:-America/Sao_Paulo}
+    ports:
+      - 127.0.0.1:${APP_PORT:-8080}:8080
+    volumes:
+      - ${DATA_ROOT:-./var}/storage:/var/lib/renda-com-carro/storage
+      - ${DATA_ROOT:-./var}/logs:/var/log/renda-com-carro
+    tmpfs:
+      - /tmp:size=128m,mode=1777
+    read_only: true
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8080/actuator/health"]
+      interval: 20s
+      timeout: 5s
+      retries: 10
+      start_period: 60s
+    mem_limit: 1g
+    security_opt:
+      - no-new-privileges:true
+    networks:
+      - backend
+
+  backup:
+    build:
+      context: ./infra/backup
+      dockerfile: Dockerfile
+    image: renda-com-carro-backup:${APP_VERSION:-local}
+    restart: unless-stopped
+    entrypoint: ["/bin/sh", "-c", "trap : TERM INT; sleep infinity & wait"]
+    environment:
+      PGHOST: postgres
+      PGPORT: 5432
+      PGDATABASE: ${DB_NAME:-renda_com_carro}
+      PGUSER: ${DB_USER:-renda}
+      PGPASSWORD: ${DB_PASSWORD:?configure DB_PASSWORD in .env}
+      ATTACHMENT_ROOT: /source/storage
+      CONFIG_ROOT: /source/config
+      BACKUP_WORK_ROOT: /work
+      RESTORE_ROOT: /restore
+      RCLONE_CONFIG: /config/rclone/rclone.conf
+      TZ: ${TZ:-America/Sao_Paulo}
+    env_file:
+      - path: ${RESTIC_ENV_FILE:-./infra/backup/restic.env}
+        required: false
+    volumes:
+      - ${DATA_ROOT:-./var}/storage:/source/storage
+      - ${DATA_ROOT:-./var}/backup-work:/work
+      - ${RESTORE_ROOT:-./var/restore-test}:/restore
+      - ${RCLONE_CONFIG_DIR:-./var/rclone}:/config/rclone:ro
+      - ${RESTIC_LOCAL_ROOT:-./var/restic-local}:/restic
+      - ./compose.yaml:/source/config/compose.yaml:ro
+      - ./.env:/source/config/runtime.env:ro
+      - ./src/main/resources/application-prod.yml:/source/config/application-prod.yml:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+    mem_limit: 512m
+    security_opt:
+      - no-new-privileges:true
+    networks:
+      - backend
+      - egress
+
+networks:
+  backend:
+    driver: bridge
+    internal: true
+  egress:
+    driver: bridge
