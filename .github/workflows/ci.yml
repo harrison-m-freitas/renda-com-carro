@@ -68,7 +68,7 @@ jobs:
 
       - name: Build ARM64 application image
         run: |
-          docker buildx build \
+          docker buildx build --quiet \
             --platform linux/arm64 \
             --file Dockerfile \
             --tag renda-com-carro:arm64-ci \
@@ -77,18 +77,41 @@ jobs:
           test -s /tmp/renda-com-carro-arm64.tar
 
       - name: Start production stack
+        shell: bash
         run: |
-          docker compose up -d --build postgres app backup
+          set +e
+          docker compose build --quiet app backup
+          BUILD_STATUS=$?
+          docker compose up -d --no-build postgres app backup
+          UP_STATUS=$?
+          set -e
+
+          healthy=false
           for attempt in $(seq 1 40); do
             if curl --fail --silent http://127.0.0.1:8080/actuator/health >/tmp/health.json; then
               cat /tmp/health.json
-              exit 0
+              healthy=true
+              break
             fi
             sleep 5
           done
-          docker compose ps
-          docker compose logs --no-color app postgres
-          exit 1
+
+          {
+            echo "build_status=${BUILD_STATUS}"
+            echo "up_status=${UP_STATUS}"
+            echo "health_reached=${healthy}"
+            echo '=== docker compose ps -a ==='
+            docker compose ps -a || true
+            echo '=== docker inspect states ==='
+            for id in $(docker compose ps -aq); do
+              docker inspect --format '{{.Name}} status={{.State.Status}} exit={{.State.ExitCode}} error={{.State.Error}} health={{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}' "$id" || true
+            done
+            echo '=== service logs ==='
+            docker compose logs --no-color --tail=250 app postgres backup || true
+          } > var/ops-diagnostics.txt 2>&1
+
+          cat var/ops-diagnostics.txt
+          [[ "$BUILD_STATUS" -eq 0 && "$UP_STATUS" -eq 0 && "$healthy" == true ]]
 
       - name: Exercise backup and isolated restore
         run: |
@@ -108,9 +131,23 @@ jobs:
 
       - name: Collect diagnostics
         if: always()
+        shell: bash
         run: |
-          docker compose ps || true
-          docker compose logs --no-color --tail=300 app postgres backup || true
+          {
+            echo '=== final docker compose ps -a ==='
+            docker compose ps -a || true
+            echo '=== final service logs ==='
+            docker compose logs --no-color --tail=300 app postgres backup || true
+          } >> var/ops-diagnostics.txt 2>&1
+
+      - name: Upload operations diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ops-diagnostics
+          path: var/ops-diagnostics.txt
+          if-no-files-found: error
+          retention-days: 3
 
       - name: Stop stack
         if: always()
