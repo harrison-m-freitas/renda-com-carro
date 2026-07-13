@@ -59,6 +59,7 @@ services:
     security_opt:
       - no-new-privileges:true
     networks:
+      - frontend
       - backend
 
   backup:
@@ -103,6 +104,8 @@ services:
       - egress
 
 networks:
+  frontend:
+    driver: bridge
   backend:
     driver: bridge
     internal: true
