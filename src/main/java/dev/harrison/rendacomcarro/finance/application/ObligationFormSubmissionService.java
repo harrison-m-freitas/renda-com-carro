@@ -5,6 +5,8 @@ import dev.harrison.rendacomcarro.draft.domain.FormDraftType;
 import dev.harrison.rendacomcarro.finance.domain.FinancialObligation;
 import dev.harrison.rendacomcarro.finance.domain.ObligationMode;
 import dev.harrison.rendacomcarro.finance.web.ObligationForm;
+import java.math.BigDecimal;
+import java.time.LocalDate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -24,6 +26,13 @@ public class ObligationFormSubmissionService {
     @Transactional
     public FinancialObligation submit(String username, ObligationForm form) {
         validateModeSpecificFields(form);
+
+        boolean structured = form.getMode() == ObligationMode.STRUCTURED;
+        LocalDate firstDueDate = structured ? form.getFirstDueDate() : null;
+        Integer termMonths = structured ? form.getTermMonths() : null;
+        BigDecimal plannedInstallment = structured ? form.getPlannedInstallment() : null;
+        BigDecimal monthlyTarget = structured ? null : form.getMonthlyTarget();
+
         FinancialObligation obligation = obligations.create(
             new FinancialObligationService.CreateCommand(
                 form.getVehicleId(),
@@ -33,10 +42,10 @@ public class ObligationFormSubmissionService {
                 form.getPrincipal(),
                 form.annualRateRatio(),
                 form.getStartDate(),
-                form.getFirstDueDate(),
-                form.getTermMonths(),
-                form.getPlannedInstallment(),
-                form.getMonthlyTarget(),
+                firstDueDate,
+                termMonths,
+                plannedInstallment,
+                monthlyTarget,
                 form.getNotes()
             )
         );
