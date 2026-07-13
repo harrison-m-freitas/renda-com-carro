@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="pt-BR" xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{layouts/app :: layout(~{::section}, 'Veículos')}">
+<section>
+  <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4">
+    <div>
+      <h1 class="h2 mb-1">Veículos</h1>
+      <p class="text-secondary mb-0">Histórico e veículo principal da operação.</p>
+    </div>
+    <a class="btn btn-primary btn-touch" th:href="@{/vehicles/new}">Cadastrar veículo</a>
+  </div>
+
+  <div class="card">
+    <div class="table-responsive">
+      <table class="table table-vcenter card-table mb-0">
+        <thead><tr><th>Veículo</th><th>Placa</th><th>Ano</th><th>Status</th><th>Odômetro</th><th class="text-end">Ações</th></tr></thead>
+        <tbody>
+          <tr th:if="${#lists.isEmpty(vehicles)}"><td colspan="6" class="text-center text-secondary py-5">Nenhum veículo cadastrado.</td></tr>
+          <tr th:each="vehicle : ${vehicles}">
+            <td>
+              <a class="fw-semibold text-decoration-none" th:href="@{/vehicles/{id}(id=${vehicle.id})}" th:text="${vehicle.name}">Veículo</a>
+              <div class="small text-secondary" th:text="${vehicle.make + ' ' + vehicle.model}"></div>
+            </td>
+            <td th:text="${vehicle.plate}"></td>
+            <td th:text="${vehicle.year}"></td>
+            <td>
+              <span th:if="${vehicle.primaryVehicle}" class="badge text-bg-primary">Principal</span>
+              <span th:unless="${vehicle.primaryVehicle}" class="badge text-bg-secondary" th:text="${vehicle.status}"></span>
+            </td>
+            <td th:text="${vehicle.currentOdometer + ' km'}"></td>
+            <td class="text-end">
+              <div class="d-inline-flex gap-2">
+                <a class="btn btn-sm btn-outline-secondary" th:href="@{/vehicles/{id}/edit(id=${vehicle.id})}">Editar</a>
+                <form th:if="${vehicle.status.name() == 'ACTIVE' and !vehicle.primaryVehicle}" th:action="@{/vehicles/{id}/activate(id=${vehicle.id})}" method="post">
+                  <button class="btn btn-sm btn-outline-primary" type="submit">Tornar principal</button>
+                </form>
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+</html>

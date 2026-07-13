@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="pt-BR" xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{layouts/app :: layout(~{::section}, 'Fechamentos de quilometragem')}">
+<section>
+  <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4">
+    <div>
+      <h1 class="h2 mb-1">Fechamentos de quilometragem</h1>
+      <p class="text-secondary mb-0">Rateio mensal entre uso profissional e pessoal.</p>
+    </div>
+    <a class="btn btn-primary btn-touch" th:href="@{/mileage-closings/new}">Novo fechamento</a>
+  </div>
+
+  <div class="card">
+    <div class="table-responsive">
+      <table class="table table-vcenter card-table mb-0">
+        <thead>
+          <tr>
+            <th>Mês</th>
+            <th>Veículo</th>
+            <th>Total</th>
+            <th>Profissional</th>
+            <th>Pessoal</th>
+            <th>% profissional</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr th:if="${#lists.isEmpty(closings)}">
+            <td colspan="6" class="text-center text-secondary py-5">Nenhum fechamento cadastrado.</td>
+          </tr>
+          <tr th:each="closing : ${closings}">
+            <td th:text="${#temporals.format(closing.referenceMonth, 'MM/yyyy')}"></td>
+            <td th:text="${closing.vehicle.name}"></td>
+            <td th:text="${closing.totalKilometers + ' km'}"></td>
+            <td th:text="${closing.professionalKilometers + ' km'}"></td>
+            <td th:text="${closing.personalKilometers + ' km'}"></td>
+            <td th:text="${#numbers.formatDecimal(closing.professionalPercentage * 100, 1, 2) + '%'}"></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+</html>

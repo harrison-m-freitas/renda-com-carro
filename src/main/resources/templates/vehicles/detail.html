@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="pt-BR" xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{layouts/app :: layout(~{::section}, 'Detalhes do veículo')}">
+<section>
+  <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4">
+    <div>
+      <div class="d-flex align-items-center gap-2">
+        <h1 class="h2 mb-0" th:text="${vehicle.name}">Veículo</h1>
+        <span th:if="${vehicle.primaryVehicle}" class="badge text-bg-primary">Principal</span>
+      </div>
+      <p class="text-secondary mb-0" th:text="${vehicle.make + ' ' + vehicle.model + ' · ' + vehicle.year}"></p>
+    </div>
+    <div class="d-flex gap-2">
+      <a class="btn btn-outline-secondary" th:href="@{/vehicles/{id}/edit(id=${vehicle.id})}">Editar</a>
+      <form th:if="${vehicle.status.name() == 'ACTIVE' and !vehicle.primaryVehicle}" th:action="@{/vehicles/{id}/activate(id=${vehicle.id})}" method="post">
+        <button class="btn btn-primary" type="submit">Tornar principal</button>
+      </form>
+    </div>
+  </div>
+
+  <div class="row g-3 mb-3">
+    <div class="col-12 col-md-4"><div class="card h-100"><div class="card-body"><div class="text-secondary small">Placa</div><div class="fs-4 fw-semibold" th:text="${vehicle.plate}"></div></div></div></div>
+    <div class="col-12 col-md-4"><div class="card h-100"><div class="card-body"><div class="text-secondary small">Odômetro atual</div><div class="fs-4 fw-semibold" th:text="${vehicle.currentOdometer + ' km'}"></div></div></div></div>
+    <div class="col-12 col-md-4"><div class="card h-100"><div class="card-body"><div class="text-secondary small">Preço de compra</div><div class="fs-4 fw-semibold" th:text="${'R$ ' + vehicle.purchasePrice}"></div></div></div></div>
+  </div>
+
+  <div class="card">
+    <div class="card-header"><h2 class="card-title h5 mb-0">Dados do veículo</h2></div>
+    <div class="card-body">
+      <dl class="row mb-0">
+        <dt class="col-sm-4">Combustível</dt><dd class="col-sm-8" th:text="${vehicle.fuelType}"></dd>
+        <dt class="col-sm-4">Status</dt><dd class="col-sm-8" th:text="${vehicle.status}"></dd>
+        <dt class="col-sm-4">Odômetro inicial</dt><dd class="col-sm-8" th:text="${vehicle.initialOdometer + ' km'}"></dd>
+      </dl>
+    </div>
+    <div class="card-footer d-flex justify-content-between">
+      <a class="btn btn-outline-secondary" th:href="@{/vehicles}">Voltar</a>
+      <form th:if="${vehicle.status.name() == 'ACTIVE' and !vehicle.primaryVehicle}" th:action="@{/vehicles/{id}/archive(id=${vehicle.id})}" method="post" onsubmit="return confirm('Arquivar este veículo?')">
+        <button class="btn btn-outline-danger" type="submit">Arquivar</button>
+      </form>
+    </div>
+  </div>
+</section>
+</html>

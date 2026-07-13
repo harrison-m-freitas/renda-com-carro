@@ -1,0 +1,11 @@
+[Unit]
+Description=Agenda o backup diário do Renda com Carro
+
+[Timer]
+OnCalendar=*-*-* 03:30:00
+Persistent=true
+RandomizedDelaySec=15m
+Unit=renda-com-carro-backup.service
+
+[Install]
+WantedBy=timers.target

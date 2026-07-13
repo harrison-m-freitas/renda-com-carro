@@ -1,0 +1,18 @@
+<!doctype html>
+<html lang="pt-BR" xmlns:th="http://www.thymeleaf.org" th:fragment="layout(content, pageTitle)">
+<head th:replace="~{fragments/head :: head(${pageTitle})}"></head>
+<body class="bg-body-tertiary">
+<div class="app-shell d-flex min-vh-100">
+  <aside th:replace="~{fragments/sidebar :: sidebar}"></aside>
+  <div class="flex-grow-1">
+    <main class="app-content py-4">
+      <div class="container-xl">
+        <div th:replace="~{fragments/flash :: flash}"></div>
+        <th:block th:replace="${content}"></th:block>
+      </div>
+    </main>
+  </div>
+</div>
+<script th:src="@{/webjars/bootstrap/5.3.7/js/bootstrap.bundle.min.js}"></script>
+</body>
+</html>

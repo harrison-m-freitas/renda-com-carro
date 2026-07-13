@@ -1,0 +1,14 @@
+[Unit]
+Description=Backup do Renda com Carro
+Requires=docker.service
+After=docker.service network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/renda-com-carro
+ExecStart=/usr/bin/docker compose exec -T backup /opt/backup/backup.sh
+TimeoutStartSec=2h
+Nice=10
+IOSchedulingClass=best-effort
+IOSchedulingPriority=7
