@@ -2,9 +2,23 @@
 <html lang="pt-BR" xmlns:th="http://www.thymeleaf.org" th:fragment="layout(content, pageTitle)">
 <head th:replace="~{fragments/head :: head(${pageTitle})}"></head>
 <body class="bg-body-tertiary">
+<header class="app-mobile-header d-md-none sticky-top bg-dark text-white">
+  <div class="container-fluid d-flex align-items-center gap-3 py-2 px-3">
+    <button class="btn btn-sm btn-outline-light app-mobile-menu-button" type="button"
+            data-bs-toggle="offcanvas" data-bs-target="#appMobileNavigation"
+            aria-controls="appMobileNavigation" aria-label="Abrir menu principal">
+      <span class="app-mobile-menu-icon" aria-hidden="true"></span>
+    </button>
+    <div class="min-w-0">
+      <div class="fw-semibold text-truncate">Renda com Carro</div>
+      <div class="small text-white-50 text-truncate" th:text="${pageTitle}"></div>
+    </div>
+  </div>
+</header>
+<div th:replace="~{fragments/sidebar :: mobileSidebar}"></div>
 <div class="app-shell d-flex min-vh-100">
-  <aside th:replace="~{fragments/sidebar :: sidebar}"></aside>
-  <div class="flex-grow-1">
+  <aside th:replace="~{fragments/sidebar :: desktopSidebar}"></aside>
+  <div class="flex-grow-1 min-w-0">
     <main class="app-content py-4">
       <div class="container-xl">
         <div th:replace="~{fragments/flash :: flash}"></div>
