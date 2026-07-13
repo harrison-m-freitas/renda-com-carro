@@ -1,8 +1,10 @@
 package dev.harrison.rendacomcarro.web;
 
+import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.not;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.xpath;
 
 import dev.harrison.rendacomcarro.support.PostgresIntegrationTest;
 import org.junit.jupiter.api.Test;
@@ -27,8 +29,8 @@ class EnumPresentationWebTest extends PostgresIntegrationTest {
     void vehicleFormUsesFriendlyFuelLabels() throws Exception {
         mvc.perform(get("/vehicles/new"))
             .andExpect(status().isOk())
-            .andExpect(xpath("//select[@name='fuelType']/option[normalize-space(.)='Gasolina']").exists())
-            .andExpect(xpath("//select[@name='fuelType']/option[normalize-space(.)='GASOLINE']").doesNotExist());
+            .andExpect(content().string(containsString(">Gasolina</option>")))
+            .andExpect(content().string(not(containsString(">GASOLINE</option>"))));
     }
 
     @Test
@@ -36,10 +38,10 @@ class EnumPresentationWebTest extends PostgresIntegrationTest {
     void expenseFormUsesFriendlyClassificationAndAllocationLabels() throws Exception {
         mvc.perform(get("/expenses/new"))
             .andExpect(status().isOk())
-            .andExpect(xpath("//select[@name='classification']/option[normalize-space(.)='Profissional']").exists())
-            .andExpect(xpath("//select[@name='classification']/option[normalize-space(.)='PROFESSIONAL']").doesNotExist())
-            .andExpect(xpath("//select[@name='allocationMethod']/option[normalize-space(.)='Proporcional à quilometragem']").exists())
-            .andExpect(xpath("//select[@name='allocationMethod']/option[normalize-space(.)='MILEAGE_RATIO']").doesNotExist());
+            .andExpect(content().string(containsString(">Profissional</option>")))
+            .andExpect(content().string(not(containsString(">PROFESSIONAL</option>"))))
+            .andExpect(content().string(containsString(">Proporcional à quilometragem</option>")))
+            .andExpect(content().string(not(containsString(">MILEAGE_RATIO</option>"))));
     }
 
     @Test
@@ -47,8 +49,8 @@ class EnumPresentationWebTest extends PostgresIntegrationTest {
     void fuelingFormUsesFriendlyFuelLabels() throws Exception {
         mvc.perform(get("/fuelings/new"))
             .andExpect(status().isOk())
-            .andExpect(xpath("//select[@name='fuelType']/option[normalize-space(.)='Etanol']").exists())
-            .andExpect(xpath("//select[@name='fuelType']/option[normalize-space(.)='ETHANOL']").doesNotExist());
+            .andExpect(content().string(containsString(">Etanol</option>")))
+            .andExpect(content().string(not(containsString(">ETHANOL</option>"))));
     }
 
     @Test
@@ -56,9 +58,9 @@ class EnumPresentationWebTest extends PostgresIntegrationTest {
     void obligationFormUsesFriendlyTypeAndModeLabels() throws Exception {
         mvc.perform(get("/obligations/new"))
             .andExpect(status().isOk())
-            .andExpect(xpath("//select[@name='type']/option[normalize-space(.)='Empréstimo familiar']").exists())
-            .andExpect(xpath("//select[@name='type']/option[normalize-space(.)='FAMILY_LOAN']").doesNotExist())
-            .andExpect(xpath("//select[@name='mode']/option[normalize-space(.)='Parcelas programadas']").exists())
-            .andExpect(xpath("//select[@name='mode']/option[normalize-space(.)='STRUCTURED']").doesNotExist());
+            .andExpect(content().string(containsString(">Empréstimo familiar</option>")))
+            .andExpect(content().string(not(containsString(">FAMILY_LOAN</option>"))))
+            .andExpect(content().string(containsString(">Parcelas programadas</option>")))
+            .andExpect(content().string(not(containsString(">STRUCTURED</option>"))));
     }
 }
