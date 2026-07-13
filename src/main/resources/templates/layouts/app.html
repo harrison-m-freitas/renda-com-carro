@@ -3,8 +3,19 @@
 <head th:replace="~{fragments/head :: head(${pageTitle})}"></head>
 <body class="bg-body-tertiary">
 <div class="app-shell d-flex min-vh-100">
-  <aside th:replace="~{fragments/sidebar :: sidebar}"></aside>
-  <div class="flex-grow-1">
+  <th:block th:replace="~{fragments/sidebar :: sidebar}"></th:block>
+  <div class="flex-grow-1 min-w-0">
+    <header class="app-mobile-header d-md-none bg-dark text-white">
+      <button class="btn btn-dark app-mobile-menu-button" type="button"
+              data-bs-toggle="offcanvas" data-bs-target="#app-mobile-navigation"
+              aria-controls="app-mobile-navigation" aria-label="Abrir menu principal">
+        <span aria-hidden="true">☰</span>
+      </button>
+      <div>
+        <div class="fw-semibold">Renda com Carro</div>
+        <div class="small text-white-50">Painel operacional</div>
+      </div>
+    </header>
     <main class="app-content py-4">
       <div class="container-xl">
         <div th:replace="~{fragments/flash :: flash}"></div>
