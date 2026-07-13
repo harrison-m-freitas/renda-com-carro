@@ -74,8 +74,9 @@ class VehicleWebTest extends PostgresIntegrationTest {
             .andExpect(status().isOk())
             .andExpect(content().string(not(containsString("data-bs-dismiss=\"offcanvas\">"))))
             .andExpect(content().string(containsString(
-                "data-bs-dismiss=\"offcanvas\" aria-label=\"Fechar menu\""
-            )));
+                "class=\"btn-close btn-close-white\" data-bs-dismiss=\"offcanvas\""
+            )))
+            .andExpect(content().string(containsString("aria-label=\"Fechar menu\"")));
     }
 
     @Test
