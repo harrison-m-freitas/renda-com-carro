@@ -46,11 +46,11 @@ public class VehicleForm {
     private BigDecimal purchasePrice;
 
     public String getName() { return name; }
-    public void setName(String name) { this.name = trimToNull(name); }
+    public void setName(String name) { this.name = normalizeText(name); }
     public String getMake() { return make; }
-    public void setMake(String make) { this.make = trimToNull(make); }
+    public void setMake(String make) { this.make = normalizeText(make); }
     public String getModel() { return model; }
-    public void setModel(String model) { this.model = trimToNull(model); }
+    public void setModel(String model) { this.model = normalizeText(model); }
     public Integer getYear() { return year; }
     public void setYear(Integer year) { this.year = year; }
     public String getPlate() { return plate; }
@@ -71,11 +71,14 @@ public class VehicleForm {
             .toUpperCase(Locale.ROOT);
     }
 
-    private static String trimToNull(String value) {
+    private static String normalizeText(String value) {
         if (value == null) {
             return null;
         }
-        String trimmed = value.trim();
-        return trimmed.isEmpty() ? null : trimmed;
+        String normalized = value
+            .replace('\u00A0', ' ')
+            .trim()
+            .replaceAll("\\s+", " ");
+        return normalized.isEmpty() ? null : normalized;
     }
 }
