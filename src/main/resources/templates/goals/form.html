@@ -1,1 +1,141 @@
-<!doctype html><html lang="pt-BR" xmlns:th="http://www.thymeleaf.org" th:replace="~{layouts/app :: layout(~{::section}, 'Nova meta')}"><section><h1 class="h2 mb-4">Nova meta mensal</h1><div class="card"><div class="card-body"><form th:action="@{/goals}" th:object="${goalForm}" method="post" class="row g-3"><div class="col-md-4"><label class="form-label">Mês</label><input class="form-control" type="month" th:field="*{month}"></div><div class="col-md-4"><label class="form-label">Meta líquida pessoal</label><input class="form-control" type="number" step="0.01" min="0" th:field="*{personalNetGoal}"></div><div class="col-md-4"><label class="form-label">Meta operacional</label><input class="form-control" type="number" step="0.01" min="0" th:field="*{operationalGoal}"></div><div class="col-md-4"><label class="form-label">Horas planejadas</label><input class="form-control" type="number" step="0.25" min="0" th:field="*{plannedHours}"></div><div class="col-12"><label class="form-label">Dias planejados</label><textarea class="form-control" rows="4" th:field="*{plannedDates}" placeholder="2026-07-01, 2026-07-02, 2026-07-04"></textarea><div class="form-text">Separe as datas por vírgula. Domingos não são aceitos.</div><div class="text-danger small" th:errors="*{plannedDates}"></div></div><div class="col-12 d-flex gap-2"><button class="btn btn-primary">Salvar meta</button><a class="btn btn-outline-secondary" th:href="@{/}">Cancelar</a></div></form></div></div></section></html>
+<!doctype html>
+<html lang="pt-BR" xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{layouts/app :: layout(~{::section}, 'Nova meta')}">
+<section>
+  <div class="mb-4">
+    <h1 class="h2 mb-1">Nova meta mensal</h1>
+    <p class="text-secondary mb-0">Defina os resultados esperados, o tempo disponível e os dias planejados.</p>
+  </div>
+
+  <form id="goal-form" class="guided-form" th:action="@{/goals}"
+        th:object="${goalForm}" method="post"
+        data-guided-form
+        data-draft-type="MONTHLY_GOAL"
+        th:attr="data-draft-context-key=${goalForm.draftContextKey()}"
+        data-draft-schema-version="1"
+        data-draft-current-step="1"
+        data-form-max-step="3">
+
+    <div class="alert alert-danger" th:if="${#fields.hasGlobalErrors()}">
+      <div th:each="error : ${#fields.globalErrors()}" th:text="${error}"></div>
+    </div>
+
+    <section class="guided-step" data-form-step="1" aria-labelledby="goal-step-1-title">
+      <div class="guided-step__header d-flex gap-3 align-items-start">
+        <span class="guided-step__number" aria-hidden="true">1</span>
+        <div>
+          <h2 class="h4 mb-1" id="goal-step-1-title">Mês e valores-alvo</h2>
+          <p class="text-secondary mb-0">Informe quanto precisa gerar na operação e quanto deseja receber líquido.</p>
+        </div>
+      </div>
+      <div class="row g-3">
+        <div class="col-md-4">
+          <label class="form-label" for="month">Mês <span class="required-mark">*</span></label>
+          <input class="form-control" id="month" type="month" th:field="*{month}"
+                 aria-describedby="month-error" required data-save-on-blur>
+          <div class="invalid-feedback d-block" id="month-error" th:errors="*{month}"></div>
+        </div>
+        <div class="col-md-4">
+          <label class="form-label" for="personalNetGoal">Meta líquida pessoal <span class="required-mark">*</span></label>
+          <div class="input-group input-unit">
+            <span class="input-group-text">R$</span>
+            <input class="form-control" id="personalNetGoal" type="text" inputmode="decimal"
+                   placeholder="0,00" th:field="*{personalNetGoal}"
+                   aria-describedby="personalNetGoal-help personalNetGoal-error" required>
+          </div>
+          <div class="form-text" id="personalNetGoal-help">Valor que deverá permanecer para uso pessoal.</div>
+          <div class="invalid-feedback d-block" id="personalNetGoal-error"
+               th:errors="*{personalNetGoal}"></div>
+        </div>
+        <div class="col-md-4">
+          <label class="form-label" for="operationalGoal">Meta operacional <span class="required-mark">*</span></label>
+          <div class="input-group input-unit">
+            <span class="input-group-text">R$</span>
+            <input class="form-control" id="operationalGoal" type="text" inputmode="decimal"
+                   placeholder="0,00" th:field="*{operationalGoal}"
+                   aria-describedby="operationalGoal-help operationalGoal-error" required>
+          </div>
+          <div class="form-text" id="operationalGoal-help">Receita necessária antes de custos e compromissos.</div>
+          <div class="invalid-feedback d-block" id="operationalGoal-error"
+               th:errors="*{operationalGoal}"></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="guided-step" data-form-step="2" aria-labelledby="goal-step-2-title">
+      <div class="guided-step__header d-flex gap-3 align-items-start">
+        <span class="guided-step__number" aria-hidden="true">2</span>
+        <div>
+          <h2 class="h4 mb-1" id="goal-step-2-title">Tempo e dias planejados</h2>
+          <p class="text-secondary mb-0">Escolha os dias de trabalho do mês. Domingos não são aceitos.</p>
+        </div>
+      </div>
+      <div class="row g-3">
+        <div class="col-md-4">
+          <label class="form-label" for="plannedHours">Horas planejadas <span class="required-mark">*</span></label>
+          <div class="input-group input-unit">
+            <input class="form-control" id="plannedHours" type="text" inputmode="decimal"
+                   placeholder="160" th:field="*{plannedHours}"
+                   aria-describedby="plannedHours-help plannedHours-error" required>
+            <span class="input-group-text">h</span>
+          </div>
+          <div class="form-text" id="plannedHours-help">Total de horas disponíveis no mês.</div>
+          <div class="invalid-feedback d-block" id="plannedHours-error"
+               th:errors="*{plannedHours}"></div>
+        </div>
+        <div class="col-md-8">
+          <label class="form-label" for="plannedDatePicker">Adicionar dia planejado</label>
+          <div class="input-group">
+            <input class="form-control" id="plannedDatePicker" type="date"
+                   data-planned-date-picker data-draft-ignore>
+            <button class="btn btn-outline-primary" type="button" data-add-planned-date>Adicionar</button>
+          </div>
+          <div class="form-text">O dia precisa pertencer ao mês selecionado.</div>
+        </div>
+        <div class="col-12">
+          <label class="form-label" for="plannedDates">Dias planejados <span class="required-mark">*</span></label>
+          <textarea class="form-control" id="plannedDates" rows="3"
+                    th:field="*{plannedDates}"
+                    placeholder="2027-03-01, 2027-03-02, 2027-03-04"
+                    aria-describedby="plannedDates-help plannedDates-error" required></textarea>
+          <div class="form-text" id="plannedDates-help">Separe as datas por vírgula. A lista abaixo é atualizada automaticamente.</div>
+          <div class="invalid-feedback d-block" id="plannedDates-error"
+               th:errors="*{plannedDates}"></div>
+          <div class="d-flex flex-wrap gap-2 mt-3" data-planned-date-chips aria-live="polite"></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="guided-step" data-form-step="3" aria-labelledby="goal-step-3-title">
+      <div class="guided-step__header d-flex gap-3 align-items-start">
+        <span class="guided-step__number" aria-hidden="true">3</span>
+        <div>
+          <h2 class="h4 mb-1" id="goal-step-3-title">Revisão da meta</h2>
+          <p class="text-secondary mb-0">Confira o esforço planejado antes de salvar.</p>
+        </div>
+      </div>
+      <div class="guided-summary">
+        <div class="d-flex justify-content-between gap-3 mb-2"><span>Mês</span><strong data-goal-summary-month>—</strong></div>
+        <div class="d-flex justify-content-between gap-3 mb-2"><span>Meta operacional</span><strong data-goal-summary-operational>R$ 0,00</strong></div>
+        <div class="d-flex justify-content-between gap-3 mb-2"><span>Horas planejadas</span><strong data-goal-summary-hours>0 h</strong></div>
+        <div class="d-flex justify-content-between gap-3"><span>Dias planejados</span><strong data-goal-summary-days>0</strong></div>
+      </div>
+    </section>
+
+    <div class="d-none d-md-flex justify-content-between align-items-center gap-2 mt-3">
+      <span th:replace="~{fragments/guided-form :: draft-status}"></span>
+      <div class="d-flex gap-2">
+        <a class="btn btn-outline-secondary" th:href="@{/}">Cancelar</a>
+        <button class="btn btn-primary" type="submit">Salvar meta</button>
+      </div>
+    </div>
+
+    <div th:replace="~{fragments/guided-form :: mobile-actions('Revisar e salvar')}"></div>
+    <div th:replace="~{fragments/guided-form :: recovery-modal('goal')}"></div>
+    <div th:replace="~{fragments/guided-form :: conflict-modal('goal')}"></div>
+  </form>
+
+  <script type="module" th:src="@{/js/guided-form.js}"></script>
+  <script type="module" th:src="@{/js/goal-form.js}"></script>
+</section>
+</html>
