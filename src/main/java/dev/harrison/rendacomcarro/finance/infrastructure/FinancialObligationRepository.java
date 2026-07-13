@@ -1,0 +1,1 @@
+package dev.harrison.rendacomcarro.finance.infrastructure;import dev.harrison.rendacomcarro.finance.domain.FinancialObligation;import java.util.*;import org.springframework.data.jpa.repository.JpaRepository;public interface FinancialObligationRepository extends JpaRepository<FinancialObligation,UUID>{List<FinancialObligation> findAllByOrderByCreatedAtDesc();}
