@@ -60,7 +60,7 @@ class VehicleWebTest extends PostgresIntegrationTest {
 
     @Test
     @WithMockUser(username = "harrison", roles = "OWNER")
-    void blankNicknameLegacyPlateAndBlankPriceAreNormalized() throws Exception {
+    void blankNicknameLegacyPlateAndBlankPriceArePreservedSemantically() throws Exception {
         mvc.perform(post("/vehicles")
                 .with(csrf())
                 .param("name", "")
@@ -80,7 +80,12 @@ class VehicleWebTest extends PostgresIntegrationTest {
             .orElseThrow();
         assertThat(vehicle.getName()).isEqualTo("Toyota Etios");
         assertThat(vehicle.getCurrentOdometer()).isEqualByComparingTo("248351.0");
-        assertThat(vehicle.getPurchasePrice()).isEqualByComparingTo(BigDecimal.ZERO);
+        assertThat(vehicle.getPurchasePrice()).isNull();
+
+        mvc.perform(get("/vehicles/{id}", vehicle.getId()))
+            .andExpect(status().isOk())
+            .andExpect(content().string(containsString("Não informado")))
+            .andExpect(content().string(not(containsString("R$ 0,00"))));
     }
 
     @Test
