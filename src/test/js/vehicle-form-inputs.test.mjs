@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import {
+  applyMoneyEdit,
   formatMoneyInput,
   formatOdometerInput,
   formatVehiclePlate,
@@ -49,4 +50,28 @@ test('vehicle input formatters: text normalization preserves capitalization', ()
   assert.equal(normalizeVehicleText(' BMW '), 'BMW');
   assert.equal(normalizeVehicleText('  CR-V  '), 'CR-V');
   assert.equal(normalizeVehicleText('   '), '');
+});
+
+test('vehicle input formatters: money edit buffer supports repeated backspace to blank', () => {
+  let digits = '';
+  digits = applyMoneyEdit(digits, { inputType: 'insertText', data: '1' });
+  assert.equal(formatMoneyInput(digits), '0,01');
+  digits = applyMoneyEdit(digits, { inputType: 'insertText', data: '2' });
+  assert.equal(formatMoneyInput(digits), '0,12');
+  digits = applyMoneyEdit(digits, { inputType: 'insertText', data: '3' });
+  assert.equal(formatMoneyInput(digits), '1,23');
+  digits = applyMoneyEdit(digits, { inputType: 'deleteContentBackward' });
+  assert.equal(formatMoneyInput(digits), '0,12');
+  digits = applyMoneyEdit(digits, { inputType: 'deleteContentBackward' });
+  digits = applyMoneyEdit(digits, { inputType: 'deleteContentBackward' });
+  assert.equal(formatMoneyInput(digits), '');
+});
+
+test('vehicle input formatters: money edit can replace the full value with pasted digits', () => {
+  const digits = applyMoneyEdit('123', {
+    inputType: 'insertFromPaste',
+    data: 'R$ 23.990,00',
+    replaceAll: true
+  });
+  assert.equal(formatMoneyInput(digits), '23.990,00');
 });
