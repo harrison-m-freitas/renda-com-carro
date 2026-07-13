@@ -50,6 +50,16 @@ public class Vehicle {
     @Column(name = "current_odometer", nullable = false, precision = 12, scale = 1)
     private BigDecimal currentOdometer;
 
+    @Column(name = "current_odometer_recorded_at", nullable = false)
+    private LocalDateTime currentOdometerRecordedAt;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "current_odometer_source", nullable = false)
+    private OdometerReadingSource currentOdometerSource;
+
+    @Column(name = "current_odometer_source_id")
+    private UUID currentOdometerSourceId;
+
     @Column(name = "purchase_price", nullable = false, precision = 14, scale = 2)
     private BigDecimal purchasePrice;
 
@@ -88,6 +98,9 @@ public class Vehicle {
         this.purchasePrice = DecimalPolicy.money(purchasePrice);
         this.createdAt = LocalDateTime.now();
         this.updatedAt = this.createdAt;
+        this.currentOdometerRecordedAt = this.createdAt;
+        this.currentOdometerSource = OdometerReadingSource.VEHICLE_MANUAL;
+        this.currentOdometerSourceId = this.id;
     }
 
     public static Vehicle create(
@@ -103,9 +116,15 @@ public class Vehicle {
         return new Vehicle(name, make, model, year, plate, fuelType, initialOdometer, purchasePrice);
     }
 
-    public void update(String name, String make, String model, int year, String plate, FuelType fuelType,
-                       BigDecimal currentOdometer, BigDecimal purchasePrice) {
-        validateNonNegative(currentOdometer, "Odômetro atual");
+    public void updateDetails(
+        String name,
+        String make,
+        String model,
+        int year,
+        String plate,
+        FuelType fuelType,
+        BigDecimal purchasePrice
+    ) {
         validateNonNegative(purchasePrice, "Preço de compra");
         this.name = requireText(name, "Nome");
         this.make = requireText(make, "Marca");
@@ -113,8 +132,24 @@ public class Vehicle {
         this.year = year;
         this.plate = requireText(plate, "Placa").toUpperCase(Locale.ROOT);
         this.fuelType = fuelType;
-        this.currentOdometer = DecimalPolicy.distance(currentOdometer);
         this.purchasePrice = DecimalPolicy.money(purchasePrice);
+        this.updatedAt = LocalDateTime.now();
+    }
+
+    public void applyCurrentOdometer(
+        BigDecimal reading,
+        LocalDateTime recordedAt,
+        OdometerReadingSource source,
+        UUID sourceId
+    ) {
+        validateNonNegative(reading, "Odômetro");
+        if (recordedAt == null || source == null) {
+            throw new IllegalArgumentException("Data e origem da leitura são obrigatórias");
+        }
+        this.currentOdometer = DecimalPolicy.distance(reading);
+        this.currentOdometerRecordedAt = recordedAt;
+        this.currentOdometerSource = source;
+        this.currentOdometerSourceId = sourceId;
         this.updatedAt = LocalDateTime.now();
     }
 
@@ -161,5 +196,10 @@ public class Vehicle {
     public boolean isPrimaryVehicle() { return primaryVehicle; }
     public BigDecimal getInitialOdometer() { return initialOdometer; }
     public BigDecimal getCurrentOdometer() { return currentOdometer; }
+    public LocalDateTime getCurrentOdometerRecordedAt() { return currentOdometerRecordedAt; }
+    public OdometerReadingSource getCurrentOdometerSource() { return currentOdometerSource; }
+    public UUID getCurrentOdometerSourceId() { return currentOdometerSourceId; }
     public BigDecimal getPurchasePrice() { return purchasePrice; }
+    public LocalDateTime getCreatedAt() { return createdAt; }
+    public LocalDateTime getUpdatedAt() { return updatedAt; }
 }
