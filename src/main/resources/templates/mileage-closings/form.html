@@ -11,17 +11,17 @@
     <div class="card-body">
       <div class="row g-3 align-items-end">
         <div class="col-md-7">
-          <label class="form-label" for="previewVehicleId">Veículo</label>
+          <label class="form-label" for="previewVehicleId">Veículo <span class="required-mark">*</span></label>
           <select class="form-select" id="previewVehicleId" name="vehicleId" required>
-            <option value="">Selecione</option>
+            <option value="">Selecione um veículo</option>
             <option th:each="vehicle : ${vehicles}"
                     th:value="${vehicle.id}"
                     th:selected="${closingForm.vehicleId != null and vehicle.id == closingForm.vehicleId}"
-                    th:text="${vehicle.name + ' — ' + vehicle.plate}"></option>
+                    th:text="${vehicle.name + ' · ' + vehicle.plate}"></option>
           </select>
         </div>
         <div class="col-md-3">
-          <label class="form-label" for="previewMonth">Mês</label>
+          <label class="form-label" for="previewMonth">Mês <span class="required-mark">*</span></label>
           <input class="form-control" id="previewMonth" name="month" type="month"
                  th:value="${closingForm.month}" required>
         </div>
@@ -48,67 +48,93 @@
       </div>
     </div>
 
-    <div th:if="${!#lists.isEmpty(preview.blockingAlerts)}" class="alert alert-danger">
-      <h3 class="h5">Fechamento bloqueado</h3>
-      <ul class="mb-0">
-        <li th:each="alert : ${preview.blockingAlerts}" th:text="${alert.message}"></li>
-      </ul>
-    </div>
-
-    <div th:if="${!#lists.isEmpty(preview.warnings)}" class="alert alert-warning">
-      <h3 class="h5">Verifique antes de confirmar</h3>
-      <ul class="mb-0">
-        <li th:each="alert : ${preview.warnings}" th:text="${alert.message}"></li>
-      </ul>
-    </div>
-
-    <form id="mileage-closing-form" class="card" th:action="@{/mileage-closings}"
+    <form id="mileage-closing-form" class="guided-form" th:action="@{/mileage-closings}"
           th:object="${closingForm}" method="post"
-          th:attr="data-manual-adjustment=${closingForm.manualAdjustment}">
-      <input type="hidden" th:field="*{vehicleId}">
-      <input type="hidden" th:field="*{month}">
+          data-guided-form
+          data-draft-type="MILEAGE_CLOSING"
+          th:attr="data-draft-context-key=${closingForm.draftContextKey()},data-manual-adjustment=${closingForm.manualAdjustment}"
+          data-draft-schema-version="1"
+          data-draft-current-step="1"
+          data-form-max-step="3">
+      <input type="hidden" th:field="*{vehicleId}" data-draft-ignore>
+      <input type="hidden" th:field="*{month}" data-draft-ignore>
       <input type="hidden" id="manualAdjustment" th:field="*{manualAdjustment}">
 
-      <div class="card-body">
-        <div class="alert alert-danger" th:if="${#fields.hasGlobalErrors()}">
-          <div th:each="error : ${#fields.globalErrors()}" th:text="${error}"></div>
+      <div class="alert alert-danger" th:if="${#fields.hasGlobalErrors()}">
+        <div th:each="error : ${#fields.globalErrors()}" th:text="${error}"></div>
+      </div>
+
+      <section class="guided-step" data-form-step="1" aria-labelledby="closing-step-1-title">
+        <div class="guided-step__header d-flex gap-3 align-items-start">
+          <span class="guided-step__number" aria-hidden="true">1</span>
+          <div>
+            <h2 class="h4 mb-1" id="closing-step-1-title">Leituras inferidas</h2>
+            <p class="text-secondary mb-0">Confira as leituras encontradas e a origem de cada valor.</p>
+          </div>
+        </div>
+        <div class="row g-3">
+          <div class="col-md-4">
+            <label class="form-label" for="initialOdometer">Odômetro inicial <span class="required-mark">*</span></label>
+            <div class="input-group input-unit">
+              <input class="form-control guided-calculated" id="initialOdometer" type="text"
+                     inputmode="decimal" th:field="*{initialOdometer}"
+                     data-adjustable readonly required
+                     aria-describedby="initialOdometer-origin initialOdometer-error">
+              <span class="input-group-text">km</span>
+            </div>
+            <div class="form-text" id="initialOdometer-origin" th:if="${preview.initialOrigin != null}"
+                 th:text="${'Origem: ' + preview.initialOrigin.label}"></div>
+            <div class="invalid-feedback d-block" id="initialOdometer-error" th:errors="*{initialOdometer}"></div>
+          </div>
+          <div class="col-md-4">
+            <label class="form-label" for="finalOdometer">Odômetro final <span class="required-mark">*</span></label>
+            <div class="input-group input-unit">
+              <input class="form-control guided-calculated" id="finalOdometer" type="text"
+                     inputmode="decimal" th:field="*{finalOdometer}"
+                     data-adjustable readonly required
+                     aria-describedby="finalOdometer-origin finalOdometer-error">
+              <span class="input-group-text">km</span>
+            </div>
+            <div class="form-text" id="finalOdometer-origin" th:if="${preview.finalOrigin != null}"
+                 th:text="${'Origem: ' + preview.finalOrigin.label}"></div>
+            <div class="invalid-feedback d-block" id="finalOdometer-error" th:errors="*{finalOdometer}"></div>
+          </div>
+          <div class="col-md-4">
+            <label class="form-label" for="professionalKilometers">Quilômetros profissionais <span class="required-mark">*</span></label>
+            <div class="input-group input-unit">
+              <input class="form-control guided-calculated" id="professionalKilometers" type="text"
+                     inputmode="decimal" th:field="*{professionalKilometers}"
+                     data-adjustable readonly required
+                     aria-describedby="professionalKilometers-help professionalKilometers-error">
+              <span class="input-group-text">km</span>
+            </div>
+            <div class="form-text" id="professionalKilometers-help">Soma dos turnos fechados no mês.</div>
+            <div class="invalid-feedback d-block" id="professionalKilometers-error"
+                 th:errors="*{professionalKilometers}"></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="guided-step" data-form-step="2" aria-labelledby="closing-step-2-title">
+        <div class="guided-step__header d-flex gap-3 align-items-start">
+          <span class="guided-step__number" aria-hidden="true">2</span>
+          <div>
+            <h2 class="h4 mb-1" id="closing-step-2-title">Análise e correções</h2>
+            <p class="text-secondary mb-0">Revise totais, alertas e corrija somente quando os registros não representarem o mês.</p>
+          </div>
         </div>
 
-        <div class="row g-3 mb-4">
-          <div class="col-md-4">
-            <label class="form-label" for="initialOdometer">Odômetro inicial</label>
-            <div class="input-group">
-              <input class="form-control" id="initialOdometer" type="number" step="0.1" min="0"
-                     th:field="*{initialOdometer}" data-adjustable readonly required>
-              <span class="input-group-text">km</span>
-            </div>
-            <div class="form-text" th:if="${preview.initialOrigin != null}"
-                 th:text="${'Origem: ' + preview.initialOrigin.label}"></div>
-            <div class="invalid-feedback d-block" th:errors="*{initialOdometer}"></div>
-          </div>
-
-          <div class="col-md-4">
-            <label class="form-label" for="finalOdometer">Odômetro final</label>
-            <div class="input-group">
-              <input class="form-control" id="finalOdometer" type="number" step="0.1" min="0"
-                     th:field="*{finalOdometer}" data-adjustable readonly required>
-              <span class="input-group-text">km</span>
-            </div>
-            <div class="form-text" th:if="${preview.finalOrigin != null}"
-                 th:text="${'Origem: ' + preview.finalOrigin.label}"></div>
-            <div class="invalid-feedback d-block" th:errors="*{finalOdometer}"></div>
-          </div>
-
-          <div class="col-md-4">
-            <label class="form-label" for="professionalKilometers">Quilômetros profissionais</label>
-            <div class="input-group">
-              <input class="form-control" id="professionalKilometers" type="number" step="0.1" min="0"
-                     th:field="*{professionalKilometers}" data-adjustable readonly required>
-              <span class="input-group-text">km</span>
-            </div>
-            <div class="form-text">Soma dos turnos fechados no mês.</div>
-            <div class="invalid-feedback d-block" th:errors="*{professionalKilometers}"></div>
-          </div>
+        <div th:if="${!#lists.isEmpty(preview.blockingAlerts)}" class="alert alert-danger">
+          <h3 class="h5">Fechamento bloqueado</h3>
+          <ul class="mb-0">
+            <li th:each="alert : ${preview.blockingAlerts}" th:text="${alert.message}"></li>
+          </ul>
+        </div>
+        <div th:if="${!#lists.isEmpty(preview.warnings)}" class="alert alert-warning">
+          <h3 class="h5">Verifique antes de confirmar</h3>
+          <ul class="mb-0">
+            <li th:each="alert : ${preview.warnings}" th:text="${alert.message}"></li>
+          </ul>
         </div>
 
         <div class="row g-3 mb-4">
@@ -118,31 +144,55 @@
           <div class="col-md-3"><div class="card card-body h-100"><div class="text-secondary">Percentual profissional</div><div class="h3 mb-0" th:text="${#numbers.formatDecimal(preview.professionalPercentage * 100, 1, 2) + '%'}"></div></div></div>
         </div>
 
-        <div id="adjustment-reason-group" th:hidden="${!closingForm.manualAdjustment}">
-          <label class="form-label" for="adjustmentReason">Justificativa da correção</label>
-          <textarea class="form-control" id="adjustmentReason" rows="3"
-                    th:field="*{adjustmentReason}"
-                    placeholder="Explique por que os valores calculados precisam ser corrigidos."></textarea>
-          <div class="form-text">Obrigatória quando qualquer valor confirmado divergir da prévia.</div>
-        </div>
-
-        <div class="form-check mt-4" th:if="${!#lists.isEmpty(preview.warnings)}">
-          <input class="form-check-input" type="checkbox" id="confirmWarnings"
-                 th:field="*{confirmWarnings}">
-          <label class="form-check-label" for="confirmWarnings">Revisei os avisos e confirmo o fechamento.</label>
-        </div>
-      </div>
-
-      <div class="card-footer d-flex flex-column flex-sm-row gap-2 justify-content-end">
-        <a class="btn btn-outline-secondary" th:href="@{/mileage-closings}">Cancelar</a>
         <button id="enable-adjustment" class="btn btn-outline-warning" type="button"
                 th:if="${!preview.hasBlockingAlerts()}">Corrigir valores</button>
-        <button class="btn btn-primary" type="submit"
-                th:if="${!preview.hasBlockingAlerts()}">Salvar fechamento</button>
+        <div id="adjustment-reason-group" class="mt-3" th:hidden="${!closingForm.manualAdjustment}">
+          <label class="form-label" for="adjustmentReason">Justificativa da correção <span class="required-mark">*</span></label>
+          <textarea class="form-control" id="adjustmentReason" rows="3"
+                    th:field="*{adjustmentReason}"
+                    aria-describedby="adjustmentReason-help"
+                    placeholder="Explique por que os valores calculados precisam ser corrigidos."></textarea>
+          <div class="form-text" id="adjustmentReason-help">Obrigatória quando qualquer valor confirmado divergir da prévia.</div>
+        </div>
+      </section>
+
+      <section class="guided-step" data-form-step="3" aria-labelledby="closing-step-3-title">
+        <div class="guided-step__header d-flex gap-3 align-items-start">
+          <span class="guided-step__number" aria-hidden="true">3</span>
+          <div>
+            <h2 class="h4 mb-1" id="closing-step-3-title">Revisão final</h2>
+            <p class="text-secondary mb-0">Confirme o fechamento automático ou a correção justificada.</p>
+          </div>
+        </div>
+        <div class="guided-summary">
+          <div class="d-flex justify-content-between gap-3 mb-2"><span>Veículo e mês</span><strong th:text="${closingForm.month}"></strong></div>
+          <div class="d-flex justify-content-between gap-3 mb-2"><span>Total rodado</span><strong th:text="${preview.totalKilometers + ' km'}"></strong></div>
+          <div class="d-flex justify-content-between gap-3"><span>Quilometragem profissional</span><strong th:text="${preview.professionalKilometers + ' km'}"></strong></div>
+        </div>
+        <div class="form-check mt-4" th:if="${!#lists.isEmpty(preview.warnings)}">
+          <input class="form-check-input" type="checkbox" id="confirmWarnings"
+                 th:field="*{confirmWarnings}" required>
+          <label class="form-check-label" for="confirmWarnings">Revisei os avisos e confirmo o fechamento.</label>
+        </div>
+      </section>
+
+      <div class="d-none d-md-flex justify-content-between align-items-center gap-2 mt-3">
+        <span th:replace="~{fragments/guided-form :: draft-status}"></span>
+        <div class="d-flex gap-2">
+          <a class="btn btn-outline-secondary" th:href="@{/mileage-closings}">Cancelar</a>
+          <button class="btn btn-primary" type="submit"
+                  th:if="${!preview.hasBlockingAlerts()}">Salvar fechamento</button>
+        </div>
       </div>
+
+      <div th:if="${!preview.hasBlockingAlerts()}"
+           th:replace="~{fragments/guided-form :: mobile-actions('Revisar e salvar')}"></div>
+      <div th:replace="~{fragments/guided-form :: recovery-modal('mileage-closing')}"></div>
+      <div th:replace="~{fragments/guided-form :: conflict-modal('mileage-closing')}"></div>
     </form>
   </div>
 
-  <script th:src="@{/js/mileage-closing-form.js}"></script>
+  <script type="module" th:src="@{/js/guided-form.js}"></script>
+  <script type="module" th:src="@{/js/mileage-closing-form.js}"></script>
 </section>
 </html>
