@@ -31,20 +31,9 @@ public class MonthlyGoalDraftDefinition implements FormDraftDefinition {
         this.validator = validator;
     }
 
-    @Override
-    public FormDraftType type() {
-        return FormDraftType.MONTHLY_GOAL;
-    }
-
-    @Override
-    public int schemaVersion() {
-        return 1;
-    }
-
-    @Override
-    public int maxStep() {
-        return 3;
-    }
+    @Override public FormDraftType type() { return FormDraftType.MONTHLY_GOAL; }
+    @Override public int schemaVersion() { return 1; }
+    @Override public int maxStep() { return 3; }
 
     @Override
     public String normalizeContextKey(String contextKey) {
@@ -62,47 +51,71 @@ public class MonthlyGoalDraftDefinition implements FormDraftDefinition {
     }
 
     @Override
-    public ObjectNode normalizeAndValidate(ObjectNode payload, int currentStep) {
+    public ObjectNode normalizeAndValidate(
+        ObjectNode payload,
+        int currentStep,
+        boolean validateCurrentStep
+    ) {
         validator.rejectUnknownFields(payload, ALLOWED_FIELDS);
         ObjectNode normalized = validator.sanitizeTextFields(payload, Set.of("plannedDates"));
 
         YearMonth month = null;
-        if (currentStep >= 1 || normalized.hasNonNull("month")) {
+        String monthText = validator.optionalText(normalized, "month");
+        if (monthText != null) {
             month = validator.requireYearMonth(normalized, "month", "Mês");
             normalized.put("month", month.toString());
+        } else if (validateCurrentStep && currentStep >= 1) {
+            month = validator.requireYearMonth(normalized, "month", "Mês");
+        } else {
+            normalized.remove("month");
         }
 
-        if (currentStep >= 1) {
-            putNonNegative(normalized, "personalNetGoal", "Meta líquida pessoal");
-            putNonNegative(normalized, "operationalGoal", "Meta operacional");
-        }
+        normalizeNonNegative(
+            normalized,
+            "personalNetGoal",
+            "Meta líquida pessoal",
+            validateCurrentStep && currentStep >= 1
+        );
+        normalizeNonNegative(
+            normalized,
+            "operationalGoal",
+            "Meta operacional",
+            validateCurrentStep && currentStep >= 1
+        );
+        normalizeNonNegative(
+            normalized,
+            "plannedHours",
+            "Horas planejadas",
+            validateCurrentStep && currentStep >= 2
+        );
 
-        if (normalized.hasNonNull("plannedHours")) {
-            putNonNegative(normalized, "plannedHours", "Horas planejadas");
+        String datesText = validator.optionalText(normalized, "plannedDates");
+        if (datesText == null && validateCurrentStep && currentStep >= 2) {
+            datesText = validator.requireText(normalized, "plannedDates", "Dias planejados");
         }
-
-        if (currentStep >= 2) {
-            putNonNegative(normalized, "plannedHours", "Horas planejadas");
-            String datesText = validator.requireText(
-                normalized, "plannedDates", "Dias planejados"
-            );
-            if (month == null) {
-                month = validator.requireYearMonth(normalized, "month", "Mês");
-            }
+        if (datesText == null) {
+            normalized.remove("plannedDates");
+        } else if (month != null) {
             normalized.put("plannedDates", normalizeDates(datesText, month));
-        } else if (normalized.hasNonNull("plannedDates")) {
-            String datesText = validator.optionalText(normalized, "plannedDates");
-            if (datesText == null) {
-                normalized.remove("plannedDates");
-            } else if (month != null) {
-                normalized.put("plannedDates", normalizeDates(datesText, month));
-            }
+        } else {
+            normalized.put("plannedDates", datesText);
         }
         return normalized;
     }
 
-    private void putNonNegative(ObjectNode payload, String field, String label) {
-        BigDecimal value = validator.requireDecimal(payload, field, label);
+    private void normalizeNonNegative(
+        ObjectNode payload,
+        String field,
+        String label,
+        boolean required
+    ) {
+        BigDecimal value = required
+            ? validator.requireDecimal(payload, field, label)
+            : validator.optionalDecimal(payload, field, label);
+        if (value == null) {
+            payload.remove(field);
+            return;
+        }
         if (value.signum() < 0) {
             throw new DomainValidationException(label + " não pode ser negativo.");
         }
