@@ -30,20 +30,9 @@ public class MileageClosingDraftDefinition implements FormDraftDefinition {
         this.validator = validator;
     }
 
-    @Override
-    public FormDraftType type() {
-        return FormDraftType.MILEAGE_CLOSING;
-    }
-
-    @Override
-    public int schemaVersion() {
-        return 1;
-    }
-
-    @Override
-    public int maxStep() {
-        return 3;
-    }
+    @Override public FormDraftType type() { return FormDraftType.MILEAGE_CLOSING; }
+    @Override public int schemaVersion() { return 1; }
+    @Override public int maxStep() { return 3; }
 
     @Override
     public String normalizeContextKey(String contextKey) {
@@ -66,7 +55,11 @@ public class MileageClosingDraftDefinition implements FormDraftDefinition {
     }
 
     @Override
-    public ObjectNode normalizeAndValidate(ObjectNode payload, int currentStep) {
+    public ObjectNode normalizeAndValidate(
+        ObjectNode payload,
+        int currentStep,
+        boolean validateCurrentStep
+    ) {
         validator.rejectUnknownFields(payload, ALLOWED_FIELDS);
         ObjectNode normalized = validator.sanitizeTextFields(payload, Set.of("adjustmentReason"));
         boolean manualAdjustment = validator.booleanValue(normalized, "manualAdjustment");
@@ -87,7 +80,7 @@ public class MileageClosingDraftDefinition implements FormDraftDefinition {
             normalized, "professionalKilometers", "Quilômetros profissionais"
         );
 
-        if (currentStep >= 3) {
+        if (validateCurrentStep && currentStep >= 3) {
             BigDecimal initial = requireNonNegative(
                 normalized, "initialOdometer", "Odômetro inicial"
             );
@@ -118,12 +111,14 @@ public class MileageClosingDraftDefinition implements FormDraftDefinition {
 
     private void validateOptionalNonNegative(ObjectNode payload, String field, String label) {
         BigDecimal value = validator.optionalDecimal(payload, field, label);
-        if (value != null) {
-            if (value.signum() < 0) {
-                throw new DomainValidationException(label + " não pode ser negativo.");
-            }
-            payload.put(field, value.toPlainString());
+        if (value == null) {
+            payload.remove(field);
+            return;
         }
+        if (value.signum() < 0) {
+            throw new DomainValidationException(label + " não pode ser negativo.");
+        }
+        payload.put(field, value.toPlainString());
     }
 
     private BigDecimal requireNonNegative(ObjectNode payload, String field, String label) {
