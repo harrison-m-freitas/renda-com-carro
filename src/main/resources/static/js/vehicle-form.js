@@ -1,86 +1,173 @@
-(() => {
-  const form = document.querySelector('#vehicleForm');
-  if (!form) return;
+import {
+  formatMoneyInput,
+  formatOdometerInput,
+  formatVehiclePlate,
+  normalizeVehicleText
+} from './vehicle-form-inputs.js';
+
+const setCaretToEnd = (input) => {
+  if (typeof input.setSelectionRange !== 'function') return;
+  const end = input.value.length;
+  input.setSelectionRange(end, end);
+};
+
+const syncInputValidity = (input) => {
+  if (!input) return;
+
+  const invalidByServer = input.classList?.contains('is-invalid') ?? false;
+  const invalidByBrowser = typeof input.checkValidity === 'function'
+    ? !input.checkValidity()
+    : false;
+  const invalid = invalidByServer || invalidByBrowser;
+  const group = input.closest?.('.input-group');
+
+  if (invalid) {
+    input.setAttribute?.('aria-invalid', 'true');
+    group?.classList.add('is-invalid-group');
+    return;
+  }
+
+  input.removeAttribute?.('aria-invalid');
+  input.classList?.remove('is-invalid');
+  group?.classList.remove('is-invalid-group');
+};
+
+const markInvalidFields = (form, windowObject) => {
+  const invalidInputs = Array.from(form.querySelectorAll(':invalid, .is-invalid'));
+  invalidInputs.forEach(syncInputValidity);
+
+  if (invalidInputs.length > 0) {
+    windowObject.requestAnimationFrame(() => invalidInputs[0].focus());
+  }
+
+  return invalidInputs;
+};
+
+export const setVehicleSubmitState = (button, submitting) => {
+  if (!button) return;
+
+  if (submitting) {
+    button.dataset.originalText ||= button.textContent;
+    button.disabled = true;
+    button.textContent = 'Salvando…';
+    return;
+  }
+
+  button.disabled = false;
+  if (button.dataset.originalText) {
+    button.textContent = button.dataset.originalText;
+  }
+};
+
+export const initializeVehicleForm = (
+  documentObject = document,
+  windowObject = window
+) => {
+  const form = documentObject.querySelector('#vehicleForm');
+  if (!form) return null;
 
   const submitButton = form.querySelector('[data-vehicle-submit]');
-  const plateInput = form.querySelector('[data-vehicle-plate]');
-  const localizedInputs = form.querySelectorAll('[data-localized-number]');
-  const invalidInputs = form.querySelectorAll('.is-invalid');
+  const plateInputs = Array.from(form.querySelectorAll('[data-vehicle-plate]'));
+  const moneyInputs = Array.from(form.querySelectorAll('[data-money-input]'));
+  const odometerInputs = Array.from(form.querySelectorAll('[data-odometer-input]'));
+  const textInputs = Array.from(form.querySelectorAll('[data-normalize-spaces]'));
   let dirty = false;
   let submitting = false;
 
-  const normalizeNumericText = (value) => value
-    .replace(/\u00a0/g, '')
-    .replace(/\s/g, '')
-    .replace(/[^\d,.-]/g, '');
-
-  const parseLocalizedNumber = (raw) => {
-    let value = normalizeNumericText(raw);
-    if (!value) return null;
-
-    if (value.includes(',') && value.includes('.')) {
-      value = value.replace(/\./g, '').replace(',', '.');
-    } else if (value.includes(',')) {
-      value = value.replace(',', '.');
-    } else if (/^-?\d{1,3}(\.\d{3})+$/.test(value)) {
-      value = value.replace(/\./g, '');
-    }
-
-    const parsed = Number(value);
-    return Number.isFinite(parsed) ? parsed : null;
-  };
-
-  const formatLocalizedNumber = (input) => {
-    const parsed = parseLocalizedNumber(input.value);
-    if (parsed === null) return;
-    const scale = Number(input.dataset.decimalScale || '0');
-    input.value = new Intl.NumberFormat('pt-BR', {
-      minimumFractionDigits: scale,
-      maximumFractionDigits: scale
-    }).format(parsed);
-  };
-
-  const formatPlate = () => {
-    if (!plateInput) return;
-    let normalized = plateInput.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 7);
-    if (/^[A-Z]{3}\d{1,4}$/.test(normalized) && normalized.length > 3) {
-      normalized = `${normalized.slice(0, 3)}-${normalized.slice(3)}`;
-    }
-    plateInput.value = normalized;
-  };
-
-  if (plateInput) {
-    formatPlate();
-    plateInput.addEventListener('input', formatPlate);
-  }
-
-  localizedInputs.forEach((input) => {
-    formatLocalizedNumber(input);
-    input.addEventListener('blur', () => formatLocalizedNumber(input));
+  plateInputs.forEach((input) => {
+    input.value = formatVehiclePlate(input.value);
+    input.addEventListener('input', () => {
+      input.value = formatVehiclePlate(input.value);
+      setCaretToEnd(input);
+    });
   });
 
-  invalidInputs.forEach((input) => input.setAttribute('aria-invalid', 'true'));
-  if (invalidInputs.length > 0) {
-    window.requestAnimationFrame(() => invalidInputs[0].focus());
-  }
+  moneyInputs.forEach((input) => {
+    input.value = formatMoneyInput(
+      input.value,
+      Number(input.dataset.maxDigits || '14')
+    );
+    input.addEventListener('input', () => {
+      input.value = formatMoneyInput(
+        input.value,
+        Number(input.dataset.maxDigits || '14')
+      );
+      setCaretToEnd(input);
+    });
+  });
 
-  form.addEventListener('input', () => {
+  odometerInputs.forEach((input) => {
+    const maxIntegerDigits = Number(input.dataset.maxIntegerDigits || '11');
+    input.value = formatOdometerInput(input.value, {
+      maxIntegerDigits,
+      trimZeroFraction: true
+    });
+    input.addEventListener('input', () => {
+      input.value = formatOdometerInput(input.value, { maxIntegerDigits });
+      setCaretToEnd(input);
+    });
+    input.addEventListener('blur', () => {
+      input.value = formatOdometerInput(input.value, {
+        maxIntegerDigits,
+        trimZeroFraction: true
+      });
+    });
+  });
+
+  textInputs.forEach((input) => {
+    input.addEventListener('blur', () => {
+      input.value = normalizeVehicleText(input.value);
+    });
+  });
+
+  Array.from(form.querySelectorAll('.is-invalid')).forEach(syncInputValidity);
+
+  form.addEventListener('invalid', (event) => {
+    syncInputValidity(event.target);
+  }, true);
+
+  form.addEventListener('input', (event) => {
     dirty = true;
+    syncInputValidity(event.target);
   });
 
   form.addEventListener('submit', () => {
+    textInputs.forEach((input) => {
+      input.value = normalizeVehicleText(input.value);
+    });
+    odometerInputs.forEach((input) => {
+      input.value = formatOdometerInput(input.value, {
+        maxIntegerDigits: Number(input.dataset.maxIntegerDigits || '11'),
+        trimZeroFraction: true
+      });
+    });
+
+    if (!form.checkValidity()) {
+      submitting = false;
+      setVehicleSubmitState(submitButton, false);
+      markInvalidFields(form, windowObject);
+      return;
+    }
+
     submitting = true;
     dirty = false;
-    if (submitButton) {
-      submitButton.disabled = true;
-      submitButton.dataset.originalText = submitButton.textContent;
-      submitButton.textContent = 'Salvando…';
-    }
+    setVehicleSubmitState(submitButton, true);
   });
 
-  window.addEventListener('beforeunload', (event) => {
+  windowObject.addEventListener('pageshow', () => {
+    submitting = false;
+    setVehicleSubmitState(submitButton, false);
+  });
+
+  windowObject.addEventListener('beforeunload', (event) => {
     if (!dirty || submitting) return;
     event.preventDefault();
     event.returnValue = '';
   });
-})();
+
+  return { form, submitButton };
+};
+
+if (typeof document !== 'undefined') {
+  initializeVehicleForm(document, window);
+}
