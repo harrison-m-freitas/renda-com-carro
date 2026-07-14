@@ -617,6 +617,32 @@ test('vehicle form: beforeunload protects only real changes outside submission',
   assert.equal(submittingEvent.defaultPrevented, false);
 });
 
+test('vehicle form: native invalid event reveals the first hidden invalid step', () => {
+  const harness = createFlowHarness({ mobile: true });
+  const controller = initializeVehicleForm(harness.documentObject, harness.windowObject);
+  controller.showStep('operation');
+  harness.makeInput.valid = false;
+  harness.form.setSelector(':invalid, .is-invalid', [harness.makeInput]);
+
+  harness.form.fire('invalid', { target: harness.makeInput });
+
+  assert.equal(controller.getCurrentStep(), 'identification');
+  assert.equal(harness.makeInput.focused, true);
+});
+
+test('vehicle form: native invalid price reveals acquisition details', () => {
+  const harness = createFlowHarness({ mobile: true });
+  const controller = initializeVehicleForm(harness.documentObject, harness.windowObject);
+  harness.purchasePriceInput.valid = false;
+  harness.form.setSelector(':invalid, .is-invalid', [harness.purchasePriceInput]);
+
+  harness.form.fire('invalid', { target: harness.purchasePriceInput });
+
+  assert.equal(controller.getCurrentStep(), 'operation');
+  assert.equal(harness.acquisitionPanel.hidden, false);
+  assert.equal(harness.purchasePriceInput.focused, true);
+});
+
 test('vehicle form: final invalid identification returns mobile flow to first step', () => {
   const harness = createFlowHarness({ mobile: true });
   const controller = initializeVehicleForm(harness.documentObject, harness.windowObject);
