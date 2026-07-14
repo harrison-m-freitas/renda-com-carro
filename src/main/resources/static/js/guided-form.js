@@ -143,7 +143,6 @@ export class GuidedFormController {
   } = {}) {
     clearTimeout(this.saveTimer);
     if (!this.type || !this.contextKey()) return null;
-    if (this.savePromise && !immediate) return this.savePromise;
 
     const runSave = () => {
       const payload = serializeEditableFields(this.form);
