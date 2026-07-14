@@ -97,14 +97,16 @@ class GoalFormSubmissionServiceTest extends PostgresIntegrationTest {
         drafts.save("goal-submission-owner", new SaveDraftCommand(
             FormDraftType.MONTHLY_GOAL,
             form.draftContextKey(),
-            1,
+            2,
             2,
             null,
             mapper.createObjectNode()
                 .put("month", form.getMonth().toString())
                 .put("personalNetGoal", "2500,00")
                 .put("operationalGoal", "4000,00")
-                .put("plannedHours", "160")
+                .put("workloadPeriodicity", form.getWorkloadPeriodicity().name())
+                .put("workloadHours", form.getWorkloadHours())
+                .put("workloadMinutes", form.getWorkloadMinutes())
                 .put("plannedDates", form.getPlannedDates()),
             false
         ));
