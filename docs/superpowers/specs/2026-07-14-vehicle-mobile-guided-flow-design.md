@@ -205,7 +205,7 @@ A busca respeitará a ordem do DOM, garantindo comportamento determinístico qua
 
 ### Validação da primeira etapa
 
-A validação parcial não chamará `form.checkValidity()`, pois isso também validaria campos ocultos da segunda etapa. O controlador obterá os controles elegíveis dentro da etapa atual e chamará `checkValidity()` ou `reportValidity()` de forma controlada.
+A validação parcial não chamará `form.checkValidity()`, pois isso também validaria campos ocultos da segunda etapa. O controlador coletará os controles habilitados da etapa atual, aplicará as mensagens específicas necessárias, executará `checkValidity()` em todos eles e chamará `reportValidity()` somente no primeiro controle inválido.
 
 O fluxo deverá:
 
@@ -292,7 +292,7 @@ Não haverá aviso quando:
 
 Haverá aviso de saída do navegador quando existirem alterações reais.
 
-Ao clicar em “Cancelar”:
+Os links “Veículos” no topo e “Cancelar” no rodapé compartilharão o mesmo contrato `data-vehicle-cancel`. Ao acionar qualquer um deles:
 
 - sem alterações, a navegação ocorre imediatamente;
 - com alterações, será usado um diálogo nativo de confirmação com a mensagem “Descartar as alterações deste veículo?”;
