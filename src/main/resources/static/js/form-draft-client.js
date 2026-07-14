@@ -54,20 +54,22 @@ export class FormDraftClient {
     const storageKey = draftStorageKey(type, state.contextKey);
     this.#writeEmergency(storageKey, state);
     try {
-      const response = await this.fetchImpl(
-        `${this.baseUrl}/${encodeURIComponent(type)}`,
-        {
-          method: "PUT",
-          credentials: "same-origin",
-          keepalive,
-          headers: this.#headers(true),
-          body: JSON.stringify(state),
-        },
-      );
-      const result = await this.#readJson(response);
+      const result = await this.#sendSave(type, state, { keepalive });
       this.storage?.removeItem(storageKey);
       return result;
     } catch (error) {
+      if (await this.#serverConfirmsDeletedDraft(type, state, error)) {
+        const recreatedState = { ...state, version: null };
+        this.#writeEmergency(storageKey, recreatedState);
+        try {
+          const result = await this.#sendSave(type, recreatedState, { keepalive });
+          this.storage?.removeItem(storageKey);
+          return result;
+        } catch (retryError) {
+          this.#writeEmergency(storageKey, recreatedState);
+          throw retryError;
+        }
+      }
       this.#writeEmergency(storageKey, state);
       throw error;
     }
@@ -119,6 +121,34 @@ export class FormDraftClient {
       state,
       savedAt: new Date().toISOString(),
     }));
+  }
+
+  async #sendSave(type, state, { keepalive }) {
+    const response = await this.fetchImpl(
+      `${this.baseUrl}/${encodeURIComponent(type)}`,
+      {
+        method: "PUT",
+        credentials: "same-origin",
+        keepalive,
+        headers: this.#headers(true),
+        body: JSON.stringify(state),
+      },
+    );
+    return this.#readJson(response);
+  }
+
+  async #serverConfirmsDeletedDraft(type, state, error) {
+    if (!(error instanceof DraftHttpError)
+        || error.status !== 409
+        || state.version === null
+        || state.version === undefined) {
+      return false;
+    }
+    try {
+      return await this.load(type, state.contextKey) === null;
+    } catch {
+      return false;
+    }
   }
 
   async #readJson(response) {
