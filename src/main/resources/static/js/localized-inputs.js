@@ -28,9 +28,22 @@ const setCaretToEnd = (input) => {
   input.setSelectionRange(end, end);
 };
 
-const replacesEntireValue = (input) => input.value.length > 0
-  && input.selectionStart === 0
-  && input.selectionEnd === input.value.length;
+const selectedDigitRange = (input) => {
+  const selectionStart = Number(input.selectionStart);
+  const selectionEnd = Number(input.selectionEnd);
+  if (!Number.isInteger(selectionStart) || !Number.isInteger(selectionEnd)
+      || selectionEnd <= selectionStart) {
+    return { selectionStart: null, selectionEnd: null, replaceAll: false };
+  }
+
+  const value = String(input.value ?? '');
+  const digitOffset = (offset) => value.slice(0, offset).replace(/\D/g, '').length;
+  return {
+    selectionStart: digitOffset(selectionStart),
+    selectionEnd: digitOffset(selectionEnd),
+    replaceAll: selectionStart === 0 && selectionEnd === value.length
+  };
+};
 
 const eventConstructorFor = (input) => input?.ownerDocument?.defaultView?.Event
   ?? globalThis.Event;
@@ -95,10 +108,11 @@ const configureFixedScaleInput = (
 
     event.preventDefault();
     const previousDigits = input.dataset?.localizedDigits || '';
+    const selection = selectedDigitRange(input);
     const nextDigits = applyFixedScaleEdit(previousDigits, {
       inputType,
       data: event.data || '',
-      replaceAll: replacesEntireValue(input),
+      ...selection,
       maxDigits
     });
     if (nextDigits === previousDigits) return;
@@ -110,10 +124,11 @@ const configureFixedScaleInput = (
   input.addEventListener('paste', (event) => {
     event.preventDefault();
     const previousDigits = input.dataset?.localizedDigits || '';
+    const selection = selectedDigitRange(input);
     const nextDigits = applyFixedScaleEdit(previousDigits, {
       inputType: 'insertFromPaste',
       data: event.clipboardData?.getData('text') || '',
-      replaceAll: replacesEntireValue(input),
+      ...selection,
       maxDigits
     });
     if (nextDigits === previousDigits) return;
