@@ -139,6 +139,38 @@ class GoalWebTest extends PostgresIntegrationTest {
 
     @Test
     @WithMockUser(username = "goal-web-owner", roles = "OWNER")
+    void ignoresManipulatedCalculatedWorkloadFieldsAndRecalculatesOnTheServer() throws Exception {
+        YearMonth month = YearMonth.of(2027, 6);
+
+        mvc.perform(post("/goals")
+                .with(csrf())
+                .param("month", month.toString())
+                .param("personalNetGoal", "2.500,00")
+                .param("operationalGoal", "4.000,00")
+                .param("workloadPeriodicity", "WEEKLY")
+                .param("workloadHours", "40")
+                .param("workloadMinutes", "0")
+                .param("plannedDates", "2027-06-01,2027-06-02")
+                .param("plannedHours", "9999.99")
+                .param("calculatedMonthMinutes", "999999")
+                .param("allocatedDurationMinutes", "999999"))
+            .andExpect(status().is3xxRedirection())
+            .andExpect(redirectedUrl("/goals"));
+
+        var saved = goals.find(month).orElseThrow();
+        org.assertj.core.api.Assertions.assertThat(saved.getEnteredDurationMinutes())
+            .isEqualTo(2_400);
+        org.assertj.core.api.Assertions.assertThat(saved.getCalculatedMonthMinutes())
+            .isEqualTo(960);
+        org.assertj.core.api.Assertions.assertThat(saved.getPlannedHours())
+            .isEqualByComparingTo("16.00");
+        org.assertj.core.api.Assertions.assertThat(goals.plannedDays(saved.getId()))
+            .extracting(day -> day.getAllocatedDurationMinutes())
+            .containsExactly(480L, 480L);
+    }
+
+    @Test
+    @WithMockUser(username = "goal-web-owner", roles = "OWNER")
     void invalidSundayReturnsGuidedFormWithFriendlyError() throws Exception {
         mvc.perform(post("/goals")
                 .with(csrf())
