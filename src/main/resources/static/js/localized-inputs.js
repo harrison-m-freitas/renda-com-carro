@@ -3,6 +3,7 @@ import {
   formatMoneyInput,
   formatPercentageInput,
   formatOdometerInput,
+  parseLocalizedDecimal,
   normalizeSpaces,
   trimOuterWhitespace
 } from './localized-input-formatters.js';
@@ -47,7 +48,21 @@ const dispatchUserInput = (input) => {
   }
 };
 
-const configureFixedScaleInput = (input, formatter, defaultMaxDigits) => {
+const validatePercentageInput = (input) => {
+  const maximum = Number(input.dataset?.maxValue || '100');
+  const value = parseLocalizedDecimal(input.value);
+  const invalid = value !== null && (value < 0 || value > maximum);
+  input.setCustomValidity?.(
+    invalid ? `Informe um percentual entre 0 e ${maximum}.` : ''
+  );
+};
+
+const configureFixedScaleInput = (
+  input,
+  formatter,
+  defaultMaxDigits,
+  afterRender = null
+) => {
   if (initializedInputs.has(input)) return false;
   initializedInputs.add(input);
   if (input.dataset) input.dataset.localizedInputInitialized = 'true';
@@ -58,6 +73,7 @@ const configureFixedScaleInput = (input, formatter, defaultMaxDigits) => {
     const normalizedDigits = String(digits ?? '').replace(/\D/g, '').slice(0, maxDigits);
     if (input.dataset) input.dataset.localizedDigits = normalizedDigits;
     input.value = formatter(normalizedDigits, maxDigits);
+    afterRender?.(input);
     setCaretToEnd(input);
     return normalizedDigits;
   };
@@ -168,6 +184,7 @@ export const formatLocalizedInputs = (root, { final = false } = {}) => {
     const digits = String(input.value ?? '').replace(/\D/g, '').slice(0, maxDigits);
     if (input.dataset) input.dataset.localizedDigits = digits;
     input.value = formatPercentageInput(digits, maxDigits);
+    validatePercentageInput(input);
   });
 
   matchingInputs(root, '[data-odometer-input]').forEach((input) => {
@@ -219,7 +236,12 @@ export const initializeLocalizedInputs = (root = document) => {
     if (configureFixedScaleInput(input, formatMoneyInput, 14)) initialized += 1;
   });
   matchingInputs(root, '[data-percentage-input]').forEach((input) => {
-    if (configureFixedScaleInput(input, formatPercentageInput, 5)) initialized += 1;
+    if (configureFixedScaleInput(
+      input,
+      formatPercentageInput,
+      5,
+      validatePercentageInput
+    )) initialized += 1;
   });
   matchingInputs(root, '[data-odometer-input]').forEach((input) => {
     if (configureOdometerInput(input)) initialized += 1;
