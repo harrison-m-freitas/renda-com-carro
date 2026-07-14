@@ -23,9 +23,18 @@
     <div class="alert alert-danger" tabindex="-1" role="alert"
          data-expense-error-summary
          th:hidden="${!#fields.hasAnyErrors()}">
-      <p class="fw-semibold mb-2">Não foi possível salvar o gasto. Revise os campos indicados.</p>
+      <p class="fw-semibold mb-2">
+        Não foi possível salvar o gasto. Corrija
+        <span data-expense-error-count th:text="${#fields.allErrors().size()}">0</span>
+        <span th:text="${#fields.allErrors().size() == 1 ? 'erro' : 'erros'}">erros</span>:
+      </p>
       <ul class="mb-0">
-        <li th:each="error : ${#fields.allErrors()}" th:text="${error}">Campo inválido.</li>
+        <li th:each="error : ${#fields.detailedErrors()}">
+          <a th:if="${!error.global}"
+             th:href="${'#' + error.fieldName}"
+             th:text="${error.message}">Campo inválido.</a>
+          <span th:if="${error.global}" th:text="${error.message}">Erro no formulário.</span>
+        </li>
       </ul>
     </div>
 
@@ -99,7 +108,7 @@
         </div>
       </div>
 
-      <fieldset class="mb-4" aria-describedby="classification-error">
+      <fieldset class="mb-4" id="classification" tabindex="-1" aria-describedby="classification-error">
         <legend class="form-label mb-2">Classificação do gasto <span class="required-mark" aria-hidden="true">*</span></legend>
         <div class="classification-card-grid">
           <label class="classification-card">
@@ -130,7 +139,7 @@
         <div class="invalid-feedback d-block" id="classification-error" th:errors="*{classification}"></div>
       </fieldset>
 
-      <fieldset class="expense-allocation-panel mb-4" data-allocation-group
+      <fieldset class="expense-allocation-panel mb-4" id="allocationMethod" tabindex="-1" data-allocation-group
                 aria-describedby="allocationMethod-error">
         <legend class="form-label mb-2">Como deseja dividir o gasto misto? <span class="required-mark" aria-hidden="true">*</span></legend>
         <div class="allocation-choice-list">
@@ -199,7 +208,7 @@
         </div>
       </div>
 
-      <fieldset class="mb-3" aria-describedby="paymentStatus-error">
+      <fieldset class="mb-3" id="paymentStatus" tabindex="-1" aria-describedby="paymentStatus-error">
         <legend class="form-label mb-2">Situação do pagamento <span class="required-mark" aria-hidden="true">*</span></legend>
         <div class="payment-status-group">
           <label class="payment-status-choice">
