@@ -33,13 +33,15 @@ export const serializeVehicleForm = (form) => JSON.stringify(
     })
 );
 
-const syncInputValidity = (input) => {
+const syncInputValidity = (input, browserInvalidOverride = null) => {
   if (!input) return;
 
   const invalidByServer = input.classList?.contains('is-invalid') ?? false;
-  const invalidByBrowser = typeof input.checkValidity === 'function'
-    ? !input.checkValidity()
-    : false;
+  const invalidByBrowser = browserInvalidOverride ?? (
+    typeof input.checkValidity === 'function'
+      ? !input.checkValidity()
+      : false
+  );
   const invalid = invalidByServer || invalidByBrowser;
   const group = input.closest?.('.input-group');
 
@@ -56,7 +58,7 @@ const syncInputValidity = (input) => {
 
 const collectInvalidFields = (form) => {
   const invalidInputs = Array.from(form.querySelectorAll(':invalid, .is-invalid'));
-  invalidInputs.forEach(syncInputValidity);
+  invalidInputs.forEach((input) => syncInputValidity(input));
   return invalidInputs;
 };
 
@@ -68,7 +70,7 @@ export const validateVehicleStep = (step) => {
   const invalidInputs = getStepControls(step)
     .filter((control) => !control.checkValidity());
 
-  invalidInputs.forEach(syncInputValidity);
+  invalidInputs.forEach((input) => syncInputValidity(input));
   return invalidInputs;
 };
 
@@ -312,10 +314,33 @@ export const initializeVehicleForm = (
     });
   }
 
-  serverInvalidInputs.forEach(syncInputValidity);
+  serverInvalidInputs.forEach((input) => syncInputValidity(input));
 
   form.addEventListener('invalid', (event) => {
-    syncInputValidity(event.target);
+    syncInputValidity(event.target, true);
+
+    const firstInvalid = form.querySelector(':invalid, .is-invalid') ?? event.target;
+    const invalidStep = firstInvalid
+      ?.closest?.('[data-vehicle-step]')
+      ?.dataset?.vehicleStep;
+
+    if (firstInvalid === purchasePriceInput || firstInvalid?.name === 'purchasePrice') {
+      setAcquisitionExpanded(true);
+    }
+    if (isMobile() && STEP_ORDER.includes(invalidStep)) {
+      showStep(invalidStep);
+    }
+
+    const identificationError = steps.get('identification')
+      ?.querySelector?.('[data-vehicle-step-error]');
+    if (identificationError && invalidStep === 'identification') {
+      identificationError.hidden = false;
+    }
+
+    windowObject.requestAnimationFrame(() => {
+      firstInvalid?.focus?.();
+      firstInvalid?.scrollIntoView?.({ block: 'center', behavior: 'smooth' });
+    });
   }, true);
 
   form.addEventListener('input', (event) => {
