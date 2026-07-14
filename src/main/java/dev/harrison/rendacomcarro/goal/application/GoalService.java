@@ -8,11 +8,15 @@ import dev.harrison.rendacomcarro.goal.domain.WorkloadPeriodicity;
 import dev.harrison.rendacomcarro.goal.infrastructure.MonthlyGoalRepository;
 import dev.harrison.rendacomcarro.goal.infrastructure.PlannedWorkDayRepository;
 import dev.harrison.rendacomcarro.shared.domain.DecimalPolicy;
+import dev.harrison.rendacomcarro.vehicle.domain.Vehicle;
+import dev.harrison.rendacomcarro.vehicle.domain.VehicleStatus;
+import dev.harrison.rendacomcarro.vehicle.infrastructure.VehicleRepository;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.YearMonth;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -26,20 +30,23 @@ public class GoalService {
     private final MonthlyGoalRepository goals;
     private final PlannedWorkDayRepository days;
     private final WorkloadPlannerService workloadPlanner;
+    private final VehicleRepository vehicles;
 
     public GoalService(MonthlyGoalRepository goals, PlannedWorkDayRepository days) {
-        this(goals, days, new WorkloadPlannerService());
+        this(goals, days, new WorkloadPlannerService(), null);
     }
 
     @Autowired
     public GoalService(
         MonthlyGoalRepository goals,
         PlannedWorkDayRepository days,
-        WorkloadPlannerService workloadPlanner
+        WorkloadPlannerService workloadPlanner,
+        VehicleRepository vehicles
     ) {
         this.goals = goals;
         this.days = days;
         this.workloadPlanner = workloadPlanner;
+        this.vehicles = vehicles;
     }
 
     public GoalProjection project(
@@ -92,24 +99,43 @@ public class GoalService {
         long enteredDurationMinutes,
         Set<LocalDate> plannedDates
     ) {
+        return create(
+            month, personal, operational, periodicity, enteredDurationMinutes,
+            plannedDates, defaultVehicleIds()
+        );
+    }
+
+    @Transactional
+    public MonthlyGoal create(
+        YearMonth month,
+        BigDecimal personal,
+        BigDecimal operational,
+        WorkloadPeriodicity periodicity,
+        long enteredDurationMinutes,
+        Set<LocalDate> plannedDates,
+        Set<UUID> vehicleIds
+    ) {
         if (goals.findByReferenceMonth(month.atDay(1)).isPresent()) {
             throw new IllegalArgumentException("Meta mensal já cadastrada");
         }
 
+        Set<Vehicle> selectedVehicles = activeVehicles(vehicleIds);
         WorkloadCalculation calculation = calculate(
             month,
             periodicity,
             enteredDurationMinutes,
             plannedDates
         );
-        MonthlyGoal goal = goals.save(MonthlyGoal.create(
+        MonthlyGoal goal = MonthlyGoal.create(
             month,
             personal,
             operational,
             periodicity,
             enteredDurationMinutes,
             calculation.totalMinutes()
-        ));
+        );
+        goal.replaceVehicles(selectedVehicles);
+        goal = goals.save(goal);
         savePlannedDays(goal, calculation);
         return goal;
     }
@@ -124,6 +150,23 @@ public class GoalService {
         long enteredDurationMinutes,
         Set<LocalDate> plannedDates
     ) {
+        return update(
+            id, month, personal, operational, periodicity, enteredDurationMinutes,
+            plannedDates, defaultVehicleIds()
+        );
+    }
+
+    @Transactional
+    public MonthlyGoal update(
+        UUID id,
+        YearMonth month,
+        BigDecimal personal,
+        BigDecimal operational,
+        WorkloadPeriodicity periodicity,
+        long enteredDurationMinutes,
+        Set<LocalDate> plannedDates,
+        Set<UUID> vehicleIds
+    ) {
         MonthlyGoal goal = get(id);
         goals.findByReferenceMonth(month.atDay(1))
             .filter(existing -> !existing.getId().equals(id))
@@ -131,6 +174,7 @@ public class GoalService {
                 throw new IllegalArgumentException("Meta mensal já cadastrada");
             });
 
+        Set<Vehicle> selectedVehicles = activeVehicles(vehicleIds);
         WorkloadCalculation calculation = calculate(
             month,
             periodicity,
@@ -145,6 +189,7 @@ public class GoalService {
             enteredDurationMinutes,
             calculation.totalMinutes()
         );
+        goal.replaceVehicles(selectedVehicles);
         goals.save(goal);
 
         days.deleteAllByMonthlyGoalId(id);
@@ -161,6 +206,21 @@ public class GoalService {
         BigDecimal plannedHours,
         Set<LocalDate> plannedDates
     ) {
+        return create(
+            month, personal, operational, plannedHours, plannedDates,
+            defaultVehicleIds()
+        );
+    }
+
+    @Transactional
+    public MonthlyGoal create(
+        YearMonth month,
+        BigDecimal personal,
+        BigDecimal operational,
+        BigDecimal plannedHours,
+        Set<LocalDate> plannedDates,
+        Set<UUID> vehicleIds
+    ) {
         if (plannedHours == null || plannedHours.signum() <= 0) {
             throw new IllegalArgumentException("A duração informada deve ser maior que zero.");
         }
@@ -173,7 +233,8 @@ public class GoalService {
             operational,
             WorkloadPeriodicity.MONTHLY,
             enteredMinutes,
-            plannedDates
+            plannedDates,
+            vehicleIds
         );
     }
 
@@ -191,6 +252,29 @@ public class GoalService {
     @Transactional(readOnly = true)
     public List<PlannedWorkDay> plannedDays(UUID goalId) {
         return days.findAllByMonthlyGoalIdOrderByWorkDateAsc(goalId);
+    }
+
+    private Set<UUID> defaultVehicleIds() {
+        if (vehicles == null) {
+            throw new IllegalArgumentException("Selecione pelo menos um veículo ativo.");
+        }
+        return vehicles.findByPrimaryVehicleTrueAndStatus(VehicleStatus.ACTIVE)
+            .map(vehicle -> Set.of(vehicle.getId()))
+            .orElseThrow(() -> new IllegalArgumentException(
+                "Selecione pelo menos um veículo ativo."
+            ));
+    }
+
+    private Set<Vehicle> activeVehicles(Set<UUID> vehicleIds) {
+        if (vehicles == null || vehicleIds == null || vehicleIds.isEmpty()) {
+            throw new IllegalArgumentException("Selecione pelo menos um veículo ativo.");
+        }
+        List<Vehicle> found = vehicles.findAllById(vehicleIds);
+        if (found.size() != vehicleIds.size()
+            || found.stream().anyMatch(vehicle -> vehicle.getStatus() != VehicleStatus.ACTIVE)) {
+            throw new IllegalArgumentException("Um dos veículos selecionados não está ativo.");
+        }
+        return new LinkedHashSet<>(found);
     }
 
     private WorkloadCalculation calculate(

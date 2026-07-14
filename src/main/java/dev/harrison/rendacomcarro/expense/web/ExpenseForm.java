@@ -12,7 +12,6 @@ import java.util.UUID;
 import org.springframework.format.annotation.DateTimeFormat;
 
 public class ExpenseForm {
-    @NotNull
     private UUID vehicleId;
     private UUID operationalDayId;
     private UUID shiftId;

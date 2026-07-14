@@ -4,9 +4,14 @@ import dev.harrison.rendacomcarro.goal.application.GoalFormSubmissionService;
 import dev.harrison.rendacomcarro.goal.application.GoalService;
 import dev.harrison.rendacomcarro.goal.domain.MonthlyGoal;
 import dev.harrison.rendacomcarro.goal.domain.WorkloadPeriodicity;
+import dev.harrison.rendacomcarro.vehicle.application.VehicleService;
+import dev.harrison.rendacomcarro.vehicle.domain.Vehicle;
+import dev.harrison.rendacomcarro.vehicle.domain.VehicleStatus;
 import jakarta.validation.Valid;
 import java.math.BigDecimal;
 import java.time.YearMonth;
+import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
 import org.springframework.format.annotation.DateTimeFormat;
@@ -27,10 +32,16 @@ import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 public class GoalController {
     private final GoalService service;
     private final GoalFormSubmissionService submissions;
+    private final VehicleService vehicles;
 
-    public GoalController(GoalService service, GoalFormSubmissionService submissions) {
+    public GoalController(
+        GoalService service,
+        GoalFormSubmissionService submissions,
+        VehicleService vehicles
+    ) {
         this.service = service;
         this.submissions = submissions;
+        this.vehicles = vehicles;
     }
 
     @ModelAttribute("workloadPeriodicities")
@@ -71,7 +82,17 @@ public class GoalController {
         if (month != null) {
             form.setMonth(month);
         }
+        List<Vehicle> activeVehicles = activeVehicles();
+        if (form.getVehicleIds().isEmpty()) {
+            activeVehicles.stream()
+                .filter(Vehicle::isPrimaryVehicle)
+                .findFirst()
+                .ifPresent(vehicle -> form.setVehicleIds(
+                    new LinkedHashSet<>(java.util.Set.of(vehicle.getId()))
+                ));
+        }
         model.addAttribute("goalForm", form);
+        model.addAttribute("vehicles", activeVehicles);
         model.addAttribute("editing", false);
         return "goals/form";
     }
@@ -83,6 +104,9 @@ public class GoalController {
         form.setMonth(goal.getMonth());
         form.setPersonalNetGoal(goal.getPersonalNetGoal());
         form.setOperationalGoal(goal.getOperationalGoal());
+        form.setVehicleIds(goal.getVehicles().stream()
+            .map(Vehicle::getId)
+            .collect(Collectors.toCollection(LinkedHashSet::new)));
         form.setWorkloadPeriodicity(goal.getWorkloadPeriodicity());
         form.setWorkloadHours(goal.getEnteredHours());
         form.setWorkloadMinutes(goal.getEnteredRemainderMinutes());
@@ -92,6 +116,7 @@ public class GoalController {
 
         model.addAttribute("goalForm", form);
         model.addAttribute("goal", goal);
+        model.addAttribute("vehicles", activeVehicles());
         model.addAttribute("editing", true);
         return "goals/form";
     }
@@ -112,6 +137,7 @@ public class GoalController {
             }
         }
         if (result.hasErrors()) {
+            model.addAttribute("vehicles", activeVehicles());
             model.addAttribute("editing", false);
             return "goals/form";
         }
@@ -138,6 +164,7 @@ public class GoalController {
         }
         if (result.hasErrors()) {
             model.addAttribute("goal", goal);
+            model.addAttribute("vehicles", activeVehicles());
             model.addAttribute("editing", true);
             return "goals/form";
         }
@@ -145,11 +172,19 @@ public class GoalController {
         return "redirect:/goals";
     }
 
+    private List<Vehicle> activeVehicles() {
+        return vehicles.listAll().stream()
+            .filter(vehicle -> vehicle.getStatus() == VehicleStatus.ACTIVE)
+            .toList();
+    }
+
     private void mapSubmissionError(BindingResult result, IllegalArgumentException exception) {
         String message = exception.getMessage() == null
             ? "Não foi possível salvar a meta."
             : exception.getMessage();
-        if (message.contains("data")
+        if (message.contains("veículo") || message.contains("Veículo")) {
+            result.rejectValue("vehicleIds", "invalid", message);
+        } else if (message.contains("data")
             || message.contains("Domingos")
             || message.contains("dia planejado")
             || message.contains("dias planejados")

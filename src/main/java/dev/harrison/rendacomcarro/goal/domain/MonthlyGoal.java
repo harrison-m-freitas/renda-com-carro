@@ -1,17 +1,25 @@
 package dev.harrison.rendacomcarro.goal.domain;
 
 import dev.harrison.rendacomcarro.shared.domain.DecimalPolicy;
+import dev.harrison.rendacomcarro.vehicle.domain.Vehicle;
+import dev.harrison.rendacomcarro.vehicle.domain.VehicleStatus;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
+import jakarta.persistence.FetchType;
 import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.JoinTable;
+import jakarta.persistence.ManyToMany;
 import jakarta.persistence.Table;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.YearMonth;
+import java.util.LinkedHashSet;
+import java.util.Set;
 import java.util.UUID;
 
 @Entity
@@ -41,6 +49,14 @@ public class MonthlyGoal {
 
     @Column(name = "calculated_month_minutes", nullable = false)
     private long calculatedMonthMinutes;
+
+    @ManyToMany(fetch = FetchType.LAZY)
+    @JoinTable(
+        name = "monthly_goal_vehicle",
+        joinColumns = @JoinColumn(name = "monthly_goal_id"),
+        inverseJoinColumns = @JoinColumn(name = "vehicle_id")
+    )
+    private Set<Vehicle> vehicles = new LinkedHashSet<>();
 
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
@@ -103,6 +119,18 @@ public class MonthlyGoal {
         updatedAt = LocalDateTime.now();
     }
 
+    public void replaceVehicles(Set<Vehicle> selectedVehicles) {
+        if (selectedVehicles == null || selectedVehicles.isEmpty()
+            || selectedVehicles.stream().anyMatch(
+                vehicle -> vehicle == null || vehicle.getStatus() != VehicleStatus.ACTIVE
+            )) {
+            throw new IllegalArgumentException("Selecione pelo menos um veículo ativo.");
+        }
+        vehicles.clear();
+        vehicles.addAll(selectedVehicles);
+        updatedAt = LocalDateTime.now();
+    }
+
     private void apply(
         YearMonth month,
         BigDecimal personal,
@@ -153,4 +181,5 @@ public class MonthlyGoal {
     public int getEnteredRemainderMinutes() { return (int) (enteredDurationMinutes % 60); }
     public long getCalculatedHours() { return calculatedMonthMinutes / 60; }
     public int getCalculatedRemainderMinutes() { return (int) (calculatedMonthMinutes % 60); }
+    public Set<Vehicle> getVehicles() { return Set.copyOf(vehicles); }
 }
