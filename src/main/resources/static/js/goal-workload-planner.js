@@ -41,6 +41,15 @@ const formatPattern = (pattern) => pattern
   .map((weekday) => WEEKDAY_LABELS[weekday] ?? String(weekday))
   .join(', ');
 
+const createEquivalentBlock = (documentObject, label, minutes) => {
+  const block = createElement(documentObject, 'div', 'col-sm-6');
+  block.append(
+    createElement(documentObject, 'div', 'text-secondary small', label),
+    createElement(documentObject, 'div', 'fw-semibold', formatWorkloadDuration(minutes))
+  );
+  return block;
+};
+
 export const initializeGoalWorkloadPlanner = (
   form,
   documentObject = document
@@ -98,6 +107,21 @@ export const initializeGoalWorkloadPlanner = (
     );
     top.append(sourceBlock, totalBlock);
     summary.append(top);
+
+    const equivalents = createElement(documentObject, 'div', 'row g-2 mt-2');
+    equivalents.append(
+      createEquivalentBlock(
+        documentObject,
+        'Média por dia planejado',
+        result.averageDailyMinutes
+      ),
+      createEquivalentBlock(
+        documentObject,
+        'Média por semana ativa',
+        result.averageWeeklyMinutes
+      )
+    );
+    summary.append(equivalents);
 
     const list = createElement(documentObject, 'div', 'mt-3 d-grid gap-2');
     result.weeks.forEach((week) => {
