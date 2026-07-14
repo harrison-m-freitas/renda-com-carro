@@ -20,7 +20,11 @@ class FakeEvent {
   }
 }
 
-const createHarness = ({ attribute = 'data-money-input', value = '' } = {}) => {
+const createHarness = ({
+  attribute = 'data-money-input',
+  value = '',
+  dataset = {}
+} = {}) => {
   const inputListeners = new Map();
   const formListeners = new Map();
   const documentListeners = new Map();
@@ -39,7 +43,8 @@ const createHarness = ({ attribute = 'data-money-input', value = '' } = {}) => {
   const input = {
     tagName: 'INPUT',
     value,
-    dataset: {},
+    dataset: { ...dataset },
+    customValidity: '',
     selectionStart: value.length,
     selectionEnd: value.length,
     ownerDocument: documentObject,
@@ -57,6 +62,9 @@ const createHarness = ({ attribute = 'data-money-input', value = '' } = {}) => {
     setSelectionRange(start, end) {
       this.selectionStart = start;
       this.selectionEnd = end;
+    },
+    setCustomValidity(message) {
+      this.customValidity = message;
     },
     dispatchEvent(event) {
       dispatched.push(event);
@@ -153,6 +161,24 @@ test('localized inputs: percentage and odometer use their own formatters', () =>
   const odometer = createHarness({ attribute: 'data-odometer-input', value: '248351,5' });
   initializeLocalizedInputs(odometer.form);
   assert.equal(odometer.input.value, '248.351,5');
+});
+
+test('localized inputs: percentage keeps the typed value and reports values above one hundred', () => {
+  const percentage = createHarness({
+    attribute: 'data-percentage-input',
+    value: '10001',
+    dataset: { maxValue: '100' }
+  });
+
+  initializeLocalizedInputs(percentage.form);
+
+  assert.equal(percentage.input.value, '100,01');
+  assert.equal(percentage.input.customValidity, 'Informe um percentual entre 0 e 100.');
+
+  percentage.input.value = '10000';
+  formatLocalizedInputs(percentage.form);
+  assert.equal(percentage.input.value, '100,00');
+  assert.equal(percentage.input.customValidity, '');
 });
 
 test('localized inputs: final formatting trims normalized text', () => {
