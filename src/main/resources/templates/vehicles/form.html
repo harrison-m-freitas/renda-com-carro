@@ -4,7 +4,7 @@
 <section>
   <div class="vehicle-form-page mx-auto">
     <a class="vehicle-form-back text-decoration-none d-inline-flex align-items-center gap-2 mb-3"
-       th:href="@{/vehicles}">
+       th:href="@{/vehicles}" data-vehicle-cancel>
       <span aria-hidden="true">‹</span>
       <span>Veículos</span>
     </a>
@@ -20,25 +20,34 @@
 
     <form class="card vehicle-form" id="vehicleForm" th:object="${vehicleForm}"
           th:action="${editing} ? @{/vehicles/{id}(id=${vehicle.id})} : @{/vehicles}"
-          method="post" th:attr="data-editing=${editing}">
+          method="post" th:attr="data-editing=${editing}" data-vehicle-flow>
+      <div class="vehicle-form-progress" data-vehicle-progress hidden aria-live="polite">
+        <div class="vehicle-form-progress__copy">
+          <span data-vehicle-progress-copy>Etapa 1 de 2</span>
+          <span data-vehicle-progress-name>Identificação</span>
+        </div>
+        <div class="progress vehicle-form-progress__track" role="progressbar"
+             aria-label="Progresso do cadastro do veículo"
+             aria-valuemin="1" aria-valuemax="2" aria-valuenow="1">
+          <div class="progress-bar" data-vehicle-progress-bar style="width: 50%"></div>
+        </div>
+      </div>
+
       <div class="card-body p-0">
-        <section class="vehicle-form-section" aria-labelledby="vehicleIdentificationHeading">
+        <section class="vehicle-form-section" data-vehicle-step="identification"
+                 aria-labelledby="vehicleIdentificationHeading">
           <div class="vehicle-form-section__header">
-            <h2 class="h5 mb-1" id="vehicleIdentificationHeading">Identificação</h2>
+            <h2 class="h5 mb-1" id="vehicleIdentificationHeading"
+                data-vehicle-step-heading tabindex="-1">Identificação</h2>
             <p class="text-secondary small mb-0">Dados usados para reconhecer o veículo no sistema.</p>
           </div>
 
-          <div class="row g-3">
-            <div class="col-12">
-              <label class="form-label" for="name">Apelido do veículo <span class="text-secondary fw-normal">(opcional)</span></label>
-              <input class="form-control" id="name" th:field="*{name}" maxlength="120"
-                     placeholder="Ex.: Sandero principal" data-normalize-spaces
-                     th:classappend="${#fields.hasErrors('name')} ? ' is-invalid'"
-                     aria-describedby="nameHelp nameError" autocomplete="off">
-              <div class="form-text" id="nameHelp">Se ficar vazio, usaremos marca e modelo como identificação.</div>
-              <div class="invalid-feedback" id="nameError" th:errors="*{name}"></div>
-            </div>
+          <div class="alert alert-danger py-2 px-3 small" role="alert"
+               data-vehicle-step-error hidden>
+            Revise os campos destacados para continuar.
+          </div>
 
+          <div class="row g-3">
             <div class="col-12">
               <div class="vehicle-identification-grid">
                 <div>
@@ -46,7 +55,7 @@
                   <input class="form-control" id="make" th:field="*{make}" maxlength="80" required
                          placeholder="Ex.: Renault" data-normalize-spaces
                          th:classappend="${#fields.hasErrors('make')} ? ' is-invalid'"
-                         aria-describedby="makeError" autocomplete="organization">
+                         aria-describedby="makeError" autocomplete="off">
                   <div class="invalid-feedback" id="makeError" th:errors="*{make}"></div>
                 </div>
 
@@ -77,6 +86,8 @@
                   <label class="form-label" for="plate">Placa <span class="required-mark" aria-hidden="true">*</span></label>
                   <input class="form-control text-uppercase" id="plate" th:field="*{plate}"
                          maxlength="8" required inputmode="text" autocomplete="off"
+                         pattern="(?:[A-Za-z]{3}-?[0-9]{4}|[A-Za-z]{3}[0-9][A-Za-z][0-9]{2})"
+                         title="Informe uma placa no formato ABC-1234 ou ABC1D23"
                          placeholder="ABC-1234 ou ABC1D23" data-vehicle-plate
                          th:classappend="${#fields.hasErrors('plate')} ? ' is-invalid'"
                          aria-describedby="plateHelp plateError">
@@ -85,74 +96,107 @@
                 </div>
               </div>
             </div>
+
+            <div class="col-12">
+              <label class="form-label" for="name">Nome para identificação <span class="text-secondary fw-normal">(opcional)</span></label>
+              <input class="form-control" id="name" th:field="*{name}" maxlength="120"
+                     placeholder="Ex.: Sandero principal" data-normalize-spaces
+                     th:classappend="${#fields.hasErrors('name')} ? ' is-invalid'"
+                     aria-describedby="nameHelp nameError" autocomplete="off">
+              <div class="form-text" id="nameHelp" data-vehicle-name-help>Se ficar vazio, usaremos marca e modelo como identificação.</div>
+              <div class="invalid-feedback" id="nameError" th:errors="*{name}"></div>
+            </div>
           </div>
         </section>
 
-        <section class="vehicle-form-section border-top" aria-labelledby="vehicleOperationHeading">
-          <div class="vehicle-form-section__header">
-            <h2 class="h5 mb-1" id="vehicleOperationHeading">Dados de operação</h2>
-            <p class="text-secondary small mb-0">Informações usadas nos cálculos de distância, consumo e custos.</p>
-          </div>
-
-          <div class="vehicle-operation-grid">
-            <div>
-              <label class="form-label" for="fuelType">Combustível <span class="required-mark" aria-hidden="true">*</span></label>
-              <select class="form-select" id="fuelType" th:field="*{fuelType}" required
-                      th:classappend="${#fields.hasErrors('fuelType')} ? ' is-invalid'"
-                      aria-describedby="fuelTypeError">
-                <option value="">Selecione o combustível</option>
-                <option th:each="type : ${fuelTypes}" th:value="${type}" th:text="${type.label}"></option>
-              </select>
-              <div class="invalid-feedback" id="fuelTypeError" th:errors="*{fuelType}"></div>
+        <div data-vehicle-step="operation">
+          <section class="vehicle-form-section border-top" aria-labelledby="vehicleOperationHeading">
+            <div class="vehicle-form-section__header">
+              <h2 class="h5 mb-1" id="vehicleOperationHeading"
+                  data-vehicle-step-heading tabindex="-1">Dados de operação</h2>
+              <p class="text-secondary small mb-0">Informações usadas nos cálculos de distância, consumo e custos.</p>
             </div>
 
-            <div>
-              <label class="form-label" for="initialOdometer">
-                <span th:text="${editing ? 'Odômetro atual' : 'Odômetro inicial'}"></span>
-                <span class="required-mark" aria-hidden="true">*</span>
-              </label>
-              <div class="input-group input-unit">
-                <input class="form-control" id="initialOdometer" th:field="*{initialOdometer}"
-                       type="text" inputmode="decimal" required placeholder="0"
-                       data-odometer-input data-max-integer-digits="11"
-                       th:classappend="${#fields.hasErrors('initialOdometer')} ? ' is-invalid'"
-                       aria-describedby="odometerHelp odometerError">
-                <span class="input-group-text">km</span>
-                <div class="invalid-feedback" id="odometerError" th:errors="*{initialOdometer}"></div>
+            <div class="vehicle-operation-grid">
+              <div>
+                <label class="form-label" for="fuelType">Combustível <span class="required-mark" aria-hidden="true">*</span></label>
+                <select class="form-select" id="fuelType" th:field="*{fuelType}" required
+                        th:classappend="${#fields.hasErrors('fuelType')} ? ' is-invalid'"
+                        aria-describedby="fuelTypeError">
+                  <option value="">Selecione o combustível</option>
+                  <option th:each="type : ${fuelTypes}" th:value="${type}" th:text="${type.label}"></option>
+                </select>
+                <div class="invalid-feedback" id="fuelTypeError" th:errors="*{fuelType}"></div>
               </div>
-              <div class="form-text" id="odometerHelp">Usado para calcular a quilometragem percorrida e os custos do veículo.</div>
-            </div>
-          </div>
-        </section>
 
-        <section class="vehicle-form-section border-top" aria-labelledby="vehicleAcquisitionHeading">
-          <div class="vehicle-form-section__header">
-            <h2 class="h5 mb-1" id="vehicleAcquisitionHeading">Aquisição</h2>
-            <p class="text-secondary small mb-0">Informação opcional para acompanhar retorno e depreciação.</p>
-          </div>
-
-          <div class="vehicle-acquisition-grid">
-            <div>
-              <label class="form-label" for="purchasePrice">Preço de compra <span class="text-secondary fw-normal">(opcional)</span></label>
-              <div class="input-group input-unit">
-                <span class="input-group-text">R$</span>
-                <input class="form-control" id="purchasePrice" th:field="*{purchasePrice}"
-                       type="text" inputmode="numeric" placeholder="0,00"
-                       data-money-input data-max-digits="14"
-                       th:classappend="${#fields.hasErrors('purchasePrice')} ? ' is-invalid'"
-                       aria-describedby="purchasePriceHelp purchasePriceError">
-                <div class="invalid-feedback" id="purchasePriceError" th:errors="*{purchasePrice}"></div>
+              <div>
+                <label class="form-label" for="initialOdometer">
+                  <span th:text="${editing ? 'Odômetro atual' : 'Odômetro inicial'}"></span>
+                  <span class="required-mark" aria-hidden="true">*</span>
+                </label>
+                <div class="input-group input-unit">
+                  <input class="form-control" id="initialOdometer" th:field="*{initialOdometer}"
+                         type="text" inputmode="decimal" required placeholder="0"
+                         data-odometer-input data-max-integer-digits="11"
+                         th:classappend="${#fields.hasErrors('initialOdometer')} ? ' is-invalid'"
+                         aria-describedby="odometerHelp odometerError">
+                  <span class="input-group-text">km</span>
+                  <div class="invalid-feedback" id="odometerError" th:errors="*{initialOdometer}"></div>
+                </div>
+                <div class="form-text" id="odometerHelp">Usado para calcular a quilometragem percorrida e os custos do veículo.</div>
               </div>
-              <div class="form-text" id="purchasePriceHelp">Pode ser preenchido depois, quando a informação estiver disponível.</div>
             </div>
-          </div>
-        </section>
+          </section>
+
+          <section class="vehicle-form-section border-top vehicle-acquisition"
+                   aria-labelledby="vehicleAcquisitionHeading">
+            <button class="vehicle-acquisition-toggle" type="button"
+                    data-vehicle-acquisition-toggle aria-expanded="true"
+                    aria-controls="vehicleAcquisitionPanel" hidden>
+              <span>Informações de aquisição</span>
+              <span aria-hidden="true" data-vehicle-acquisition-icon>▾</span>
+            </button>
+
+            <div id="vehicleAcquisitionPanel" class="vehicle-acquisition-panel"
+                 data-vehicle-acquisition-panel>
+              <div class="vehicle-form-section__header">
+                <h2 class="h5 mb-1" id="vehicleAcquisitionHeading">Aquisição</h2>
+                <p class="text-secondary small mb-0">Informação opcional para acompanhar retorno e depreciação.</p>
+              </div>
+
+              <div class="vehicle-acquisition-grid">
+                <div>
+                  <label class="form-label" for="purchasePrice">Preço de compra <span class="text-secondary fw-normal">(opcional)</span></label>
+                  <div class="input-group input-unit">
+                    <span class="input-group-text">R$</span>
+                    <input class="form-control" id="purchasePrice" th:field="*{purchasePrice}"
+                           type="text" inputmode="numeric" placeholder="0,00"
+                           data-money-input data-max-digits="14"
+                           th:classappend="${#fields.hasErrors('purchasePrice')} ? ' is-invalid'"
+                           aria-describedby="purchasePriceHelp purchasePriceError">
+                    <div class="invalid-feedback" id="purchasePriceError" th:errors="*{purchasePrice}"></div>
+                  </div>
+                  <div class="form-text" id="purchasePriceHelp">Pode ser preenchido depois, quando a informação estiver disponível.</div>
+                </div>
+              </div>
+            </div>
+          </section>
+        </div>
       </div>
 
       <footer class="card-footer vehicle-form-actions d-flex align-items-center justify-content-end gap-2">
-        <a class="btn btn-outline-secondary" th:href="@{/vehicles}">Cancelar</a>
-        <button class="btn btn-primary btn-touch" type="submit" data-vehicle-submit
-                th:text="${editing ? 'Salvar alterações' : 'Cadastrar veículo'}"></button>
+        <a class="btn btn-outline-secondary" th:href="@{/vehicles}"
+           data-vehicle-cancel data-vehicle-cancel-action>Cancelar</a>
+        <button class="btn btn-outline-secondary" type="button"
+                data-vehicle-previous hidden>Voltar</button>
+        <button class="btn btn-primary btn-touch" type="button"
+                data-vehicle-next hidden>Continuar</button>
+        <button class="btn btn-primary btn-touch" type="submit" data-vehicle-submit>
+          <span class="spinner-border spinner-border-sm me-1" role="status"
+                aria-hidden="true" data-vehicle-submit-spinner hidden></span>
+          <span data-vehicle-submit-copy
+                th:text="${editing ? 'Salvar alterações' : 'Cadastrar veículo'}"></span>
+        </button>
       </footer>
     </form>
   </div>
