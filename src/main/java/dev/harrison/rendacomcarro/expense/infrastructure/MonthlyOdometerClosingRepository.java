@@ -4,6 +4,7 @@ import dev.harrison.rendacomcarro.expense.domain.MonthlyOdometerClosing;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -22,4 +23,11 @@ public interface MonthlyOdometerClosingRepository extends JpaRepository<MonthlyO
 
     @EntityGraph(attributePaths = "vehicle")
     List<MonthlyOdometerClosing> findAllByOrderByReferenceMonthDesc();
+
+    @EntityGraph(attributePaths = "vehicle")
+    List<MonthlyOdometerClosing>
+        findAllByVehicleIdInAndReferenceMonthLessThanEqualOrderByVehicleIdAscReferenceMonthDesc(
+            Set<UUID> vehicleIds,
+            LocalDate maximumMonth
+        );
 }
