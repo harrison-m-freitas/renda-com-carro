@@ -6,13 +6,13 @@ Date: 2026-07-14
 
 The project already has input handling created for the vehicle form, including terminal-style money entry, odometer formatting, plate normalization, paste handling, deletion behavior, and whitespace normalization. The remaining guided forms still contain duplicated localized parsing and formatting logic, and several numeric fields rely on raw browser inputs.
 
-The goal form also represents planned work only as a monthly decimal number of hours. That model is difficult to reason about because users commonly think in daily or weekly workloads, such as `8 h 30 min/dia` or `40 h/semana`.
+The monthly goal form also represents planned work only as one decimal total of hours for the month. That model is difficult to reason about because users commonly think in daily or weekly workloads, such as `8 h 30 min/dia` or `40 h/semana`.
 
 This design expands PR #9 so that:
 
 1. reusable localized input behavior is shared across vehicle, expense, goal, obligation, and mileage-closing forms;
 2. the goal form replaces the raw planned-hours input with a workload planner supporting daily, weekly, and monthly entry;
-3. the form preserves the original workload mode and value while deriving an authoritative total for the selected period;
+3. the form preserves the original workload mode and value while deriving an authoritative total for the selected month;
 4. all changes remain compatible with the serialized guided-draft saves introduced by PR #9.
 
 ## Goals
@@ -21,7 +21,7 @@ This design expands PR #9 so that:
 - Preserve vehicle-only behavior, such as plate formatting, inside the vehicle module.
 - Give users three workload entry modes: daily, weekly, and monthly.
 - Accept hours and minutes in every workload mode.
-- Calculate daily, weekly, and period totals from the selected planned dates.
+- Calculate daily, weekly, and monthly totals from the selected planned dates.
 - Preserve the original workload mode and entered duration when editing or restoring a draft.
 - Use integer minutes internally to avoid decimal and rounding errors.
 - Recalculate workload authoritatively on the server.
@@ -140,7 +140,7 @@ The existing raw planned-hours field is replaced by a workload component with th
 
 - `DAILY`: hours and minutes per selected day;
 - `WEEKLY`: hours and minutes per calendar week;
-- `MONTHLY`: hours and minutes for the complete selected period.
+- `MONTHLY`: hours and minutes for the complete selected month.
 
 Every mode accepts separate non-negative hour and minute inputs. Minutes range from `0` to `59`.
 
@@ -160,7 +160,7 @@ The interface shows both the original workload and the calculated distribution. 
 Jornada informada
 40 h/semana
 
-Distribuição no período
+Distribuição no mês
 Semana 1 · 2 dias · 16 h
 Semana 2 · 5 dias · 40 h
 Semana 3 · 4 dias · 40 h
@@ -171,27 +171,27 @@ Total planejado
 168 h
 ```
 
-The summary updates immediately after changes to mode, hours, minutes, or planned dates.
+The summary updates immediately after changes to mode, hours, minutes, selected month, or planned dates.
 
-### 2.3 Calendar-week definition
+### 2.3 Calendar-month and week definitions
 
-A week runs from Monday through Sunday. Planned dates are deduplicated and sorted before calculation.
+The selected `month` field defines the calculation period from the first through the last calendar day of that month. A week runs from Monday through Sunday. Planned dates are deduplicated, sorted, and must belong to the selected month. Existing validation that rejects Sundays remains in effect.
 
-A calendar week fully contained within the goal period is an internal week. A calendar week intersecting the start or end boundary of the goal period without containing all seven period days is a boundary week.
+A calendar week fully contained inside the selected month is an internal week. The first and last Monday-Sunday groups are boundary weeks when part of those groups falls outside the selected month.
 
 ### 2.4 Daily mode
 
 The entered duration applies to every selected planned date:
 
 ```text
-8 h 30 min/dia × 20 dias = 170 h no período
+8 h 30 min/dia × 20 dias = 170 h no mês
 ```
 
 Weekly totals are the sum of the selected days inside each Monday-Sunday group.
 
 ### 2.5 Weekly mode: internal weeks
 
-Each internal week receives the complete entered weekly duration, distributed evenly among that week's selected planned dates.
+Each internal week containing at least one selected planned date receives the complete entered weekly duration, distributed evenly among that week's selected dates. An internal week with no selected planned date contributes zero.
 
 Examples for `40 h/semana`:
 
@@ -201,33 +201,49 @@ Examples for `40 h/semana`:
 
 This deliberately calculates each week independently. It does not average all weeks into one fixed number of working days.
 
-### 2.6 Weekly mode: recurring pattern
+### 2.6 Weekly mode: deterministic recurring-pattern inference
 
-For boundary-week proration, the system infers the recurring working-day pattern from the weekday occurrences in internal weeks. It supports routines of 3, 4, 5, 6, or another observed number of days per week.
+Boundary-week proration needs a reference for the expected number of working days in a complete week. The reference is inferred only from non-empty internal weeks:
 
-A weekday is part of the inferred pattern when it occurs as part of the recurring planned schedule across the available internal weeks. The implementation plan must define a deterministic inference algorithm and cover ties, but it must never assume Monday-Friday when sufficient date evidence exists.
+1. For each non-empty internal week, build the exact set of selected weekdays, such as `{MON, TUE, WED, THU, FRI}` or `{TUE, THU, SAT}`.
+2. Count how often each exact weekday set occurs.
+3. Use the most frequent exact set as the recurring pattern.
+4. When two or more sets tie, use the tied set belonging to the internal week nearest to the boundary week being calculated.
+5. If two tied candidate weeks have the same distance, use the earlier calendar week.
+6. The expected full-week day count is the size of the chosen set.
+
+The start and end boundary weeks may therefore resolve a tie differently when the schedule genuinely changes during the month. The chosen weekday set is shown in the explanatory summary so the proration is transparent.
 
 Example:
 
 ```text
-Padrão inferido: segunda a sexta
-Semana inicial: somente quinta e sexta dentro do período
+Padrão inferido: segunda a sexta, 5 dias
+Semana inicial: 2 dias selecionados dentro do mês
 40 h × 2/5 = 16 h
 ```
+
+This algorithm supports recurring schedules of 3, 4, 5, 6, or another observed number of non-Sunday days and never assumes Monday-Friday when internal-week evidence exists.
 
 ### 2.7 Weekly mode: boundary weeks
 
 A boundary week receives a proportional share of the entered weekly duration:
 
 ```text
-weekly duration × selected recurring days present / recurring days in a full inferred week
+weekly duration × min(selected dates in boundary week, expected full-week days)
+                / expected full-week days
 ```
 
-The result is capped at the complete weekly duration, so selecting more days than the inferred baseline never creates more than one weekly workload.
+The numerator uses the actual number of selected dates inside the month. It is capped by the inferred expected day count, so selecting extra dates never creates more than one complete weekly workload in a boundary week.
 
-### 2.8 Single partial week fallback
+Example for an inferred five-day pattern and `40 h/semana`:
 
-When the period contains only one partial week and there are no internal weeks from which to infer a recurring pattern, the system assumes a five-day reference.
+- 2 selected dates: `16 h`;
+- 4 selected dates: `32 h`;
+- 5 or 6 selected dates: `40 h`.
+
+### 2.8 Five-day fallback without internal-week evidence
+
+When selected dates occur only in a boundary week, or no non-empty internal week exists from which to infer a pattern, the system assumes a five-day reference for that boundary calculation.
 
 For `40 h/semana`:
 
@@ -244,11 +260,11 @@ The entered weekly mode and duration remain valid draft data, but no calculated 
 
 > Selecione os dias planejados para calcular a distribuição.
 
-The form does not assume five days provisionally and does not block entry before date selection.
+The form does not assume five days provisionally and does not block entry before date selection. The five-day fallback applies only after at least one planned date exists and a boundary week must be calculated without internal-week evidence.
 
 ### 2.10 Monthly mode
 
-The entered monthly duration is the total workload for the selected period. It is divided evenly among all selected planned dates. Weekly totals are obtained by summing each week's allocated daily values.
+The entered monthly duration is the total workload for the selected month. It is divided evenly among all selected planned dates. Weekly totals are obtained by summing each week's allocated daily values.
 
 The interface also derives equivalent average daily and weekly values for explanation, but the monthly duration remains the preserved original input.
 
@@ -258,7 +274,7 @@ All workload calculations use integer minutes. Persistence and domain calculatio
 
 When even distribution leaves remainder minutes, those minutes are assigned one at a time to the earliest selected dates in chronological order. This guarantees that the detailed distribution always sums exactly to the calculated total.
 
-When proportional weekly arithmetic produces a fraction of a minute, the week total is rounded to the nearest minute once, before distribution among dates. The system must not round each day's fractional result independently.
+When proportional weekly arithmetic produces a fraction of a minute, the week total is rounded to the nearest minute once, before distribution among dates. Half-minute ties round upward. The system does not round each day's fractional result independently.
 
 ### 2.12 Validation
 
@@ -266,8 +282,11 @@ When proportional weekly arithmetic produces a fraction of a minute, the week to
 - hours cannot be negative;
 - minutes must be between `0` and `59`;
 - entered duration must be greater than zero for final submission;
+- planned dates must belong to the selected month;
+- Sundays remain invalid planned dates;
 - duplicate dates count once;
-- no planned dates means the calculation is pending rather than zero;
+- no planned dates means the draft calculation is pending rather than zero;
+- final goal submission still requires at least one valid planned date;
 - the server ignores any client-supplied calculated total and recalculates it;
 - optional unrelated fields remain blank rather than being converted to zero.
 
@@ -275,19 +294,21 @@ When proportional weekly arithmetic produces a fraction of a minute, the week to
 
 ### 3.1 Persisted source data
 
-A goal preserves at least:
+A goal preserves:
 
 - workload periodicity: `DAILY`, `WEEKLY`, or `MONTHLY`;
 - entered workload duration in integer minutes;
-- calculated total duration for the selected period in integer minutes.
+- calculated total duration for the selected month in integer minutes.
 
 Example:
 
 ```text
 periodicity = WEEKLY
 enteredDurationMinutes = 2400
-calculatedPeriodMinutes = 10080
+calculatedMonthMinutes = 10080
 ```
+
+A pending draft without planned dates has no authoritative calculated-month value. It must not persist an artificial zero.
 
 ### 3.2 Existing planned-hours compatibility
 
@@ -295,7 +316,7 @@ The existing decimal planned-hours value remains a derived compatibility represe
 
 It is not the source used to restore the form. Editing a weekly goal must reopen as `40 h/semana`, not as the derived monthly total.
 
-The implementation plan must identify every reader of the existing planned-hours field and migrate or adapt it without leaving two independent sources of truth.
+Every reader of the existing planned-hours field must either consume the authoritative minute total directly or consume the single derived decimal representation. No code path may independently edit both values.
 
 ### 3.3 Draft payload
 
@@ -304,6 +325,7 @@ Goal drafts store the user's source input:
 - periodicity;
 - entered hours;
 - entered minutes;
+- selected month;
 - selected planned dates;
 - normal guided-form metadata such as current step and optimistic-lock version.
 
@@ -313,8 +335,8 @@ A draft may include a preview total for display, but it is not authoritative. Af
 
 On final submission:
 
-1. the server validates mode, duration, and dates;
-2. the server recalculates the full distribution;
+1. the server validates month, mode, duration, and dates;
+2. the server recalculates the full monthly distribution;
 3. the server persists source data and authoritative calculated minutes;
 4. compatibility decimal hours are derived from calculated minutes;
 5. client-provided derived totals are ignored or compared only for diagnostic purposes.
@@ -360,7 +382,7 @@ Responsibilities:
 - hour/minute input coordination;
 - immediate preview calculations;
 - per-week and total summary rendering;
-- reacting to planned-date changes;
+- reacting to month and planned-date changes;
 - restoring source values from drafts;
 - integrating with normal guided-form input events.
 
@@ -370,11 +392,12 @@ The client calculation mirrors the server rules for immediate feedback but is no
 
 Responsibilities:
 
-- date deduplication and ordering;
+- month-boundary calculation;
+- date validation, deduplication, and ordering;
 - Monday-Sunday grouping;
 - internal/boundary week classification;
-- recurring weekday-pattern inference;
-- five-day fallback for a single partial week;
+- exact weekday-set frequency inference and deterministic tie-breaking;
+- five-day fallback when internal-week evidence is absent;
 - daily, weekly, and monthly calculation;
 - minute rounding and remainder distribution;
 - returning a structured result containing total and per-week/per-day distribution.
@@ -387,28 +410,28 @@ The service must be independent from controllers and template rendering so it ca
 
 1. The server renders source workload mode and entered duration.
 2. Shared localized inputs format all supported numeric values.
-3. The workload planner calculates and renders a preview from the source workload and planned dates.
-4. Existing goals therefore reopen in their original mode once migrated.
+3. The workload planner calculates and renders a preview from the selected month, source workload, and planned dates.
+4. Existing goals reopen in their persisted source mode after migration.
 
 ### 5.2 User edit
 
 1. A user edits a masked field or workload value.
 2. The responsible module updates the visible value and emits the normal user event.
 3. The guided-form controller schedules the draft save through PR #9's serialized queue.
-4. For workload changes, the preview recalculates before or alongside autosave without starting a second save path.
+4. For workload changes, the preview recalculates without starting a second save path.
 
 ### 5.3 Draft restoration
 
 1. The guided-form controller restores raw source values.
 2. It emits the existing restoration event.
 3. The localized-input module formats restored localized fields without synthetic autosave events.
-4. The workload planner recalculates the preview from restored mode, duration, and dates.
+4. The workload planner recalculates the preview from restored month, mode, duration, and dates.
 
 ### 5.4 Final save
 
 1. The browser submits source values.
 2. Backend binding parses localized numeric fields.
-3. The workload domain service computes the authoritative distribution.
+3. The workload domain service computes the authoritative monthly distribution.
 4. Validation errors return against the source fields the user can correct.
 5. Valid source and derived values are persisted atomically.
 
@@ -421,7 +444,7 @@ The service must be independent from controllers and template rendering so it ca
 - A missing date set produces a pending-calculation state, not a false zero total.
 - A draft conflict or save failure continues to use the guided-form error state already established by PR #9.
 - Formatting and preview failures must not discard the user's source input.
-- The workload service returns deterministic validation errors for invalid mode/duration/date combinations.
+- The workload service returns deterministic validation errors for invalid month/mode/duration/date combinations.
 
 ## 7. Testing strategy
 
@@ -448,12 +471,16 @@ The service must be independent from controllers and template rendering so it ca
 - hours plus minutes in every mode;
 - internal weeks with 3, 4, 5, and 6 selected days;
 - different day counts across adjacent internal weeks;
-- partial start and end weeks;
+- internal weeks without selected dates;
+- partial start and end weeks based on actual month boundaries;
+- recurring exact weekday-set inference;
+- deterministic tie resolution near each boundary;
 - inferred recurring patterns other than five days;
-- a single partial week using a five-day reference;
+- no internal-week evidence using a five-day reference;
 - no dates;
-- duplicate and unordered dates;
+- duplicate, unordered, out-of-month, and Sunday dates;
 - exact and fractional-minute proportional results;
+- half-minute rounding upward;
 - chronological remainder-minute distribution;
 - totals exactly matching detailed distributions.
 
@@ -461,8 +488,9 @@ The service must be independent from controllers and template rendering so it ca
 
 - switching daily, weekly, and monthly modes;
 - preserving source mode and duration;
-- updating the preview after planned-date changes;
+- updating the preview after month and planned-date changes;
 - displaying the no-dates instruction;
+- displaying the inferred weekday pattern used for a boundary;
 - restoring a draft as the original mode;
 - creating only the expected queued autosaves.
 
@@ -473,7 +501,7 @@ The service must be independent from controllers and template rendering so it ca
 - server-side recalculation overriding a manipulated client total;
 - editing existing and newly migrated goals;
 - goal reports and calculations receiving compatible planned-hours values;
-- validation messages for invalid hours, minutes, mode, and dates.
+- validation messages for invalid hours, minutes, mode, month, and dates.
 
 ### 7.6 Regression and CI
 
@@ -483,9 +511,17 @@ The service must be independent from controllers and template rendering so it ca
 
 ## 8. Migration and rollout
 
-Existing goals containing only decimal planned hours require a deterministic migration policy. The implementation plan must inspect current data constraints and choose the least destructive representation. Unless existing metadata proves another original mode, migrated records should be represented as `MONTHLY`, with entered minutes derived from the old decimal value, because that preserves the previously stored meaning without inventing a daily or weekly schedule.
+Existing goals containing only decimal planned hours are migrated as `MONTHLY`, because the old field explicitly represented total hours available in the month. For each existing non-null value:
 
-Database changes, application code, templates, JavaScript, and tests will remain within PR #9 as requested. The PR description must be updated after implementation to describe both the original save-serialization fix and the expanded input/workload work.
+```text
+enteredDurationMinutes = round(oldPlannedHours × 60)
+calculatedMonthMinutes = enteredDurationMinutes
+periodicity = MONTHLY
+```
+
+A null old value remains an incomplete/null workload rather than becoming zero. After migration, the compatibility decimal planned-hours value is derived from `calculatedMonthMinutes`; it is no longer an independently editable source.
+
+Database changes, application code, templates, JavaScript, and tests remain within PR #9 as requested. The PR description must be updated after implementation to describe both the original save-serialization fix and the expanded input/workload work.
 
 ## 9. Acceptance criteria
 
@@ -495,10 +531,12 @@ The design is complete when all of the following are true:
 - money, percentage, and odometer fields across the scoped forms behave consistently;
 - counts remain integers;
 - the goal form supports daily, weekly, and monthly workload input with hours and minutes;
+- the selected month is the authoritative calculation period;
 - weekly calculations operate independently by Monday-Sunday week;
-- boundary weeks are prorated from inferred recurring weekdays;
-- a lone partial week uses the approved five-day fallback;
-- no-date workloads are preserved but marked pending;
+- internal weeks with selected dates receive the complete weekly duration;
+- boundary weeks are prorated using deterministic recurring-pattern inference;
+- absence of internal-week evidence uses the approved five-day fallback;
+- no-date workloads are preserved in drafts but marked pending;
 - source mode and duration survive edit and draft restoration;
 - backend integer-minute calculations are authoritative;
 - derived totals always equal their detailed distribution;
