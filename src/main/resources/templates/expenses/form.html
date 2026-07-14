@@ -22,7 +22,7 @@
 
     <div class="alert alert-danger" tabindex="-1" role="alert"
          data-expense-error-summary
-         th:if="${#fields.hasAnyErrors()}">
+         th:hidden="${!#fields.hasAnyErrors()}">
       <p class="fw-semibold mb-2">Não foi possível salvar o gasto. Revise os campos indicados.</p>
       <ul class="mb-0">
         <li th:each="error : ${#fields.allErrors()}" th:text="${error}">Campo inválido.</li>
@@ -137,7 +137,7 @@
           <label class="allocation-choice">
             <input class="form-check-input" type="radio" th:field="*{allocationMethod}"
                    value="MILEAGE_RATIO">
-            <span><strong>Pela quilometragem do mês</strong><small>A proporção usa o fechamento confirmado ou a estimativa já disponível.</small></span>
+            <span><strong>Pela quilometragem do mês</strong><small>Proporcional à quilometragem do mês, usando o fechamento confirmado ou a estimativa já disponível.</small></span>
           </label>
           <label class="allocation-choice">
             <input class="form-check-input" type="radio" th:field="*{allocationMethod}"
