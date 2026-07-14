@@ -41,6 +41,7 @@
             <span class="input-group-text">R$</span>
             <input class="form-control" id="personalNetGoal" type="text" inputmode="decimal"
                    placeholder="0,00" th:field="*{personalNetGoal}"
+                   data-money-input data-max-digits="14"
                    aria-describedby="personalNetGoal-help personalNetGoal-error" required>
           </div>
           <div class="form-text" id="personalNetGoal-help">Valor que deverá permanecer para uso pessoal.</div>
@@ -53,6 +54,7 @@
             <span class="input-group-text">R$</span>
             <input class="form-control" id="operationalGoal" type="text" inputmode="decimal"
                    placeholder="0,00" th:field="*{operationalGoal}"
+                   data-money-input data-max-digits="14"
                    aria-describedby="operationalGoal-help operationalGoal-error" required>
           </div>
           <div class="form-text" id="operationalGoal-help">Receita necessária antes de custos e compromissos.</div>
