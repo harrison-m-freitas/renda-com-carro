@@ -2,9 +2,13 @@
 <html lang="pt-BR" xmlns:th="http://www.thymeleaf.org"
       th:replace="~{layouts/app :: layout(~{::section}, 'Meta mensal')}">
 <section>
-  <div class="mb-4">
-    <h1 class="h2 mb-1" th:text="${'Meta de ' + goal.month}"></h1>
-    <p class="text-secondary mb-0">Planejamento financeiro, jornada informada e ritmo necessário.</p>
+  <div class="d-flex flex-column flex-sm-row align-items-sm-start justify-content-between gap-3 mb-4">
+    <div>
+      <h1 class="h2 mb-1" th:text="${'Meta de ' + goal.month}"></h1>
+      <p class="text-secondary mb-0">Planejamento financeiro, jornada informada e ritmo necessário.</p>
+    </div>
+    <a class="btn btn-primary align-self-sm-start"
+       th:href="@{/goals/{id}/edit(id=${goal.id})}">Editar meta</a>
   </div>
 
   <div class="row g-3 mb-4">
