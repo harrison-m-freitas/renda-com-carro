@@ -2,6 +2,7 @@ package dev.harrison.rendacomcarro.goal.web;
 
 import dev.harrison.rendacomcarro.goal.application.GoalFormSubmissionService;
 import dev.harrison.rendacomcarro.goal.application.GoalService;
+import dev.harrison.rendacomcarro.goal.domain.WorkloadPeriodicity;
 import jakarta.validation.Valid;
 import java.math.BigDecimal;
 import java.time.YearMonth;
@@ -27,6 +28,11 @@ public class GoalController {
     public GoalController(GoalService service, GoalFormSubmissionService submissions) {
         this.service = service;
         this.submissions = submissions;
+    }
+
+    @ModelAttribute("workloadPeriodicities")
+    public WorkloadPeriodicity[] workloadPeriodicities() {
+        return WorkloadPeriodicity.values();
     }
 
     @GetMapping
@@ -77,15 +83,7 @@ public class GoalController {
             try {
                 submissions.submit(authentication.getName(), form);
             } catch (IllegalArgumentException exception) {
-                if (exception.getMessage() != null
-                    && (exception.getMessage().contains("data")
-                        || exception.getMessage().contains("Domingos")
-                        || exception.getMessage().contains("dias planejados")
-                        || exception.getMessage().contains("mês da meta"))) {
-                    result.rejectValue("plannedDates", "invalid", exception.getMessage());
-                } else {
-                    result.reject("goal", exception.getMessage());
-                }
+                mapSubmissionError(result, exception);
             }
         }
         if (result.hasErrors()) {
@@ -93,5 +91,26 @@ public class GoalController {
         }
         redirect.addFlashAttribute("successMessage", "Meta mensal cadastrada.");
         return "redirect:/goals";
+    }
+
+    private void mapSubmissionError(BindingResult result, IllegalArgumentException exception) {
+        String message = exception.getMessage() == null
+            ? "Não foi possível salvar a meta."
+            : exception.getMessage();
+        if (message.contains("data")
+            || message.contains("Domingos")
+            || message.contains("dia planejado")
+            || message.contains("dias planejados")
+            || message.contains("mês da meta")) {
+            result.rejectValue("plannedDates", "invalid", message);
+        } else if (message.contains("minutos")) {
+            result.rejectValue("workloadMinutes", "invalid", message);
+        } else if (message.contains("periodicidade") || message.contains("jornada")) {
+            result.rejectValue("workloadPeriodicity", "invalid", message);
+        } else if (message.contains("duração") || message.contains("horas")) {
+            result.rejectValue("workloadHours", "invalid", message);
+        } else {
+            result.reject("goal", message);
+        }
     }
 }
