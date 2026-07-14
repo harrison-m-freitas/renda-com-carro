@@ -1,6 +1,7 @@
 package dev.harrison.rendacomcarro.goal;
 
 import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.not;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -30,30 +31,37 @@ class GoalWebTest extends PostgresIntegrationTest {
 
     @Test
     @WithMockUser(username = "goal-web-owner", roles = "OWNER")
-    void goalFormUsesGuidedLocalizedInputsAndMonthDraft() throws Exception {
+    void goalFormUsesGuidedLocalizedInputsAndWorkloadSourceFields() throws Exception {
         mvc.perform(get("/goals/new").param("month", "2027-03"))
             .andExpect(status().isOk())
             .andExpect(content().string(containsString("data-guided-form")))
             .andExpect(content().string(containsString("data-draft-type=\"MONTHLY_GOAL\"")))
             .andExpect(content().string(containsString("data-draft-context-key=\"month:2027-03\"")))
-            .andExpect(content().string(containsString("data-form-step=\"1\"")))
-            .andExpect(content().string(containsString("data-form-step=\"2\"")))
-            .andExpect(content().string(containsString("data-form-step=\"3\"")))
-            .andExpect(content().string(containsString("R$")))
-            .andExpect(content().string(containsString("type=\"month\"")))
+            .andExpect(content().string(containsString("data-draft-schema-version=\"2\"")))
+            .andExpect(content().string(containsString("name=\"workloadPeriodicity\"")))
+            .andExpect(content().string(containsString("name=\"workloadHours\"")))
+            .andExpect(content().string(containsString("name=\"workloadMinutes\"")))
+            .andExpect(content().string(containsString("Por dia")))
+            .andExpect(content().string(containsString("Por semana")))
+            .andExpect(content().string(containsString("Por mês")))
+            .andExpect(content().string(containsString("data-workload-summary")))
+            .andExpect(content().string(not(containsString("name=\"plannedHours\""))))
+            .andExpect(content().string(containsString("data-money-input")))
             .andExpect(content().string(containsString("Dias planejados")))
             .andExpect(content().string(containsString("type=\"module\"")));
     }
 
     @Test
     @WithMockUser(username = "goal-web-owner", roles = "OWNER")
-    void postsBrazilianValuesAndPlannedDates() throws Exception {
+    void postsBrazilianValuesAndWeeklyWorkload() throws Exception {
         mvc.perform(post("/goals")
                 .with(csrf())
                 .param("month", "2027-04")
                 .param("personalNetGoal", "2.500,00")
                 .param("operationalGoal", "4.000,00")
-                .param("plannedHours", "160")
+                .param("workloadPeriodicity", "WEEKLY")
+                .param("workloadHours", "40")
+                .param("workloadMinutes", "0")
                 .param("plannedDates", "2027-04-01, 2027-04-02"))
             .andExpect(status().is3xxRedirection())
             .andExpect(redirectedUrl("/goals"));
@@ -67,7 +75,9 @@ class GoalWebTest extends PostgresIntegrationTest {
                 .param("month", "2027-08")
                 .param("personalNetGoal", "2500")
                 .param("operationalGoal", "4000")
-                .param("plannedHours", "160")
+                .param("workloadPeriodicity", "MONTHLY")
+                .param("workloadHours", "160")
+                .param("workloadMinutes", "0")
                 .param("plannedDates", "2027-08-01"))
             .andExpect(status().isOk())
             .andExpect(content().string(containsString("Domingos")))
