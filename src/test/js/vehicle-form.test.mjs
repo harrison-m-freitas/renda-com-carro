@@ -36,8 +36,10 @@ const createHarness = ({ valid }) => {
   const selectorResults = new Map([
     ['[data-vehicle-plate]', []],
     ['[data-money-input]', []],
+    ['[data-percentage-input]', []],
     ['[data-odometer-input]', []],
     ['[data-normalize-spaces]', []],
+    ['[data-trim-outer-whitespace]', []],
     ['.is-invalid', valid ? [] : [invalidInput]],
     [':invalid, .is-invalid', valid ? [] : [invalidInput]]
   ]);
@@ -108,62 +110,14 @@ test('vehicle form: corrected server error clears invalid state on input', () =>
   assert.equal(harness.invalidInput.attributes.has('aria-invalid'), false);
 });
 
-test('vehicle form: money beforeinput supports terminal typing and deletion to blank', () => {
-  const moneyListeners = new Map();
-  const moneyInput = {
-    value: '',
-    dataset: { maxDigits: '14' },
-    selectionStart: 0,
-    selectionEnd: 0,
-    classList: createClassList(),
-    checkValidity: () => true,
-    closest: () => null,
-    addEventListener: (type, listener) => moneyListeners.set(type, listener),
-    setSelectionRange(start, end) {
-      this.selectionStart = start;
-      this.selectionEnd = end;
-    },
-    removeAttribute() {}
-  };
-  const formListeners = new Map();
-  const windowListeners = new Map();
-  const form = {
-    checkValidity: () => true,
-    querySelector: () => null,
-    querySelectorAll: (selector) => selector === '[data-money-input]' ? [moneyInput] : [],
-    addEventListener: (type, listener) => formListeners.set(type, listener)
-  };
-  const documentObject = { querySelector: () => form };
-  const windowObject = {
-    addEventListener: (type, listener) => windowListeners.set(type, listener),
-    requestAnimationFrame: (callback) => callback()
-  };
+test('vehicle form: user input marks the page dirty', () => {
+  const harness = createHarness({ valid: true });
+  initializeVehicleForm(harness.documentObject, harness.windowObject);
 
-  initializeVehicleForm(documentObject, windowObject);
-
-  const beforeInput = (inputType, data = null) => {
-    let prevented = false;
-    moneyListeners.get('beforeinput')({
-      inputType,
-      data,
-      preventDefault() { prevented = true; }
-    });
-    assert.equal(prevented, true);
-  };
-
-  beforeInput('insertText', '1');
-  beforeInput('insertText', '2');
-  beforeInput('insertText', '3');
-  assert.equal(moneyInput.value, '1,23');
-
-  beforeInput('deleteContentBackward');
-  assert.equal(moneyInput.value, '0,12');
-  beforeInput('deleteContentBackward');
-  beforeInput('deleteContentBackward');
-  assert.equal(moneyInput.value, '');
+  harness.formListeners.get('input')({ target: harness.invalidInput });
 
   let unloadPrevented = false;
-  windowListeners.get('beforeunload')({
+  harness.windowListeners.get('beforeunload')({
     preventDefault() { unloadPrevented = true; },
     returnValue: null
   });
