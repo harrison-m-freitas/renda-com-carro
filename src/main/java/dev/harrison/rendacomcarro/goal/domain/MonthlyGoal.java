@@ -114,4 +114,8 @@ public class MonthlyGoal {
     public WorkloadPeriodicity getWorkloadPeriodicity() { return workloadPeriodicity; }
     public long getEnteredDurationMinutes() { return enteredDurationMinutes; }
     public long getCalculatedMonthMinutes() { return calculatedMonthMinutes; }
+    public long getEnteredHours() { return enteredDurationMinutes / 60; }
+    public int getEnteredRemainderMinutes() { return (int) (enteredDurationMinutes % 60); }
+    public long getCalculatedHours() { return calculatedMonthMinutes / 60; }
+    public int getCalculatedRemainderMinutes() { return (int) (calculatedMonthMinutes % 60); }
 }
