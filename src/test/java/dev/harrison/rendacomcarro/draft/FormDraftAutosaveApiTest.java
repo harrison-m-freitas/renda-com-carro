@@ -35,7 +35,7 @@ class FormDraftAutosaveApiTest extends PostgresIntegrationTest {
                 .content("""
                     {
                       "contextKey":"current",
-                      "schemaVersion":1,
+                      "schemaVersion":2,
                       "currentStep":1,
                       "version":null,
                       "validateCurrentStep":false,
@@ -54,7 +54,7 @@ class FormDraftAutosaveApiTest extends PostgresIntegrationTest {
                 .content("""
                     {
                       "contextKey":"current",
-                      "schemaVersion":1,
+                      "schemaVersion":2,
                       "currentStep":1,
                       "version":0,
                       "validateCurrentStep":true,
