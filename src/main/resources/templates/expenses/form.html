@@ -99,7 +99,7 @@
       </div>
     </section>
 
-    <section class="guided-step" data-form-step="2" aria-labelledby="expense-step-2-title">
+    <section class="guided-step expense-results-step" data-form-step="2" aria-labelledby="expense-step-2-title">
       <div class="guided-step__header d-flex gap-3 align-items-start">
         <span class="guided-step__number" aria-hidden="true">2</span>
         <div>
@@ -108,123 +108,122 @@
         </div>
       </div>
 
-      <fieldset class="mb-4" id="classification" tabindex="-1" aria-describedby="classification-error">
+      <fieldset class="expense-choice-section" id="classification" tabindex="-1"
+                aria-describedby="classification-description classification-error">
         <legend class="form-label mb-2">Classificação do gasto <span class="required-mark" aria-hidden="true">*</span></legend>
-        <div class="classification-card-grid">
-          <label class="classification-card">
+        <div class="expense-segmented-group expense-segmented-group--three">
+          <label class="expense-segmented-option">
             <input class="form-check-input" type="radio" th:field="*{classification}"
                    value="PROFESSIONAL" required>
-            <span class="classification-card__content">
-              <strong>Profissional</strong>
-              <span>Todo o valor será considerado custo da operação.</span>
-            </span>
+            <span>Profissional</span>
           </label>
-          <label class="classification-card">
+          <label class="expense-segmented-option">
             <input class="form-check-input" type="radio" th:field="*{classification}"
                    value="PERSONAL" required>
-            <span class="classification-card__content">
-              <strong>Pessoal</strong>
-              <span>O valor não reduzirá o resultado profissional.</span>
-            </span>
+            <span>Pessoal</span>
           </label>
-          <label class="classification-card">
+          <label class="expense-segmented-option">
             <input class="form-check-input" type="radio" th:field="*{classification}"
                    value="MIXED" required>
-            <span class="classification-card__content">
-              <strong>Misto</strong>
-              <span>Uma parte será profissional e a outra pessoal.</span>
-            </span>
+            <span>Misto</span>
           </label>
         </div>
+        <p class="form-text expense-choice-description" id="classification-description"
+           data-classification-description></p>
         <div class="invalid-feedback d-block" id="classification-error" th:errors="*{classification}"></div>
       </fieldset>
 
-      <fieldset class="expense-allocation-panel mb-4" id="allocationMethod" tabindex="-1" data-allocation-group
-                aria-describedby="allocationMethod-error">
-        <legend class="form-label mb-2">Como deseja dividir o gasto misto? <span class="required-mark" aria-hidden="true">*</span></legend>
-        <div class="allocation-choice-list">
-          <label class="allocation-choice">
+      <fieldset class="expense-allocation-panel" id="allocationMethod" tabindex="-1" data-allocation-group
+                aria-describedby="allocation-method-description allocationMethod-error">
+        <legend class="form-label mb-2">Divisão do gasto <span class="required-mark" aria-hidden="true">*</span></legend>
+        <div class="expense-segmented-group expense-segmented-group--three expense-allocation-methods">
+          <label class="expense-segmented-option">
             <input class="form-check-input" type="radio" th:field="*{allocationMethod}"
                    value="MILEAGE_RATIO">
-            <span><strong>Pela quilometragem do mês</strong><small>Proporcional à quilometragem do mês, usando o fechamento confirmado ou a estimativa já disponível.</small></span>
+            <span>Quilometragem</span>
           </label>
-          <label class="allocation-choice">
+          <label class="expense-segmented-option">
             <input class="form-check-input" type="radio" th:field="*{allocationMethod}"
                    value="MANUAL_PERCENTAGE">
-            <span><strong>Informar percentual profissional</strong><small>Use um percentual maior que 0% e menor que 100%.</small></span>
+            <span>Percentual</span>
           </label>
-          <label class="allocation-choice">
+          <label class="expense-segmented-option">
             <input class="form-check-input" type="radio" th:field="*{allocationMethod}"
                    value="FIXED_AMOUNT">
-            <span><strong>Informar valor profissional</strong><small>O valor deve ser maior que zero e menor que o total.</small></span>
+            <span>Valor</span>
           </label>
         </div>
+        <p class="form-text expense-choice-description" id="allocation-method-description"
+           data-allocation-method-description></p>
         <div class="invalid-feedback d-block" id="allocationMethod-error" th:errors="*{allocationMethod}"></div>
+
+        <div class="expense-allocation-preview" data-allocation-preview
+             role="status" aria-live="polite" aria-atomic="true" aria-busy="false" hidden>
+          <strong data-allocation-preview-title>Consultando rateio…</strong>
+          <p class="mb-0 mt-1" data-allocation-preview-message></p>
+          <p class="small text-secondary mb-0 mt-1" data-allocation-preview-warning></p>
+        </div>
+
+        <div class="expense-manual-allocation-grid">
+          <div data-percentage-group>
+            <label class="form-label" for="professionalPercentagePercent">Percentual profissional <span class="required-mark" aria-hidden="true">*</span></label>
+            <div class="input-group input-unit">
+              <input class="form-control" id="professionalPercentagePercent" type="text"
+                     inputmode="decimal" placeholder="75" th:field="*{professionalPercentagePercent}"
+                     data-natural-percentage-input data-max-digits="5" data-max-value="100"
+                     aria-describedby="professionalPercentagePercent-help professionalPercentagePercent-error">
+              <span class="input-group-text">%</span>
+            </div>
+            <div class="form-text" id="professionalPercentagePercent-help">Exemplo: digite 75 para informar 75%.</div>
+            <div class="invalid-feedback d-block" id="professionalPercentagePercent-error"
+                 th:errors="*{professionalPercentagePercent}"></div>
+          </div>
+
+          <div data-fixed-group>
+            <label class="form-label" for="professionalFixedAmount">Valor profissional <span class="required-mark" aria-hidden="true">*</span></label>
+            <div class="input-group input-unit">
+              <span class="input-group-text">R$</span>
+              <input class="form-control" id="professionalFixedAmount" type="text"
+                     inputmode="decimal" placeholder="0,00" th:field="*{professionalFixedAmount}"
+                     data-money-input data-max-digits="14"
+                     aria-describedby="professionalFixedAmount-error">
+            </div>
+            <div class="invalid-feedback d-block" id="professionalFixedAmount-error"
+                 th:errors="*{professionalFixedAmount}"></div>
+          </div>
+
+          <div class="expense-manual-allocation-reason" data-reason-group>
+            <label class="form-label" for="adjustmentReason">Justificativa do rateio manual <span class="required-mark" aria-hidden="true">*</span></label>
+            <input class="form-control" id="adjustmentReason" th:field="*{adjustmentReason}"
+                   maxlength="300" data-normalize-spaces
+                   placeholder="Explique por que o rateio foi informado manualmente"
+                   aria-describedby="adjustmentReason-help adjustmentReason-error">
+            <div class="form-text" id="adjustmentReason-help">Obrigatória para percentual ou valor manual.</div>
+            <div class="invalid-feedback d-block" id="adjustmentReason-error" th:errors="*{adjustmentReason}"></div>
+          </div>
+        </div>
       </fieldset>
 
-      <div class="expense-allocation-preview mb-4" data-allocation-preview
-           role="status" aria-live="polite" aria-atomic="true" aria-busy="false" hidden>
-        <strong data-allocation-preview-title>Consultando rateio…</strong>
-        <p class="mb-0 mt-1" data-allocation-preview-message></p>
-        <p class="small text-secondary mb-0 mt-1" data-allocation-preview-warning></p>
-      </div>
-
-      <div class="row g-3 mb-4">
-        <div class="col-md-6" data-percentage-group>
-          <label class="form-label" for="professionalPercentagePercent">Percentual profissional <span class="required-mark" aria-hidden="true">*</span></label>
-          <div class="input-group input-unit">
-            <input class="form-control" id="professionalPercentagePercent" type="text"
-                   inputmode="decimal" placeholder="75" th:field="*{professionalPercentagePercent}"
-                   data-natural-percentage-input data-max-digits="5" data-max-value="100"
-                   aria-describedby="professionalPercentagePercent-help professionalPercentagePercent-error">
-            <span class="input-group-text">%</span>
-          </div>
-          <div class="form-text" id="professionalPercentagePercent-help">Exemplo: digite 75 para informar 75%.</div>
-          <div class="invalid-feedback d-block" id="professionalPercentagePercent-error"
-               th:errors="*{professionalPercentagePercent}"></div>
-        </div>
-
-        <div class="col-md-6" data-fixed-group>
-          <label class="form-label" for="professionalFixedAmount">Valor profissional <span class="required-mark" aria-hidden="true">*</span></label>
-          <div class="input-group input-unit">
-            <span class="input-group-text">R$</span>
-            <input class="form-control" id="professionalFixedAmount" type="text"
-                   inputmode="decimal" placeholder="0,00" th:field="*{professionalFixedAmount}"
-                   data-money-input data-max-digits="14"
-                   aria-describedby="professionalFixedAmount-error">
-          </div>
-          <div class="invalid-feedback d-block" id="professionalFixedAmount-error"
-               th:errors="*{professionalFixedAmount}"></div>
-        </div>
-
-        <div class="col-12" data-reason-group>
-          <label class="form-label" for="adjustmentReason">Justificativa do rateio manual <span class="required-mark" aria-hidden="true">*</span></label>
-          <input class="form-control" id="adjustmentReason" th:field="*{adjustmentReason}"
-                 maxlength="300" data-normalize-spaces
-                 placeholder="Explique por que o rateio foi informado manualmente"
-                 aria-describedby="adjustmentReason-help adjustmentReason-error">
-          <div class="form-text" id="adjustmentReason-help">Obrigatória para percentual ou valor manual.</div>
-          <div class="invalid-feedback d-block" id="adjustmentReason-error" th:errors="*{adjustmentReason}"></div>
-        </div>
-      </div>
-
-      <fieldset class="mb-3" id="paymentStatus" tabindex="-1" aria-describedby="paymentStatus-error">
+      <fieldset class="expense-choice-section" id="paymentStatus" tabindex="-1"
+                aria-describedby="payment-description paymentStatus-error">
         <legend class="form-label mb-2">Situação do pagamento <span class="required-mark" aria-hidden="true">*</span></legend>
-        <div class="payment-status-group">
-          <label class="payment-status-choice">
+        <div class="expense-segmented-group expense-segmented-group--payment">
+          <label class="expense-segmented-option">
             <input class="form-check-input" type="radio" th:field="*{paymentStatus}" value="PAID" required>
-            <span><strong>Pago</strong><small>O pagamento já foi realizado.</small></span>
+            <span>Pago</span>
           </label>
-          <label class="payment-status-choice">
+          <label class="expense-segmented-option">
             <input class="form-check-input" type="radio" th:field="*{paymentStatus}" value="PENDING" required>
-            <span><strong>Pendente</strong><small>O gasto ainda será pago.</small></span>
+            <span>Pendente</span>
           </label>
         </div>
+        <p class="form-text expense-choice-description" id="payment-description"
+           data-payment-description></p>
         <div class="invalid-feedback d-block" id="paymentStatus-error" th:errors="*{paymentStatus}"></div>
       </fieldset>
 
-      <div class="row g-3 align-items-start">
-        <div class="col-md-6" data-paid-date-group>
+      <div class="expense-payment-grid">
+        <div data-paid-date-group>
           <label class="form-label" for="paidDate">Data do pagamento <span class="required-mark" aria-hidden="true">*</span></label>
           <input class="form-control" id="paidDate" type="date" th:field="*{paidDate}"
                  th:classappend="${#fields.hasErrors('paidDate')} ? 'is-invalid'"
@@ -234,25 +233,23 @@
           <div class="invalid-feedback" id="paidDate-error" th:errors="*{paidDate}"></div>
         </div>
 
-        <div class="col-md-6">
-          <details class="expense-more-options" data-expense-more-options>
-            <summary>
-              <span>Mais opções</span>
-              <span class="small text-secondary">Referência: <strong data-reference-label>—</strong></span>
-            </summary>
-            <div class="pt-3">
-              <label class="form-label" for="competenceMonth">Mês de referência <span class="required-mark" aria-hidden="true">*</span></label>
-              <input class="form-control" id="competenceMonth" type="month"
-                     th:field="*{competenceMonth}"
-                     th:classappend="${#fields.hasErrors('competenceMonth')} ? 'is-invalid'"
-                     th:attr="aria-invalid=${#fields.hasErrors('competenceMonth')}"
-                     aria-describedby="competenceMonth-help competenceMonth-error"
-                     required data-save-on-blur>
-              <div class="form-text" id="competenceMonth-help">Mês em que o gasto será considerado nos resultados.</div>
-              <div class="invalid-feedback" id="competenceMonth-error" th:errors="*{competenceMonth}"></div>
-            </div>
-          </details>
-        </div>
+        <details class="expense-reference-control" data-expense-more-options>
+          <summary>
+            <span>Referência: <strong data-reference-label>—</strong></span>
+            <span class="expense-reference-control__action">Alterar</span>
+          </summary>
+          <div class="expense-reference-control__content">
+            <label class="form-label" for="competenceMonth">Mês de referência <span class="required-mark" aria-hidden="true">*</span></label>
+            <input class="form-control" id="competenceMonth" type="month"
+                   th:field="*{competenceMonth}"
+                   th:classappend="${#fields.hasErrors('competenceMonth')} ? 'is-invalid'"
+                   th:attr="aria-invalid=${#fields.hasErrors('competenceMonth')}"
+                   aria-describedby="competenceMonth-help competenceMonth-error"
+                   required data-save-on-blur>
+            <div class="form-text" id="competenceMonth-help">Mês em que o gasto será considerado nos resultados.</div>
+            <div class="invalid-feedback" id="competenceMonth-error" th:errors="*{competenceMonth}"></div>
+          </div>
+        </details>
       </div>
     </section>
 
