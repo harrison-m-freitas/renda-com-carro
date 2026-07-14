@@ -44,6 +44,20 @@ test('localized formatters: fixed-scale edits support typing replacement and del
   }), '2399000');
 });
 
+test('localized formatters: fixed-scale edits replace a partial digit selection', () => {
+  assert.equal(applyFixedScaleEdit('12345', {
+    inputType: 'insertText',
+    data: '9',
+    selectionStart: 1,
+    selectionEnd: 4
+  }), '195');
+  assert.equal(applyFixedScaleEdit('12345', {
+    inputType: 'deleteContentBackward',
+    selectionStart: 1,
+    selectionEnd: 4
+  }), '15');
+});
+
 test('localized formatters: odometer groups thousands and keeps one optional decimal', () => {
   assert.equal(formatOdometerInput('248351'), '248.351');
   assert.equal(formatOdometerInput('248351,5'), '248.351,5');
