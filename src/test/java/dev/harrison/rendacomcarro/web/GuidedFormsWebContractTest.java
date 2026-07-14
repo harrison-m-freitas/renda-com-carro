@@ -90,10 +90,13 @@ class GuidedFormsWebContractTest extends PostgresIntegrationTest {
             .andExpect(status().isOk())
             .andExpect(content().string(containsString("data-draft-schema-version=\"2\"")))
             .andExpect(content().string(containsString("<legend")))
-            .andExpect(content().string(containsString("classification-card")))
+            .andExpect(content().string(containsString("expense-segmented-group")))
+            .andExpect(content().string(containsString("data-classification-description")))
+            .andExpect(content().string(containsString("data-payment-description")))
             .andExpect(content().string(containsString("data-reference-label")))
             .andExpect(content().string(containsString("data-summary-personal")))
-            .andExpect(content().string(containsString("data-expense-status")));
+            .andExpect(content().string(containsString("data-expense-status")))
+            .andExpect(content().string(not(containsString("classification-card"))));
     }
 
     @Test
