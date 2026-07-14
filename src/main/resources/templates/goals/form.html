@@ -1,13 +1,15 @@
 <!doctype html>
 <html lang="pt-BR" xmlns:th="http://www.thymeleaf.org"
-      th:replace="~{layouts/app :: layout(~{::section}, 'Nova meta')}">
+      th:replace="~{layouts/app :: layout(~{::section}, 'Meta mensal')}">
 <section>
   <div class="mb-4">
-    <h1 class="h2 mb-1">Nova meta mensal</h1>
+    <h1 class="h2 mb-1"
+        th:text="${editing} ? 'Editar meta mensal' : 'Nova meta mensal'">Nova meta mensal</h1>
     <p class="text-secondary mb-0">Defina os resultados esperados, a jornada disponível e os dias planejados.</p>
   </div>
 
-  <form id="goal-form" class="guided-form" th:action="@{/goals}"
+  <form id="goal-form" class="guided-form"
+        th:action="${editing} ? @{/goals/{id}(id=${goal.id})} : @{/goals}"
         th:object="${goalForm}" method="post"
         data-guided-form
         data-draft-type="MONTHLY_GOAL"
@@ -155,8 +157,10 @@
     <div class="d-none d-md-flex justify-content-between align-items-center gap-2 mt-3">
       <span th:replace="~{fragments/guided-form :: draft-status}"></span>
       <div class="d-flex gap-2">
-        <a class="btn btn-outline-secondary" th:href="@{/}">Cancelar</a>
-        <button class="btn btn-primary" type="submit">Salvar meta</button>
+        <a class="btn btn-outline-secondary"
+           th:href="${editing} ? @{/goals} : @{/}">Cancelar</a>
+        <button class="btn btn-primary" type="submit"
+                th:text="${editing} ? 'Atualizar meta' : 'Salvar meta'">Salvar meta</button>
       </div>
     </div>
 
