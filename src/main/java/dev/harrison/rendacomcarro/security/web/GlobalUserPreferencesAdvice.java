@@ -25,7 +25,7 @@ public class GlobalUserPreferencesAdvice {
         if (authentication != null
             && authentication.isAuthenticated()
             && !(authentication instanceof AnonymousAuthenticationToken)) {
-            savedZone = timeZones.requireUser(authentication.getName()).getTimeZoneId();
+            savedZone = timeZones.savedTimeZoneId(authentication.getName()).orElse(null);
         }
         model.addAttribute("savedTimeZoneId", savedZone);
         model.addAttribute("defaultTimeZoneId", defaultZone);
