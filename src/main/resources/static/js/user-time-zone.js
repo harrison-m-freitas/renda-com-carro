@@ -69,7 +69,7 @@ async function saveTimeZone(documentRef, fetchImpl, timeZoneId) {
 
 export async function initializeUserTimeZone({
   documentRef = document,
-  storage = localStorage,
+  storage = sessionStorage,
   fetchImpl = fetch,
   detectedTimeZone = detectDeviceTimeZone()
 } = {}) {
