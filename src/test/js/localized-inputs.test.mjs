@@ -163,6 +163,21 @@ test('localized inputs: selected money paste replaces the value and emits one in
   assert.equal(harness.dispatched.filter((item) => item.type === 'input').length, 1);
 });
 
+test('localized inputs: partial formatted selection replaces only its digits', () => {
+  const harness = createHarness({ value: '12345' });
+  initializeLocalizedInputs(harness.form);
+  harness.dispatched.length = 0;
+  assert.equal(harness.input.value, '123,45');
+  harness.input.setSelectionRange(1, 5);
+
+  const event = harness.beforeInput('insertText', '9');
+
+  assert.equal(event.defaultPrevented, true);
+  assert.equal(harness.input.value, '1,95');
+  assert.equal(harness.input.dataset.localizedDigits, '195');
+  assert.equal(harness.dispatched.filter((item) => item.type === 'input').length, 1);
+});
+
 test('localized inputs: backspace can clear a money field completely', () => {
   const harness = createHarness({ value: '1' });
   initializeLocalizedInputs(harness.form);
