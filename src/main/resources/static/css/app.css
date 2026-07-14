@@ -73,7 +73,7 @@
   outline-offset: 1px;
 }
 
-.vehicle-form-page { max-width: 57.5rem; }
+/*.vehicle-form-page { max-width: 57.5rem; }*/
 .vehicle-form-back { color: var(--bs-secondary-color); font-weight: 600; }
 .vehicle-form-back:hover { color: var(--bs-primary); }
 .vehicle-form-back > span:first-child { font-size: 1.5rem; line-height: 1; }
