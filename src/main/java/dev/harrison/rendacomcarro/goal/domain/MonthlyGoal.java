@@ -58,21 +58,11 @@ public class MonthlyGoal {
         long enteredMinutes,
         long calculatedMinutes
     ) {
-        if (month == null || personal == null || operational == null || periodicity == null
-            || personal.signum() < 0 || operational.signum() < 0
-            || enteredMinutes < 0 || calculatedMinutes < 0) {
-            throw new IllegalArgumentException("Meta mensal inválida");
-        }
+        validate(month, personal, operational, periodicity, enteredMinutes, calculatedMinutes);
 
         MonthlyGoal goal = new MonthlyGoal();
         goal.id = UUID.randomUUID();
-        goal.referenceMonth = month.atDay(1);
-        goal.personalNetGoal = DecimalPolicy.money(personal);
-        goal.operationalGoal = DecimalPolicy.money(operational);
-        goal.workloadPeriodicity = periodicity;
-        goal.enteredDurationMinutes = enteredMinutes;
-        goal.calculatedMonthMinutes = calculatedMinutes;
-        goal.plannedHours = hoursFromMinutes(calculatedMinutes);
+        goal.apply(month, personal, operational, periodicity, enteredMinutes, calculatedMinutes);
         goal.createdAt = LocalDateTime.now();
         goal.updatedAt = goal.createdAt;
         return goal;
@@ -98,6 +88,51 @@ public class MonthlyGoal {
             minutes,
             minutes
         );
+    }
+
+    public void update(
+        YearMonth month,
+        BigDecimal personal,
+        BigDecimal operational,
+        WorkloadPeriodicity periodicity,
+        long enteredMinutes,
+        long calculatedMinutes
+    ) {
+        validate(month, personal, operational, periodicity, enteredMinutes, calculatedMinutes);
+        apply(month, personal, operational, periodicity, enteredMinutes, calculatedMinutes);
+        updatedAt = LocalDateTime.now();
+    }
+
+    private void apply(
+        YearMonth month,
+        BigDecimal personal,
+        BigDecimal operational,
+        WorkloadPeriodicity periodicity,
+        long enteredMinutes,
+        long calculatedMinutes
+    ) {
+        referenceMonth = month.atDay(1);
+        personalNetGoal = DecimalPolicy.money(personal);
+        operationalGoal = DecimalPolicy.money(operational);
+        workloadPeriodicity = periodicity;
+        enteredDurationMinutes = enteredMinutes;
+        calculatedMonthMinutes = calculatedMinutes;
+        plannedHours = hoursFromMinutes(calculatedMinutes);
+    }
+
+    private static void validate(
+        YearMonth month,
+        BigDecimal personal,
+        BigDecimal operational,
+        WorkloadPeriodicity periodicity,
+        long enteredMinutes,
+        long calculatedMinutes
+    ) {
+        if (month == null || personal == null || operational == null || periodicity == null
+            || personal.signum() < 0 || operational.signum() < 0
+            || enteredMinutes < 0 || calculatedMinutes < 0) {
+            throw new IllegalArgumentException("Meta mensal inválida");
+        }
     }
 
     private static BigDecimal hoursFromMinutes(long minutes) {
