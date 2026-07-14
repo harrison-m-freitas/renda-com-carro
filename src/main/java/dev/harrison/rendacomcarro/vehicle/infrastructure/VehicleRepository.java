@@ -16,6 +16,8 @@ public interface VehicleRepository extends JpaRepository<Vehicle, UUID> {
 
     List<Vehicle> findAllByOrderByCreatedAtDesc();
 
+    List<Vehicle> findAllByStatusOrderByCreatedAtDesc(VehicleStatus status);
+
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select v from Vehicle v where v.status = :status")
     List<Vehicle> findAllByStatusForUpdate(@Param("status") VehicleStatus status);

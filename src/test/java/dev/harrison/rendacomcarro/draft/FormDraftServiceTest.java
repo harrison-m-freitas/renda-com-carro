@@ -82,7 +82,7 @@ class FormDraftServiceTest extends PostgresIntegrationTest {
             owner,
             FormDraftType.EXPENSE,
             "current",
-            1,
+            2,
             1,
             "{}",
             now.minusDays(8),
@@ -121,7 +121,7 @@ class FormDraftServiceTest extends PostgresIntegrationTest {
             new SaveDraftCommand(
                 FormDraftType.EXPENSE,
                 "current",
-                1,
+                2,
                 1,
                 null,
                 payload,
@@ -145,7 +145,7 @@ class FormDraftServiceTest extends PostgresIntegrationTest {
         return new SaveDraftCommand(
             FormDraftType.EXPENSE,
             "current",
-            1,
+            2,
             1,
             version,
             validExpensePayload(amount),
@@ -158,6 +158,7 @@ class FormDraftServiceTest extends PostgresIntegrationTest {
             .put("vehicleId", UUID.randomUUID().toString())
             .put("categoryId", UUID.randomUUID().toString())
             .put("expenseDate", "2026-07-13")
+            .put("paymentStatus", "PENDING")
             .put("amount", amount);
     }
 

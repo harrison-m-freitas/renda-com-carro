@@ -69,9 +69,9 @@ public class Expense {
                     normalizedReason = null;
                 }
                 case MANUAL_PERCENTAGE -> {
-                    if (normalizedPercentage == null || normalizedPercentage.signum() < 0
-                        || normalizedPercentage.compareTo(BigDecimal.ONE) > 0) {
-                        throw new IllegalArgumentException("Percentual profissional deve estar entre 0 e 1");
+                    if (normalizedPercentage == null || normalizedPercentage.signum() <= 0
+                        || normalizedPercentage.compareTo(BigDecimal.ONE) >= 0) {
+                        throw new IllegalArgumentException("Percentual profissional deve estar entre 0 e 1, sem os extremos");
                     }
                     if (normalizedReason == null) {
                         throw new IllegalArgumentException("Justificativa do ajuste é obrigatória");
@@ -79,9 +79,9 @@ public class Expense {
                     normalizedFixedAmount = null;
                 }
                 case FIXED_AMOUNT -> {
-                    if (normalizedFixedAmount == null || normalizedFixedAmount.signum() < 0
-                        || normalizedFixedAmount.compareTo(amount) > 0) {
-                        throw new IllegalArgumentException("Valor profissional fixo deve estar entre zero e o valor do gasto");
+                    if (normalizedFixedAmount == null || normalizedFixedAmount.signum() <= 0
+                        || normalizedFixedAmount.compareTo(amount) >= 0) {
+                        throw new IllegalArgumentException("Valor profissional fixo deve ser maior que zero e menor que o valor do gasto");
                     }
                     if (normalizedReason == null) {
                         throw new IllegalArgumentException("Justificativa do ajuste é obrigatória");

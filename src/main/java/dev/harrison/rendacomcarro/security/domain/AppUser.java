@@ -22,6 +22,9 @@ public class AppUser {
     @Column(nullable = false)
     private boolean enabled;
 
+    @Column(name = "time_zone_id", length = 80)
+    private String timeZoneId;
+
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
 
@@ -54,5 +57,14 @@ public class AppUser {
 
     public boolean isEnabled() {
         return enabled;
+    }
+
+    public String getTimeZoneId() {
+        return timeZoneId;
+    }
+
+    public void updateTimeZone(String timeZoneId) {
+        this.timeZoneId = timeZoneId;
+        this.updatedAt = LocalDateTime.now();
     }
 }

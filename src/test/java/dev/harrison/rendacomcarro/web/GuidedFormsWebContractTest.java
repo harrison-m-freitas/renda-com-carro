@@ -61,7 +61,7 @@ class GuidedFormsWebContractTest extends PostgresIntegrationTest {
 
         assertLocalizedInputs("/expenses/new",
             "name=\"amount\"", "data-money-input",
-            "name=\"professionalPercentagePercent\"", "data-percentage-input",
+            "name=\"professionalPercentagePercent\"", "data-natural-percentage-input",
             "name=\"professionalFixedAmount\"", "data-normalize-spaces");
 
         assertLocalizedInputs("/goals/new?month=2028-01",
@@ -81,6 +81,19 @@ class GuidedFormsWebContractTest extends PostgresIntegrationTest {
             "name=\"initialOdometer\"", "name=\"finalOdometer\"",
             "name=\"professionalKilometers\"", "data-odometer-input"
         );
+    }
+
+    @Test
+    @WithMockUser(username = "guided-contract-owner", roles = "OWNER")
+    void expenseGuidedFormExposesAccessibleChoiceGroupsAndReviewStatus() throws Exception {
+        mvc.perform(get("/expenses/new"))
+            .andExpect(status().isOk())
+            .andExpect(content().string(containsString("data-draft-schema-version=\"2\"")))
+            .andExpect(content().string(containsString("<legend")))
+            .andExpect(content().string(containsString("classification-card")))
+            .andExpect(content().string(containsString("data-reference-label")))
+            .andExpect(content().string(containsString("data-summary-personal")))
+            .andExpect(content().string(containsString("data-expense-status")));
     }
 
     @Test

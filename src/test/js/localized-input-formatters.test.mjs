@@ -80,3 +80,11 @@ test('localized formatters: space normalization preserves capitalization', () =>
   assert.equal(normalizeSpaces(' BMW '), 'BMW');
   assert.equal(normalizeSpaces('   '), '');
 });
+
+test('localized formatters: natural percentage keeps whole-number semantics', async () => {
+  const { formatNaturalPercentageInput } = await import('../../main/resources/static/js/localized-input-formatters.js');
+  assert.equal(formatNaturalPercentageInput('75'), '75');
+  assert.equal(formatNaturalPercentageInput('75,5', { final: true }), '75,50');
+  assert.equal(formatNaturalPercentageInput('75.5', { final: true }), '75,50');
+  assert.equal(formatNaturalPercentageInput('100,001'), '100,00');
+});

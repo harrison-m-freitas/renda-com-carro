@@ -8,6 +8,7 @@ import dev.harrison.rendacomcarro.vehicle.infrastructure.VehicleRepository;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -63,6 +64,25 @@ public class VehicleService {
     public Vehicle get(UUID id) {
         return repository.findById(id)
             .orElseThrow(() -> new IllegalArgumentException("Veículo não encontrado"));
+    }
+
+    @Transactional(readOnly = true)
+    public Vehicle getActive(UUID id) {
+        Vehicle vehicle = get(id);
+        if (vehicle.getStatus() != VehicleStatus.ACTIVE) {
+            throw new IllegalArgumentException("Veículo ativo não encontrado");
+        }
+        return vehicle;
+    }
+
+    @Transactional(readOnly = true)
+    public List<Vehicle> listActive() {
+        return repository.findAllByStatusOrderByCreatedAtDesc(VehicleStatus.ACTIVE);
+    }
+
+    @Transactional(readOnly = true)
+    public Optional<Vehicle> findPrimaryVehicle() {
+        return repository.findByPrimaryVehicleTrueAndStatus(VehicleStatus.ACTIVE);
     }
 
     @Transactional

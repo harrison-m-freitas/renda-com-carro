@@ -8,6 +8,8 @@ import dev.harrison.rendacomcarro.draft.application.FormDraftService;
 import dev.harrison.rendacomcarro.draft.application.FormDraftService.SaveDraftCommand;
 import dev.harrison.rendacomcarro.draft.domain.FormDraftType;
 import dev.harrison.rendacomcarro.expense.application.ExpenseFormSubmissionService;
+import dev.harrison.rendacomcarro.expense.application.ExpenseFormValidationException;
+import dev.harrison.rendacomcarro.expense.domain.AllocationMethod;
 import dev.harrison.rendacomcarro.expense.domain.ExpenseClassification;
 import dev.harrison.rendacomcarro.expense.infrastructure.ExpenseCategoryRepository;
 import dev.harrison.rendacomcarro.expense.infrastructure.ExpenseRepository;
@@ -24,6 +26,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.jdbc.core.JdbcTemplate;
 
 @SpringBootTest
 @TestPropertySource(properties = {
@@ -38,6 +41,7 @@ class ExpenseFormSubmissionServiceTest extends PostgresIntegrationTest {
     @Autowired ExpenseCategoryRepository categories;
     @Autowired VehicleService vehicles;
     @Autowired ObjectMapper mapper;
+    @Autowired JdbcTemplate jdbc;
 
     @Test
     void createsExpenseAndDeletesMatchingDraftAtomically() {
@@ -69,6 +73,80 @@ class ExpenseFormSubmissionServiceTest extends PostgresIntegrationTest {
         )).isPresent();
     }
 
+    @Test
+    void pendingPaymentClearsForgedPaidDate() {
+        var vehicle = createVehicle();
+        var category = categories.findAllByActiveTrueOrderByNameAsc().getFirst();
+        ExpenseForm form = validForm(vehicle.getId(), category.getId());
+        form.setPaymentStatus(ExpenseForm.PaymentStatus.PENDING);
+        form.setPaidDate(LocalDate.of(2026, 7, 10));
+
+        var created = submissions.submit("expense-submission-owner", form);
+
+        assertThat(created.getPaidDate()).isNull();
+    }
+
+    @Test
+    void paidPaymentRequiresDate() {
+        var vehicle = createVehicle();
+        var category = categories.findAllByActiveTrueOrderByNameAsc().getFirst();
+        ExpenseForm form = validForm(vehicle.getId(), category.getId());
+        form.setPaymentStatus(ExpenseForm.PaymentStatus.PAID);
+        form.setPaidDate(null);
+
+        assertThatThrownBy(() -> submissions.submit("expense-submission-owner", form))
+            .isInstanceOf(ExpenseFormValidationException.class)
+            .satisfies(exception -> assertThat(((ExpenseFormValidationException) exception).field())
+                .isEqualTo("paidDate"));
+    }
+
+    @Test
+    void mixedPercentageMustBeStrictlyBetweenZeroAndOneHundred() {
+        var vehicle = createVehicle();
+        var category = categories.findAllByActiveTrueOrderByNameAsc().getFirst();
+        ExpenseForm form = validForm(vehicle.getId(), category.getId());
+        form.setClassification(ExpenseClassification.MIXED);
+        form.setAllocationMethod(AllocationMethod.MANUAL_PERCENTAGE);
+        form.setProfessionalPercentagePercent(new BigDecimal("100"));
+        form.setAdjustmentReason("Rateio manual comprovado");
+
+        assertThatThrownBy(() -> submissions.submit("expense-submission-owner", form))
+            .isInstanceOf(ExpenseFormValidationException.class)
+            .hasMessage("Para 100%, classifique o gasto como Profissional.");
+    }
+
+    @Test
+    void mixedFixedAmountMustBeStrictlyBelowTotal() {
+        var vehicle = createVehicle();
+        var category = categories.findAllByActiveTrueOrderByNameAsc().getFirst();
+        ExpenseForm form = validForm(vehicle.getId(), category.getId());
+        form.setClassification(ExpenseClassification.MIXED);
+        form.setAllocationMethod(AllocationMethod.FIXED_AMOUNT);
+        form.setProfessionalFixedAmount(new BigDecimal("120.50"));
+        form.setAdjustmentReason("Rateio manual comprovado");
+
+        assertThatThrownBy(() -> submissions.submit("expense-submission-owner", form))
+            .isInstanceOf(ExpenseFormValidationException.class)
+            .hasMessage("Para atribuir todo o valor à operação, classifique o gasto como Profissional.");
+    }
+
+    @Test
+    void archivedVehicleAndInactiveCategoryAreRejected() {
+        var archived = createVehicle();
+        var category = categories.findAllByActiveTrueOrderByNameAsc().getFirst();
+        vehicles.archive(archived.getId());
+
+        assertThatThrownBy(() -> submissions.submit(
+            "expense-submission-owner", validForm(archived.getId(), category.getId())
+        )).hasMessage("Veículo ativo não encontrado");
+
+        var active = createVehicle();
+        jdbc.update("update expense_category set active = false where id = ?", category.getId());
+        assertThatThrownBy(() -> submissions.submit(
+            "expense-submission-owner", validForm(active.getId(), category.getId())
+        )).hasMessage("Categoria ativa não encontrada");
+    }
+
     private ExpenseForm validForm(UUID vehicleId, UUID categoryId) {
         ExpenseForm form = new ExpenseForm();
         form.setVehicleId(vehicleId);
@@ -77,6 +155,8 @@ class ExpenseFormSubmissionServiceTest extends PostgresIntegrationTest {
         form.setCompetenceMonth(YearMonth.of(2026, 7));
         form.setAmount(new BigDecimal("120.50"));
         form.setClassification(ExpenseClassification.PROFESSIONAL);
+        form.setPaymentStatus(ExpenseForm.PaymentStatus.PAID);
+        form.setPaidDate(LocalDate.of(2026, 7, 13));
         return form;
     }
 
@@ -84,7 +164,7 @@ class ExpenseFormSubmissionServiceTest extends PostgresIntegrationTest {
         drafts.save("expense-submission-owner", new SaveDraftCommand(
             FormDraftType.EXPENSE,
             "current",
-            1,
+            2,
             2,
             null,
             mapper.createObjectNode()
@@ -92,6 +172,8 @@ class ExpenseFormSubmissionServiceTest extends PostgresIntegrationTest {
                 .put("categoryId", categoryId.toString())
                 .put("expenseDate", "2026-07-13")
                 .put("competenceMonth", "2026-07")
+                .put("paymentStatus", "PAID")
+                .put("paidDate", "2026-07-13")
                 .put("amount", "120,50")
                 .put("classification", "PROFESSIONAL"),
             false

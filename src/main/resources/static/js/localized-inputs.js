@@ -1,6 +1,7 @@
 import {
   applyFixedScaleEdit,
   formatMoneyInput,
+  formatNaturalPercentageInput,
   formatPercentageInput,
   formatOdometerInput,
   parseLocalizedDecimal,
@@ -171,6 +172,27 @@ const configureOdometerInput = (input) => {
   return true;
 };
 
+const configureNaturalPercentageInput = (input) => {
+  if (initializedInputs.has(input)) return false;
+  initializedInputs.add(input);
+  if (input.dataset) input.dataset.localizedInputInitialized = 'true';
+
+  input.value = formatNaturalPercentageInput(input.value);
+  validatePercentageInput(input);
+
+  input.addEventListener('input', () => {
+    input.value = formatNaturalPercentageInput(input.value);
+    validatePercentageInput(input);
+    setCaretToEnd(input);
+  });
+
+  input.addEventListener('blur', () => {
+    replaceValueAfterUserEdit(input, formatNaturalPercentageInput(input.value, { final: true }));
+    validatePercentageInput(input);
+  });
+  return true;
+};
+
 const configureNormalizedTextInput = (input) => {
   if (initializedInputs.has(input)) return false;
   initializedInputs.add(input);
@@ -206,6 +228,11 @@ export const formatLocalizedInputs = (root, { final = false } = {}) => {
     const digits = String(input.value ?? '').replace(/\D/g, '').slice(0, maxDigits);
     if (input.dataset) input.dataset.localizedDigits = digits;
     input.value = formatPercentageInput(digits, maxDigits);
+    validatePercentageInput(input);
+  });
+
+  matchingInputs(root, '[data-natural-percentage-input]').forEach((input) => {
+    input.value = formatNaturalPercentageInput(input.value, { final });
     validatePercentageInput(input);
   });
 
@@ -264,6 +291,9 @@ export const initializeLocalizedInputs = (root = document) => {
       5,
       validatePercentageInput
     )) initialized += 1;
+  });
+  matchingInputs(root, '[data-natural-percentage-input]').forEach((input) => {
+    if (configureNaturalPercentageInput(input)) initialized += 1;
   });
   matchingInputs(root, '[data-odometer-input]').forEach((input) => {
     if (configureOdometerInput(input)) initialized += 1;

@@ -107,7 +107,7 @@ public class FormDraftService {
                 username, type, normalizedKey
             )
             .filter(draft -> draft.getExpiresAt().isAfter(now))
-            .map(this::toView);
+            .map(draft -> toView(draft, definition));
     }
 
     @Transactional
@@ -163,14 +163,14 @@ public class FormDraftService {
                 now,
                 expiresAt
             );
-            return toView(repository.saveAndFlush(created));
+            return toView(repository.saveAndFlush(created), definition);
         }
 
         FormDraft draft = existing.orElseThrow();
         if (!command.force()
             && (command.expectedVersion() == null
                 || draft.getVersion() != command.expectedVersion())) {
-            throw new FormDraftConflictException(toView(draft));
+            throw new FormDraftConflictException(toView(draft, definition));
         }
 
         draft.update(
@@ -181,7 +181,7 @@ public class FormDraftService {
             expiresAt
         );
         try {
-            return toView(repository.saveAndFlush(draft));
+            return toView(repository.saveAndFlush(draft), definition);
         } catch (ObjectOptimisticLockingFailureException exception) {
             entityManager.clear();
             FormDraft current = repository
@@ -193,7 +193,7 @@ public class FormDraftService {
                 .orElseThrow(() -> new DomainConflictException(
                     "O rascunho informado não existe mais."
                 ));
-            throw new FormDraftConflictException(toView(current));
+            throw new FormDraftConflictException(toView(current, definition));
         }
     }
 
@@ -215,7 +215,7 @@ public class FormDraftService {
         }
         FormDraft draft = existing.orElseThrow();
         if (expectedVersion != null && draft.getVersion() != expectedVersion) {
-            throw new FormDraftConflictException(toView(draft));
+            throw new FormDraftConflictException(toView(draft, definition));
         }
         repository.delete(draft);
         repository.flush();
@@ -223,14 +223,14 @@ public class FormDraftService {
 
     @Transactional(readOnly = true)
     public List<DraftView> listActive(String username, FormDraftType type) {
-        definitions.require(type);
+        FormDraftDefinition definition = definitions.require(type);
         LocalDateTime now = LocalDateTime.now(clock);
         return repository
             .findAllByOwnerUsernameAndFormTypeAndExpiresAtAfterOrderByUpdatedAtDesc(
                 username, type, now
             )
             .stream()
-            .map(this::toView)
+            .map(draft -> toView(draft, definition))
             .toList();
     }
 
@@ -275,19 +275,28 @@ public class FormDraftService {
         }
     }
 
-    private DraftView toView(FormDraft draft) {
+    private DraftView toView(FormDraft draft, FormDraftDefinition definition) {
         try {
             JsonNode parsed = mapper.readTree(draft.getPayloadJson());
             if (!(parsed instanceof ObjectNode objectNode)) {
                 throw new IllegalStateException("Conteúdo de rascunho inválido no banco.");
             }
+            ObjectNode migrated = definition.migrate(
+                draft.getSchemaVersion(),
+                objectNode.deepCopy()
+            );
+            ObjectNode normalized = definition.normalizeAndValidate(
+                migrated,
+                draft.getCurrentStep(),
+                false
+            );
             return new DraftView(
                 draft.getId(),
                 draft.getFormType(),
                 draft.getContextKey(),
-                draft.getSchemaVersion(),
+                definition.schemaVersion(),
                 draft.getCurrentStep(),
-                objectNode.deepCopy(),
+                normalized,
                 draft.getVersion(),
                 draft.getUpdatedAt(),
                 draft.getExpiresAt()
