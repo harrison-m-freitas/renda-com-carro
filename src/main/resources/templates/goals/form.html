@@ -77,8 +77,9 @@
         <legend class="form-label mb-2">Como deseja informar a jornada? <span class="required-mark">*</span></legend>
         <div class="btn-group workload-periodicity" role="group" aria-label="Periodicidade da jornada">
           <th:block th:each="periodicity : ${workloadPeriodicities}">
-            <input class="btn-check" type="radio" th:field="*{workloadPeriodicity}"
-                   th:value="${periodicity}" th:id="${'workload-' + periodicity}">
+            <input class="btn-check" type="radio" name="workloadPeriodicity"
+                   th:value="${periodicity}" th:id="${'workload-' + periodicity}"
+                   th:checked="${goalForm.workloadPeriodicity == periodicity}" required>
             <label class="btn btn-outline-primary" th:for="${'workload-' + periodicity}"
                    th:text="${periodicity.label}"></label>
           </th:block>
