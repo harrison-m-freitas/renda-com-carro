@@ -26,6 +26,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 @SpringBootTest
@@ -47,6 +48,31 @@ class ExpenseWebTest extends PostgresIntegrationTest {
         mvc.perform(get("/expenses"))
             .andExpect(status().isOk())
             .andExpect(view().name("expenses/list"));
+    }
+
+    @Test
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
+    @WithMockUser(username = "expense-owner", roles = "OWNER")
+    void expenseListRendersVehicleAndCategoryAfterTheReadTransactionCloses() throws Exception {
+        var vehicle = createVehicle();
+        var category = categories.findAllByActiveTrueOrderByNameAsc().getFirst();
+
+        mvc.perform(post("/expenses")
+                .with(csrf())
+                .param("vehicleId", vehicle.getId().toString())
+                .param("categoryId", category.getId().toString())
+                .param("expenseDate", "2026-07-14")
+                .param("competenceMonth", "2026-07")
+                .param("amount", "125,50")
+                .param("classification", "PROFESSIONAL"))
+            .andExpect(status().is3xxRedirection())
+            .andExpect(redirectedUrl("/expenses"));
+
+        mvc.perform(get("/expenses"))
+            .andExpect(status().isOk())
+            .andExpect(view().name("expenses/list"))
+            .andExpect(content().string(containsString(vehicle.getName())))
+            .andExpect(content().string(containsString(category.getName())));
     }
 
     @Test

@@ -1,4 +1,7 @@
-import { draftStorageKey } from "./guided-form-state.js";
+import {
+  draftStorageKey,
+  isDraftFrameworkControlName,
+} from "./guided-form-state.js";
 
 export class DraftConflictError extends Error {
   constructor(message, current) {
@@ -51,20 +54,22 @@ export class FormDraftClient {
     const storageKey = draftStorageKey(type, state.contextKey);
     this.#writeEmergency(storageKey, state);
     try {
-      const response = await this.fetchImpl(
-        `${this.baseUrl}/${encodeURIComponent(type)}`,
-        {
-          method: "PUT",
-          credentials: "same-origin",
-          keepalive,
-          headers: this.#headers(true),
-          body: JSON.stringify(state),
-        },
-      );
-      const result = await this.#readJson(response);
+      const result = await this.#sendSave(type, state, { keepalive });
       this.storage?.removeItem(storageKey);
       return result;
     } catch (error) {
+      if (await this.#serverConfirmsDeletedDraft(type, state, error)) {
+        const recreatedState = { ...state, version: null };
+        this.#writeEmergency(storageKey, recreatedState);
+        try {
+          const result = await this.#sendSave(type, recreatedState, { keepalive });
+          this.storage?.removeItem(storageKey);
+          return result;
+        } catch (retryError) {
+          this.#writeEmergency(storageKey, recreatedState);
+          throw retryError;
+        }
+      }
       this.#writeEmergency(storageKey, state);
       throw error;
     }
@@ -91,7 +96,7 @@ export class FormDraftClient {
     const raw = this.storage?.getItem(draftStorageKey(type, contextKey));
     if (!raw) return null;
     try {
-      return JSON.parse(raw);
+      return sanitizeEmergency(JSON.parse(raw));
     } catch {
       this.storage?.removeItem(draftStorageKey(type, contextKey));
       return null;
@@ -118,6 +123,34 @@ export class FormDraftClient {
     }));
   }
 
+  async #sendSave(type, state, { keepalive }) {
+    const response = await this.fetchImpl(
+      `${this.baseUrl}/${encodeURIComponent(type)}`,
+      {
+        method: "PUT",
+        credentials: "same-origin",
+        keepalive,
+        headers: this.#headers(true),
+        body: JSON.stringify(state),
+      },
+    );
+    return this.#readJson(response);
+  }
+
+  async #serverConfirmsDeletedDraft(type, state, error) {
+    if (!(error instanceof DraftHttpError)
+        || error.status !== 409
+        || state.version === null
+        || state.version === undefined) {
+      return false;
+    }
+    try {
+      return await this.load(type, state.contextKey) === null;
+    } catch {
+      return false;
+    }
+  }
+
   async #readJson(response) {
     if (!response.ok) return this.#throwResponse(response);
     if (response.status === 204) return null;
@@ -137,6 +170,26 @@ export class FormDraftClient {
     }
     throw new DraftHttpError(message, response.status);
   }
+}
+
+function sanitizeEmergency(emergency) {
+  const payload = emergency?.state?.payload;
+  if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
+    return emergency;
+  }
+
+  const sanitizedPayload = { ...payload };
+  Object.keys(sanitizedPayload).forEach((name) => {
+    if (isDraftFrameworkControlName(name)) delete sanitizedPayload[name];
+  });
+
+  return {
+    ...emergency,
+    state: {
+      ...emergency.state,
+      payload: sanitizedPayload,
+    },
+  };
 }
 
 function readMeta(name) {
