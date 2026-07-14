@@ -73,6 +73,36 @@ test("network failure preserves unsynchronized payload locally", async () => {
   assert.equal(typeof cached.savedAt, "string");
 });
 
+test("legacy emergency payloads discard framework control fields", () => {
+  const storage = fakeStorage();
+  storage.setItem("renda:draft:EXPENSE:current", JSON.stringify({
+    savedAt: "2026-07-14T11:00:00Z",
+    state: {
+      contextKey: "current",
+      schemaVersion: 1,
+      currentStep: 1,
+      version: null,
+      payload: {
+        amount: "90,00",
+        _csrf: "stale-token",
+        _method: "put",
+      },
+    },
+  }));
+  const client = new FormDraftClient({
+    fetchImpl: async () => jsonResponse(404, {}),
+    storage,
+    csrfToken: "current-token",
+    csrfHeader: "X-CSRF-TOKEN",
+  });
+
+  const emergency = client.readEmergency("EXPENSE", "current");
+
+  assert.deepEqual(emergency.state.payload, {
+    amount: "90,00",
+  });
+});
+
 test("http conflict exposes the server version", async () => {
   const client = new FormDraftClient({
     fetchImpl: async () => jsonResponse(409, {
