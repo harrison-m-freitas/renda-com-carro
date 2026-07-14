@@ -199,7 +199,9 @@ export class GuidedFormController {
     };
 
     const previousSave = this.savePromise;
-    const operation = previousSave ? previousSave.then(runSave) : runSave();
+    const operation = previousSave
+      ? previousSave.then(runSave, runSave)
+      : runSave();
     const trackedOperation = operation.finally(() => {
       if (this.savePromise === trackedOperation) this.savePromise = null;
     });
