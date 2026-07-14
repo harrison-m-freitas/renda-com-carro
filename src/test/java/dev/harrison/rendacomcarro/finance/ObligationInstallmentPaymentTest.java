@@ -68,7 +68,7 @@ class ObligationInstallmentPaymentTest extends PostgresIntegrationTest {
     private dev.harrison.rendacomcarro.finance.domain.FinancialObligation structuredObligation() {
         return service.create(new FinancialObligationService.CreateCommand(
             null,
-            ObligationType.VEHICLE_FINANCING,
+            ObligationType.BANK_FINANCING,
             ObligationMode.STRUCTURED,
             "Banco",
             new BigDecimal("1000.00"),
