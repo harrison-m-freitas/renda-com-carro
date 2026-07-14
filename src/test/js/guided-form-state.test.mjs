@@ -54,6 +54,20 @@ test("serializes only editable safe fields", () => {
   });
 });
 
+test("excludes Spring infrastructure fields from draft payloads", () => {
+  const form = {
+    elements: [
+      fakeField({ name: "_csrf", value: "csrf-token", type: "hidden" }),
+      fakeField({ name: "_method", value: "put", type: "hidden" }),
+      fakeField({ name: "amount", value: "120,50" }),
+    ],
+  };
+
+  assert.deepEqual(serializeEditableFields(form), {
+    amount: "120,50",
+  });
+});
+
 function fakeField({
   name,
   value,
