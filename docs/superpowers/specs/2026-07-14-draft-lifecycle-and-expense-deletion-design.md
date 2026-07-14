@@ -36,7 +36,7 @@ A solução deve corrigir o ciclo de vida do rascunho no framework compartilhado
 
 O formulário não usará mais uma única chave estática `current` para todas as tentativas de novo gasto.
 
-Cada abertura de formulário novo receberá uma chave de sessão exclusiva, por exemplo:
+Cada abertura de formulário novo receberá uma chave de sessão exclusiva, gerada pelo servidor e renderizada no formulário:
 
 ```text
 expense:new:<uuid>
@@ -44,9 +44,14 @@ expense:new:<uuid>
 
 Um rascunho anterior continuará com sua própria chave. Dessa forma, o usuário pode começar um novo preenchimento sem sobrescrever o rascunho antigo.
 
+O formulário enviará duas chaves ocultas na submissão:
+
+- `draftContextKey`: chave da sessão atual;
+- `previousDraftContextKey`: chave do rascunho anterior mostrado no aviso, quando existir.
+
 ### Rascunho anterior
 
-Ao abrir `/expenses/new`, o servidor ou o cliente identifica o rascunho ativo mais recente do tipo `EXPENSE`, excluindo a chave da sessão atual.
+Ao abrir `/expenses/new`, o cliente consulta o endpoint de listagem de rascunhos `EXPENSE` e escolhe o ativo mais recentemente atualizado, excluindo a chave da sessão atual.
 
 O formulário permanece vazio e mostra um aviso não bloqueante:
 
@@ -111,25 +116,26 @@ Se o formulário atual possui alterações:
 A ação visível `Descartar rascunho` deve:
 
 1. cancelar o timer de autosave;
-2. impedir novos salvamentos durante o descarte;
-3. aguardar ou invalidar a operação de salvamento em andamento;
-4. excluir o rascunho da sessão atual sem exigir uma versão já obsoleta;
+2. marcar o controlador como `discarding`;
+3. impedir novos salvamentos;
+4. aguardar a operação de salvamento em andamento e então excluir a chave de forma idempotente;
 5. remover a cópia de emergência local;
-6. marcar o controlador como limpo;
-7. redirecionar para um novo formulário vazio ou limpar o formulário atual;
-8. impedir que `pagehide` recrie o rascunho.
+6. marcar o controlador como limpo e `disposed`;
+7. navegar para `/expenses/new`, gerando uma nova chave de sessão;
+8. impedir que `pagehide` recrie o rascunho descartado.
 
-Não haverá `window.confirm()` adicional quando a confirmação já estiver dentro de um componente próprio da interface.
+Haverá uma única confirmação. O fluxo não combinará modal próprio com `window.confirm()` adicional.
 
 ### Criar gasto com sucesso
 
-A criação bem-sucedida deve remover:
+A criação bem-sucedida deve remover, na mesma transação do cadastro:
 
 - o rascunho da sessão atual;
-- o rascunho anterior apresentado na abertura, se ainda existir;
-- as cópias locais de emergência associadas às duas chaves.
+- o rascunho anterior apresentado na abertura, se ainda existir.
 
-A remoção no servidor deve fazer parte da mesma conclusão transacional do cadastro sempre que possível.
+As duas remoções são idempotentes. Se alguma chave já não existir, a criação do gasto continua normalmente.
+
+Antes da submissão final, o cliente marca o controlador como `submitting`, cancela o timer de autosave e remove as cópias locais de emergência das duas chaves somente depois que a navegação de sucesso for confirmada. Em caso de retorno do formulário com erro, as cópias permanecem.
 
 Se a submissão falhar por validação ou erro de domínio, nenhum rascunho é removido.
 
@@ -137,35 +143,37 @@ Se a submissão falhar por validação ou erro de domínio, nenhum rascunho é r
 
 ### Estado interno
 
-O controlador compartilhado deve distinguir pelo menos:
+O controlador compartilhado deve distinguir:
 
 - `dirty`: existem alterações locais ainda não persistidas;
 - `saving`: há uma operação em andamento;
 - `discarding`: um descarte foi iniciado;
+- `submitting`: o formulário está sendo enviado definitivamente;
 - `disposed`: o controlador não deve mais salvar;
 - `lastPersistedPayload`: último payload confirmado pelo servidor.
 
 ### Regras
 
-- `pagehide` salva apenas se `dirty` for verdadeiro e o controlador não estiver em `discarding` ou `disposed`.
-- um salvamento bem-sucedido atualiza `lastPersistedPayload` e marca `dirty = false`;
-- um novo evento de entrada compara o payload atual com o último persistido, evitando salvar alterações que apenas voltaram ao estado anterior;
-- descarte limpa timer, estado local e cópia de emergência antes de qualquer navegação;
-- inicialização de valores padrão não agenda autosave.
+- `pagehide` salva apenas se `dirty` for verdadeiro e o controlador não estiver em `discarding`, `submitting` ou `disposed`.
+- Um salvamento bem-sucedido atualiza `lastPersistedPayload` e marca `dirty = false`.
+- Um novo evento de entrada compara o payload atual com o último persistido, evitando salvar alterações que apenas voltaram ao estado anterior.
+- Descarte limpa timer, estado local e cópia de emergência antes da navegação.
+- Inicialização de valores padrão não agenda autosave.
+- Eventos programáticos de restauração ou sincronização de data não contam como alterações do usuário.
 
 ## Cópia local de emergência
 
-A cópia de emergência continua existindo para falhas de rede, mas precisa incluir:
+A cópia de emergência continua existindo para falhas de rede e incluirá:
 
 - chave do rascunho;
 - versão conhecida;
 - payload normalizado;
 - `savedAt` real da cópia;
-- identificador estável da sessão ou aba, quando disponível.
+- identificador da aba, gerado uma vez e mantido em `sessionStorage`.
 
 Após resposta de salvamento bem-sucedida, a cópia local correspondente é removida.
 
-Se uma requisição `keepalive` puder ter sido concluída sem retorno ao JavaScript, a reconciliação seguinte deve comparar o conteúdo, não apenas a versão.
+Se uma requisição `keepalive` puder ter sido concluída sem retorno ao JavaScript, a reconciliação seguinte compara o conteúdo, não apenas a versão.
 
 ## Detecção de conflitos
 
@@ -183,9 +191,9 @@ O diálogo de conflito só aparece para duas versões da mesma chave com conteú
 
 O diálogo aparece quando:
 
-1. o servidor possui alterações não presentes na base conhecida localmente; e
-2. o cliente possui alterações diferentes ainda não persistidas; e
-3. não é possível combinar as alterações com segurança.
+1. o servidor possui alterações não presentes na base conhecida localmente;
+2. o cliente possui alterações diferentes ainda não persistidas;
+3. não é possível escolher uma versão silenciosamente sem perda de dados.
 
 O título será:
 
@@ -197,15 +205,15 @@ As opções serão:
 - `Manter minhas alterações`;
 - `Revisar antes de decidir`.
 
-A interface mostrará o horário real da cópia local e o horário informado pelo servidor. Não usará o horário atual como substituto.
+A interface mostrará o `savedAt` real da cópia local e o `updatedAt` informado pelo servidor. Não usará o horário atual como substituto.
 
 ## API de rascunhos
 
 ### Listagem de gastos
 
-A API deve permitir listar rascunhos ativos de `EXPENSE`, assim como já ocorre para obrigações, para identificar o rascunho anterior mais recente.
+A API permitirá listar rascunhos ativos de `EXPENSE`, assim como já ocorre para obrigações.
 
-A listagem precisa devolver ao menos:
+A listagem devolverá:
 
 - `contextKey`;
 - `version`;
@@ -213,15 +221,17 @@ A listagem precisa devolver ao menos:
 - `updatedAt`;
 - `expiresAt`.
 
+A resposta pertence exclusivamente ao usuário autenticado.
+
 ### Descarte
 
-O descarte acionado explicitamente pelo usuário deve ser idempotente.
+O descarte acionado explicitamente pelo proprietário será idempotente e não exigirá versão. A versão continuará sendo usada para salvamentos concorrentes, mas não impedirá o usuário de excluir definitivamente o próprio rascunho.
 
-Para impedir falha por versão obsoleta durante um descarte intencional, a API poderá oferecer modo de descarte forçado da própria chave, limitado ao usuário proprietário. A versão continuará útil para operações normais de concorrência, mas não deve impedir o usuário de eliminar definitivamente o próprio rascunho.
+A API nunca permitirá excluir rascunho pertencente a outro usuário.
 
 ### Conclusão múltipla
 
-O serviço de submissão do gasto deve receber as chaves relacionadas à sessão atual e ao rascunho anterior. Após criar o gasto, remove ambas de forma idempotente.
+O serviço de submissão do gasto receberá `draftContextKey` e `previousDraftContextKey`. Após criar o gasto, removerá ambas na mesma transação e de forma idempotente.
 
 ## Exclusão lógica de gastos
 
@@ -236,20 +246,20 @@ O estado `CANCELLED` será removido do comportamento de negócio e migrado para 
 
 ### Migração
 
-Uma migração Flyway deve executar:
+Uma migração Flyway executará:
 
 ```sql
+ALTER TABLE expense ADD COLUMN deleted_at timestamp NULL;
+
 UPDATE expense
-SET status = 'DELETED'
+SET status = 'DELETED',
+    deleted_at = COALESCE(deleted_at, created_at)
 WHERE status = 'CANCELLED';
 ```
 
-A migração pode também adicionar metadados de exclusão, caso aprovados para esta versão:
+Não será adicionada coluna `restored_at` nesta versão. Ao restaurar, `deleted_at` volta a `NULL`.
 
-- `deleted_at timestamp null`;
-- `restored_at timestamp null`.
-
-O registro do usuário responsável fica fora do escopo inicial, salvo se a estrutura atual permitir adicioná-lo sem ampliar significativamente o trabalho.
+O registro do usuário responsável pela exclusão fica fora do escopo inicial.
 
 ### Exclusão
 
@@ -257,25 +267,28 @@ A ação `Excluir lançamento`:
 
 1. exige uma confirmação clara;
 2. altera o estado para `DELETED`;
-3. registra `deletedAt`, se a coluna existir;
+3. registra `deletedAt` com o relógio da aplicação;
 4. remove o gasto de relatórios, totais e listagens padrão;
 5. preserva o registro e seus vínculos.
+
+A exclusão de um gasto já `DELETED` será idempotente.
 
 ### Restauração
 
 A ação `Restaurar`:
 
 1. altera o estado de `DELETED` para `ACTIVE`;
-2. limpa ou atualiza metadados de exclusão;
+2. define `deletedAt = null`;
 3. faz o lançamento voltar a participar dos cálculos.
+
+A restauração de um gasto já `ACTIVE` será idempotente.
 
 ### Listagem
 
-A página de gastos terá filtros:
+A página de gastos terá dois filtros:
 
 - `Ativos` — padrão;
-- `Excluídos`;
-- opcionalmente `Todos`.
+- `Excluídos`.
 
 Nos ativos, a ação será `Excluir lançamento`.
 
@@ -287,18 +300,18 @@ O texto `Cancelar` não será usado para gastos.
 
 Toda consulta usada por dashboard, relatórios, rateios e totais deve excluir `DELETED` por padrão.
 
-Consultas administrativas ou de restauração podem incluir excluídos explicitamente.
+A listagem de restauração consultará excluídos explicitamente.
 
-A verificação deve abranger repositórios e serviços que hoje assumem que qualquer registro encontrado está ativo.
+A verificação abrangerá repositórios e serviços que hoje assumem que qualquer registro encontrado está ativo.
 
 ## Acessibilidade e UX
 
 - O aviso de rascunho anterior será uma região não modal com título, data e ações nomeadas.
-- As ações devem funcionar por teclado e possuir foco visível.
-- Mensagens de sucesso ou erro de descarte usam `role="status"` ou `role="alert"` conforme a gravidade.
+- As ações funcionarão por teclado e terão foco visível.
+- Mensagens de sucesso ou erro de descarte usarão `role="status"` ou `role="alert"` conforme a gravidade.
 - Uma confirmação nunca será duplicada por outro `window.confirm()`.
 - A exclusão de gasto usará linguagem explícita: `Excluir lançamento` e `Restaurar`.
-- O usuário deve entender que a exclusão é reversível.
+- A confirmação explicará que a exclusão é reversível.
 
 ## Estratégia de implementação
 
@@ -315,8 +328,9 @@ O framework compartilhado será alterado somente no que for necessário para o c
 
 - abrir formulário não cria rascunho;
 - primeira alteração real cria rascunho da sessão;
+- eventos programáticos de inicialização não marcam o formulário como sujo;
 - `pagehide` não salva quando o formulário está limpo;
-- `pagehide` não salva durante ou após descarte;
+- `pagehide` não salva durante descarte ou submissão final;
 - descartar remove servidor e cópia local;
 - continuar rascunho troca corretamente chave e versão;
 - rascunho anterior e sessão atual coexistem sem conflito;
@@ -328,8 +342,7 @@ O framework compartilhado será alterado somente no que for necessário para o c
 ### Backend de rascunhos
 
 - listar rascunhos de gasto por usuário;
-- descarte idempotente;
-- descarte explícito não falha por versão antiga quando autorizado;
+- descarte idempotente sem versão;
 - conclusão remove múltiplas chaves;
 - falha de criação preserva todos os rascunhos;
 - usuário não pode listar ou excluir rascunho de outro usuário.
@@ -337,8 +350,9 @@ O framework compartilhado será alterado somente no que for necessário para o c
 ### Gastos
 
 - `CANCELLED` é migrado para `DELETED`;
+- migração preenche `deleted_at` para registros antigos;
 - exclusão muda `ACTIVE` para `DELETED`;
-- restauração muda `DELETED` para `ACTIVE`;
+- restauração muda `DELETED` para `ACTIVE` e limpa `deleted_at`;
 - excluídos não aparecem na listagem padrão;
 - filtro de excluídos mostra somente `DELETED`;
 - excluídos não entram em dashboard e relatórios;
