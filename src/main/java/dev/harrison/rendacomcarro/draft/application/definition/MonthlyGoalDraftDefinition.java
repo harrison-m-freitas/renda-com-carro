@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import dev.harrison.rendacomcarro.draft.application.DraftPayloadValidator;
 import dev.harrison.rendacomcarro.draft.application.FormDraftDefinition;
 import dev.harrison.rendacomcarro.draft.domain.FormDraftType;
+import dev.harrison.rendacomcarro.goal.domain.WorkloadPeriodicity;
 import dev.harrison.rendacomcarro.shared.domain.DomainValidationException;
 import java.math.BigDecimal;
 import java.time.DayOfWeek;
@@ -11,6 +12,7 @@ import java.time.LocalDate;
 import java.time.YearMonth;
 import java.time.format.DateTimeParseException;
 import java.util.Arrays;
+import java.util.Locale;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.regex.Matcher;
@@ -22,7 +24,13 @@ import org.springframework.stereotype.Component;
 public class MonthlyGoalDraftDefinition implements FormDraftDefinition {
     private static final Pattern KEY_PATTERN = Pattern.compile("^month:(\\d{4}-\\d{2})$");
     private static final Set<String> ALLOWED_FIELDS = Set.of(
-        "month", "personalNetGoal", "operationalGoal", "plannedHours", "plannedDates"
+        "month",
+        "personalNetGoal",
+        "operationalGoal",
+        "workloadPeriodicity",
+        "workloadHours",
+        "workloadMinutes",
+        "plannedDates"
     );
 
     private final DraftPayloadValidator validator;
@@ -32,7 +40,7 @@ public class MonthlyGoalDraftDefinition implements FormDraftDefinition {
     }
 
     @Override public FormDraftType type() { return FormDraftType.MONTHLY_GOAL; }
-    @Override public int schemaVersion() { return 1; }
+    @Override public int schemaVersion() { return 2; }
     @Override public int maxStep() { return 3; }
 
     @Override
@@ -57,40 +65,49 @@ public class MonthlyGoalDraftDefinition implements FormDraftDefinition {
         boolean validateCurrentStep
     ) {
         validator.rejectUnknownFields(payload, ALLOWED_FIELDS);
-        ObjectNode normalized = validator.sanitizeTextFields(payload, Set.of("plannedDates"));
+        ObjectNode normalized = validator.sanitizeTextFields(
+            payload,
+            Set.of("plannedDates", "workloadPeriodicity")
+        );
 
-        YearMonth month = null;
-        String monthText = validator.optionalText(normalized, "month");
-        if (monthText != null) {
-            month = validator.requireYearMonth(normalized, "month", "Mês");
-            normalized.put("month", month.toString());
-        } else if (validateCurrentStep && currentStep >= 1) {
-            month = validator.requireYearMonth(normalized, "month", "Mês");
-        } else {
-            normalized.remove("month");
-        }
-
-        normalizeNonNegative(
+        YearMonth month = normalizeMonth(normalized, currentStep, validateCurrentStep);
+        normalizeNonNegativeDecimal(
             normalized,
             "personalNetGoal",
             "Meta líquida pessoal",
             validateCurrentStep && currentStep >= 1
         );
-        normalizeNonNegative(
+        normalizeNonNegativeDecimal(
             normalized,
             "operationalGoal",
             "Meta operacional",
             validateCurrentStep && currentStep >= 1
         );
-        normalizeNonNegative(
+
+        boolean workloadRequired = validateCurrentStep && currentStep >= 2;
+        normalizePeriodicity(normalized, workloadRequired);
+        Integer hours = normalizeInteger(
             normalized,
-            "plannedHours",
-            "Horas planejadas",
-            validateCurrentStep && currentStep >= 2
+            "workloadHours",
+            "Horas da jornada",
+            workloadRequired,
+            0,
+            Integer.MAX_VALUE
         );
+        Integer minutes = normalizeInteger(
+            normalized,
+            "workloadMinutes",
+            "Os minutos",
+            workloadRequired,
+            0,
+            59
+        );
+        if (workloadRequired && ((long) hours * 60 + minutes) <= 0) {
+            throw new DomainValidationException("A duração informada deve ser maior que zero.");
+        }
 
         String datesText = validator.optionalText(normalized, "plannedDates");
-        if (datesText == null && validateCurrentStep && currentStep >= 2) {
+        if (datesText == null && workloadRequired) {
             datesText = validator.requireText(normalized, "plannedDates", "Dias planejados");
         }
         if (datesText == null) {
@@ -103,7 +120,70 @@ public class MonthlyGoalDraftDefinition implements FormDraftDefinition {
         return normalized;
     }
 
-    private void normalizeNonNegative(
+    private YearMonth normalizeMonth(
+        ObjectNode payload,
+        int currentStep,
+        boolean validateCurrentStep
+    ) {
+        String monthText = validator.optionalText(payload, "month");
+        if (monthText != null) {
+            YearMonth month = validator.requireYearMonth(payload, "month", "Mês");
+            payload.put("month", month.toString());
+            return month;
+        }
+        if (validateCurrentStep && currentStep >= 1) {
+            return validator.requireYearMonth(payload, "month", "Mês");
+        }
+        payload.remove("month");
+        return null;
+    }
+
+    private void normalizePeriodicity(ObjectNode payload, boolean required) {
+        String raw = validator.optionalText(payload, "workloadPeriodicity");
+        if (raw == null) {
+            if (required) {
+                throw new DomainValidationException("Periodicidade da jornada é obrigatória.");
+            }
+            payload.remove("workloadPeriodicity");
+            return;
+        }
+        try {
+            WorkloadPeriodicity periodicity = WorkloadPeriodicity.valueOf(
+                raw.toUpperCase(Locale.ROOT)
+            );
+            payload.put("workloadPeriodicity", periodicity.name());
+        } catch (IllegalArgumentException exception) {
+            throw new DomainValidationException("Periodicidade da jornada é inválida.");
+        }
+    }
+
+    private Integer normalizeInteger(
+        ObjectNode payload,
+        String field,
+        String label,
+        boolean required,
+        int minimum,
+        int maximum
+    ) {
+        Integer value = validator.optionalInteger(payload, field, label);
+        if (value == null) {
+            if (required) {
+                throw new DomainValidationException(label + " é obrigatório.");
+            }
+            payload.remove(field);
+            return null;
+        }
+        if (value < minimum || value > maximum) {
+            if (field.equals("workloadMinutes")) {
+                throw new DomainValidationException("Os minutos devem estar entre 0 e 59.");
+            }
+            throw new DomainValidationException(label + " deve ser um número não negativo.");
+        }
+        payload.put(field, value);
+        return value;
+    }
+
+    private void normalizeNonNegativeDecimal(
         ObjectNode payload,
         String field,
         String label,
