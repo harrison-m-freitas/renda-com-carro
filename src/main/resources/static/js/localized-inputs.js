@@ -48,6 +48,13 @@ const dispatchUserInput = (input) => {
   }
 };
 
+const replaceValueAfterUserEdit = (input, nextValue) => {
+  if (nextValue === input.value) return false;
+  input.value = nextValue;
+  dispatchUserInput(input);
+  return true;
+};
+
 const validatePercentageInput = (input) => {
   const maximum = Number(input.dataset?.maxValue || '100');
   const value = parseLocalizedDecimal(input.value);
@@ -140,10 +147,10 @@ const configureOdometerInput = (input) => {
   });
 
   input.addEventListener('blur', () => {
-    input.value = formatOdometerInput(input.value, {
+    replaceValueAfterUserEdit(input, formatOdometerInput(input.value, {
       maxIntegerDigits,
       trimZeroFraction: true
-    });
+    }));
   });
 
   return true;
@@ -155,7 +162,7 @@ const configureNormalizedTextInput = (input) => {
   if (input.dataset) input.dataset.localizedInputInitialized = 'true';
 
   input.addEventListener('blur', () => {
-    input.value = normalizeSpaces(input.value);
+    replaceValueAfterUserEdit(input, normalizeSpaces(input.value));
   });
   return true;
 };
@@ -166,7 +173,7 @@ const configureOuterTrimInput = (input) => {
   if (input.dataset) input.dataset.localizedInputInitialized = 'true';
 
   input.addEventListener('blur', () => {
-    input.value = trimOuterWhitespace(input.value);
+    replaceValueAfterUserEdit(input, trimOuterWhitespace(input.value));
   });
   return true;
 };
