@@ -5,6 +5,7 @@ import java.time.Clock;
 import java.time.DateTimeException;
 import java.time.LocalDate;
 import java.time.ZoneId;
+import java.util.Optional;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -20,10 +21,16 @@ public class UserTimeZoneService {
 
     @Transactional(readOnly = true)
     public ZoneId resolve(String username) {
-        String saved = requireUser(username).getTimeZoneId();
-        return saved == null || saved.isBlank()
-            ? applicationClock.getZone()
-            : ZoneId.of(saved);
+        return savedTimeZoneId(username)
+            .map(ZoneId::of)
+            .orElse(applicationClock.getZone());
+    }
+
+    @Transactional(readOnly = true)
+    public Optional<String> savedTimeZoneId(String username) {
+        return currentUsers.find(username)
+            .map(AppUser::getTimeZoneId)
+            .filter(zoneId -> !zoneId.isBlank());
     }
 
     @Transactional(readOnly = true)
