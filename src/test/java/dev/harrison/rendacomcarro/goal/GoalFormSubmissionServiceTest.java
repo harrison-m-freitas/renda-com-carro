@@ -63,8 +63,30 @@ class GoalFormSubmissionServiceTest extends PostgresIntegrationTest {
         assertThat(goal.getCalculatedMonthMinutes()).isEqualTo(960);
         assertThat(goal.getPlannedHours()).isEqualByComparingTo("16.00");
         assertThat(goals.plannedDays(goal.getId()))
+            .extracting(day -> day.getAllocatedDurationMinutes())
+            .containsExactly(480L, 480L);
+        assertThat(goals.plannedDays(goal.getId()))
             .extracting(day -> day.getPlannedHours())
             .containsExactly(new BigDecimal("8.00"), new BigDecimal("8.00"));
+    }
+
+    @Test
+    void persistsRemainderMinutesWithoutDecimalHourDrift() {
+        GoalForm form = new GoalForm();
+        form.setMonth(YearMonth.of(2027, 3));
+        form.setPersonalNetGoal(new BigDecimal("100.00"));
+        form.setOperationalGoal(new BigDecimal("200.00"));
+        form.setWorkloadPeriodicity(WorkloadPeriodicity.MONTHLY);
+        form.setWorkloadHours(0L);
+        form.setWorkloadMinutes(1);
+        form.setPlannedDates("2027-03-01,2027-03-02,2027-03-03");
+
+        var goal = submissions.submit("goal-submission-owner", form);
+
+        assertThat(goal.getCalculatedMonthMinutes()).isEqualTo(1);
+        assertThat(goals.plannedDays(goal.getId()))
+            .extracting(day -> day.getAllocatedDurationMinutes())
+            .containsExactly(1L, 0L, 0L);
     }
 
     @Test
