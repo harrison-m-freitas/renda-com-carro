@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import {
   civilDateInTimeZone,
   decisionKey,
+  scheduleUserTimeZoneInitialization,
   shouldPromptForTimeZone
 } from '../../main/resources/static/js/user-time-zone.js';
 
@@ -34,4 +35,19 @@ test('civil date uses the requested IANA zone without UTC slicing', () => {
 
   assert.equal(civilDateInTimeZone(instant, 'Pacific/Kiritimati'), '2026-07-15');
   assert.equal(civilDateInTimeZone(instant, 'America/Sao_Paulo'), '2026-07-14');
+});
+
+test('time-zone initialization is deferred so page modules can register listeners first', () => {
+  let initialized = false;
+  let scheduled = null;
+
+  scheduleUserTimeZoneInitialization(
+    () => { initialized = true; },
+    (callback) => { scheduled = callback; }
+  );
+
+  assert.equal(initialized, false);
+  assert.equal(typeof scheduled, 'function');
+  scheduled();
+  assert.equal(initialized, true);
 });
