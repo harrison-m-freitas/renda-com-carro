@@ -26,7 +26,7 @@ public class UserTimeZoneController {
     @GetMapping
     public UserTimeZoneResponse show(Principal principal) {
         ZoneId active = timeZones.resolve(principal.getName());
-        String saved = timeZones.requireUser(principal.getName()).getTimeZoneId();
+        String saved = timeZones.savedTimeZoneId(principal.getName()).orElse(null);
         return new UserTimeZoneResponse(saved, active.getId());
     }
 
