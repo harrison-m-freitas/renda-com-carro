@@ -1,5 +1,6 @@
 import { initializeLocalizedInputs } from './localized-inputs.js';
 import { parseLocalizedDecimal } from './localized-input-formatters.js';
+import { initializeGoalWorkloadPlanner } from './goal-workload-planner.js';
 
 const form = document.getElementById('goal-form');
 
@@ -9,7 +10,6 @@ if (form) {
   const month = form.querySelector('[name="month"]');
   const personalGoal = form.querySelector('[name="personalNetGoal"]');
   const operationalGoal = form.querySelector('[name="operationalGoal"]');
-  const plannedHours = form.querySelector('[name="plannedHours"]');
   const plannedDates = form.querySelector('[name="plannedDates"]');
   const datePicker = form.querySelector('[data-planned-date-picker]');
   const addButton = form.querySelector('[data-add-planned-date]');
@@ -88,10 +88,6 @@ if (form) {
       '[data-goal-summary-operational]',
       formatMoney(parseLocalizedDecimal(operationalGoal?.value) ?? 0)
     );
-    setText(
-      '[data-goal-summary-hours]',
-      `${parseLocalizedDecimal(plannedHours?.value) ?? 0} h`
-    );
     setText('[data-goal-summary-days]', String(normalizedDates().length));
   }
 
@@ -103,7 +99,7 @@ if (form) {
   addButton?.addEventListener('click', addDate);
   datePicker?.addEventListener('change', () => datePicker.setCustomValidity(''));
   month?.addEventListener('change', refreshContext);
-  [personalGoal, operationalGoal, plannedHours, plannedDates].forEach((field) => {
+  [personalGoal, operationalGoal, plannedDates].forEach((field) => {
     field?.addEventListener('input', () => {
       renderChips();
       refreshSummary();
@@ -126,6 +122,7 @@ if (form) {
   refreshContext();
   renderChips();
   refreshSummary();
+  initializeGoalWorkloadPlanner(form, document);
 }
 
 function formatMoney(value) {
