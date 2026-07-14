@@ -112,6 +112,12 @@ const createHarness = ({
       fireInputListener('beforeinput', event);
       return event;
     },
+    paste(text) {
+      const event = new FakeEvent('paste');
+      event.clipboardData = { getData: () => text };
+      fireInputListener('paste', event);
+      return event;
+    },
     blur() {
       fireInputListener('blur', new FakeEvent('blur'));
     },
@@ -141,6 +147,32 @@ test('localized inputs: money beforeinput renders and emits one bubbling input',
 
   assert.equal(event.defaultPrevented, true);
   assert.equal(harness.input.value, '0,01');
+  assert.equal(harness.dispatched.filter((item) => item.type === 'input').length, 1);
+});
+
+test('localized inputs: selected money paste replaces the value and emits one input', () => {
+  const harness = createHarness({ value: '123' });
+  initializeLocalizedInputs(harness.form);
+  harness.dispatched.length = 0;
+  harness.input.setSelectionRange(0, harness.input.value.length);
+
+  const event = harness.paste('R$ 23.990,00');
+
+  assert.equal(event.defaultPrevented, true);
+  assert.equal(harness.input.value, '23.990,00');
+  assert.equal(harness.dispatched.filter((item) => item.type === 'input').length, 1);
+});
+
+test('localized inputs: backspace can clear a money field completely', () => {
+  const harness = createHarness({ value: '1' });
+  initializeLocalizedInputs(harness.form);
+  harness.dispatched.length = 0;
+
+  const event = harness.beforeInput('deleteContentBackward');
+
+  assert.equal(event.defaultPrevented, true);
+  assert.equal(harness.input.value, '');
+  assert.equal(harness.input.dataset.localizedDigits, '');
   assert.equal(harness.dispatched.filter((item) => item.type === 'input').length, 1);
 });
 
