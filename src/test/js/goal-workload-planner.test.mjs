@@ -130,7 +130,7 @@ test('goal workload planner: shows the source and waits for planned dates', () =
   assert.equal(harness.review.textContent, '40 h por semana');
 });
 
-test('goal workload planner: recalculates a partial week after a real date edit', () => {
+test('goal workload planner: recalculates a partial week and shows equivalents', () => {
   const harness = createHarness();
   initializeGoalWorkloadPlanner(harness.form, harness.documentObject);
 
@@ -140,6 +140,9 @@ test('goal workload planner: recalculates a partial week after a real date edit'
   const text = allText(harness.summary);
   assert.match(text, /Total planejado no mês/);
   assert.match(text, /16 h/);
+  assert.match(text, /Média por dia planejado/);
+  assert.match(text, /8 h/);
+  assert.match(text, /Média por semana ativa/);
   assert.match(text, /referência provisória de 5 dias/);
   assert.equal(harness.review.textContent, '16 h no mês');
   assert.equal(harness.plannedDates.dispatched.length, 0);
