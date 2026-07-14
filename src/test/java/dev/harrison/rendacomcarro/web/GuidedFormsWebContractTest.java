@@ -19,6 +19,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.transaction.annotation.Transactional;
 
 @SpringBootTest
@@ -54,6 +55,36 @@ class GuidedFormsWebContractTest extends PostgresIntegrationTest {
 
     @Test
     @WithMockUser(username = "guided-contract-owner", roles = "OWNER")
+    void guidedFormsDeclareTheSharedLocalizedInputBehaviors() throws Exception {
+        var vehicle = createVehicle();
+        YearMonth month = YearMonth.of(2028, 1);
+
+        assertLocalizedInputs("/expenses/new",
+            "name=\"amount\"", "data-money-input",
+            "name=\"professionalPercentagePercent\"", "data-percentage-input",
+            "name=\"professionalFixedAmount\"", "data-normalize-spaces");
+
+        assertLocalizedInputs("/goals/new?month=2028-01",
+            "name=\"personalNetGoal\"", "name=\"operationalGoal\"", "data-money-input");
+
+        assertLocalizedInputs(
+            "/obligations/new?draftKey=draft:" + UUID.randomUUID(),
+            "name=\"principal\"", "name=\"plannedInstallment\"",
+            "name=\"monthlyTarget\"", "data-money-input",
+            "name=\"annualRatePercent\"", "data-percentage-input",
+            "Digite 1200 para informar 12,00% ao ano.",
+            "name=\"creditor\"", "data-normalize-spaces"
+        );
+
+        assertLocalizedInputs(
+            "/mileage-closings/new?vehicleId=" + vehicle.getId() + "&month=" + month,
+            "name=\"initialOdometer\"", "name=\"finalOdometer\"",
+            "name=\"professionalKilometers\"", "data-odometer-input"
+        );
+    }
+
+    @Test
+    @WithMockUser(username = "guided-contract-owner", roles = "OWNER")
     void simpleFormsRemainCompact() throws Exception {
         mvc.perform(get("/vehicles/new"))
             .andExpect(status().isOk())
@@ -74,6 +105,13 @@ class GuidedFormsWebContractTest extends PostgresIntegrationTest {
             .andExpect(content().string(containsString("data-guided-dialog=\"conflict\"")))
             .andExpect(content().string(containsString("data-guided-save-status")))
             .andExpect(content().string(containsString(finalCopy)));
+    }
+
+    private void assertLocalizedInputs(String path, String... fragments) throws Exception {
+        ResultActions result = mvc.perform(get(path)).andExpect(status().isOk());
+        for (String fragment : fragments) {
+            result.andExpect(content().string(containsString(fragment)));
+        }
     }
 
     private dev.harrison.rendacomcarro.vehicle.domain.Vehicle createVehicle() {

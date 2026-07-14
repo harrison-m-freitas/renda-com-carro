@@ -78,7 +78,8 @@
             <div class="input-group input-unit">
               <input class="form-control guided-calculated" id="initialOdometer" type="text"
                      inputmode="decimal" th:field="*{initialOdometer}"
-                     data-adjustable readonly required
+                     data-adjustable data-odometer-input data-max-integer-digits="11"
+                     readonly required
                      aria-describedby="initialOdometer-origin initialOdometer-error">
               <span class="input-group-text">km</span>
             </div>
@@ -91,7 +92,8 @@
             <div class="input-group input-unit">
               <input class="form-control guided-calculated" id="finalOdometer" type="text"
                      inputmode="decimal" th:field="*{finalOdometer}"
-                     data-adjustable readonly required
+                     data-adjustable data-odometer-input data-max-integer-digits="11"
+                     readonly required
                      aria-describedby="finalOdometer-origin finalOdometer-error">
               <span class="input-group-text">km</span>
             </div>
@@ -104,7 +106,8 @@
             <div class="input-group input-unit">
               <input class="form-control guided-calculated" id="professionalKilometers" type="text"
                      inputmode="decimal" th:field="*{professionalKilometers}"
-                     data-adjustable readonly required
+                     data-adjustable data-odometer-input data-max-integer-digits="11"
+                     readonly required
                      aria-describedby="professionalKilometers-help professionalKilometers-error">
               <span class="input-group-text">km</span>
             </div>
@@ -149,7 +152,7 @@
         <div id="adjustment-reason-group" class="mt-3" th:hidden="${!closingForm.manualAdjustment}">
           <label class="form-label" for="adjustmentReason">Justificativa da correção <span class="required-mark">*</span></label>
           <textarea class="form-control" id="adjustmentReason" rows="3"
-                    th:field="*{adjustmentReason}"
+                    th:field="*{adjustmentReason}" data-normalize-spaces
                     aria-describedby="adjustmentReason-help"
                     placeholder="Explique por que os valores calculados precisam ser corrigidos."></textarea>
           <div class="form-text" id="adjustmentReason-help">Obrigatória quando qualquer valor confirmado divergir da prévia.</div>

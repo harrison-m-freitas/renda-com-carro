@@ -86,22 +86,66 @@ class FormDraftDefinitionTest {
     }
 
     @Test
-    void goalRejectsSundayAndDatesOutsideMonth() {
-        ObjectNode sunday = mapper.createObjectNode()
+    void goalDraftSchemaTwoPreservesWeeklySourceWithoutRequiringDatesDuringAutosave() {
+        ObjectNode payload = mapper.createObjectNode()
             .put("month", "2026-07")
             .put("personalNetGoal", "2000,00")
             .put("operationalGoal", "3000,00")
-            .put("plannedHours", "160")
+            .put("workloadPeriodicity", "weekly")
+            .put("workloadHours", "40")
+            .put("workloadMinutes", "0");
+
+        ObjectNode normalized = goal.normalizeAndValidate(payload, 2, false);
+
+        assertThat(goal.schemaVersion()).isEqualTo(2);
+        assertThat(normalized.path("workloadPeriodicity").asText()).isEqualTo("WEEKLY");
+        assertThat(normalized.path("workloadHours").asLong()).isEqualTo(40);
+        assertThat(normalized.path("workloadMinutes").asInt()).isZero();
+        assertThat(normalized.has("plannedDates")).isFalse();
+
+        assertThatThrownBy(() -> goal.normalizeAndValidate(payload.deepCopy(), 2, true))
+            .isInstanceOf(DomainValidationException.class)
+            .hasMessageContaining("Dias planejados");
+    }
+
+    @Test
+    void goalRejectsInvalidMinutesSundayAndDatesOutsideMonth() {
+        ObjectNode payload = mapper.createObjectNode()
+            .put("month", "2026-07")
+            .put("personalNetGoal", "2000,00")
+            .put("operationalGoal", "3000,00")
+            .put("workloadPeriodicity", "WEEKLY")
+            .put("workloadHours", "40")
+            .put("workloadMinutes", "60")
             .put("plannedDates", "2026-07-05");
 
-        assertThatThrownBy(() -> goal.normalizeAndValidate(sunday, 3))
+        assertThatThrownBy(() -> goal.normalizeAndValidate(payload, 3))
+            .isInstanceOf(DomainValidationException.class)
+            .hasMessageContaining("minutos");
+
+        payload.put("workloadMinutes", "0");
+        assertThatThrownBy(() -> goal.normalizeAndValidate(payload, 3))
             .isInstanceOf(DomainValidationException.class)
             .hasMessageContaining("Domingos");
 
-        sunday.put("plannedDates", "2026-08-01");
-        assertThatThrownBy(() -> goal.normalizeAndValidate(sunday, 3))
+        payload.put("plannedDates", "2026-08-01");
+        assertThatThrownBy(() -> goal.normalizeAndValidate(payload, 3))
             .isInstanceOf(DomainValidationException.class)
             .hasMessageContaining("mês da meta");
+    }
+
+    @Test
+    void goalRejectsLegacyCalculatedHoursField() {
+        ObjectNode payload = mapper.createObjectNode()
+            .put("month", "2026-07")
+            .put("workloadPeriodicity", "MONTHLY")
+            .put("workloadHours", "160")
+            .put("workloadMinutes", "0")
+            .put("plannedHours", "160");
+
+        assertThatThrownBy(() -> goal.normalizeAndValidate(payload, 1, false))
+            .isInstanceOf(DomainValidationException.class)
+            .hasMessageContaining("Campo de rascunho não permitido");
     }
 
     @Test

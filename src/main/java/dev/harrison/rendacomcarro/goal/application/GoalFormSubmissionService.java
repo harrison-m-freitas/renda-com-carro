@@ -4,6 +4,7 @@ import dev.harrison.rendacomcarro.draft.application.FormDraftService;
 import dev.harrison.rendacomcarro.draft.domain.FormDraftType;
 import dev.harrison.rendacomcarro.goal.domain.MonthlyGoal;
 import dev.harrison.rendacomcarro.goal.web.GoalForm;
+import java.util.UUID;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -23,10 +24,30 @@ public class GoalFormSubmissionService {
             form.getMonth(),
             form.getPersonalNetGoal(),
             form.getOperationalGoal(),
-            form.getPlannedHours(),
+            form.getWorkloadPeriodicity(),
+            form.enteredDurationMinutes(),
             form.parsedPlannedDates()
         );
         drafts.complete(username, FormDraftType.MONTHLY_GOAL, form.draftContextKey());
+        return goal;
+    }
+
+    @Transactional
+    public MonthlyGoal update(String username, UUID id, GoalForm form) {
+        String originalContextKey = "month:" + goals.get(id).getMonth();
+        MonthlyGoal goal = goals.update(
+            id,
+            form.getMonth(),
+            form.getPersonalNetGoal(),
+            form.getOperationalGoal(),
+            form.getWorkloadPeriodicity(),
+            form.enteredDurationMinutes(),
+            form.parsedPlannedDates()
+        );
+        drafts.complete(username, FormDraftType.MONTHLY_GOAL, originalContextKey);
+        if (!originalContextKey.equals(form.draftContextKey())) {
+            drafts.complete(username, FormDraftType.MONTHLY_GOAL, form.draftContextKey());
+        }
         return goal;
     }
 }

@@ -54,7 +54,7 @@
           <div class="input-group input-unit">
             <span class="input-group-text">R$</span>
             <input class="form-control" id="amount" type="text" inputmode="decimal"
-                   placeholder="0,00" th:field="*{amount}"
+                   placeholder="0,00" th:field="*{amount}" data-money-input data-max-digits="14"
                    aria-describedby="amount-error" required>
           </div>
           <div class="invalid-feedback d-block" id="amount-error" th:errors="*{amount}"></div>
@@ -116,7 +116,8 @@
           <label class="form-label" for="professionalPercentagePercent">Percentual profissional <span class="required-mark">*</span></label>
           <div class="input-group input-unit">
             <input class="form-control" id="professionalPercentagePercent" type="text"
-                   inputmode="decimal" placeholder="75" th:field="*{professionalPercentagePercent}"
+                   inputmode="decimal" placeholder="0,00" th:field="*{professionalPercentagePercent}"
+                   data-percentage-input data-max-digits="5" data-max-value="100"
                    aria-describedby="professionalPercentagePercent-help professionalPercentagePercent-error">
             <span class="input-group-text">%</span>
           </div>
@@ -130,6 +131,7 @@
             <span class="input-group-text">R$</span>
             <input class="form-control" id="professionalFixedAmount" type="text"
                    inputmode="decimal" placeholder="0,00" th:field="*{professionalFixedAmount}"
+                   data-money-input data-max-digits="14"
                    aria-describedby="professionalFixedAmount-error">
           </div>
           <div class="invalid-feedback d-block" id="professionalFixedAmount-error"
@@ -138,6 +140,7 @@
         <div class="col-12" data-reason-group>
           <label class="form-label" for="adjustmentReason">Justificativa do rateio manual <span class="required-mark">*</span></label>
           <input class="form-control" id="adjustmentReason" th:field="*{adjustmentReason}"
+                 data-normalize-spaces
                  placeholder="Explique por que o rateio foi informado manualmente"
                  aria-describedby="adjustmentReason-help adjustmentReason-error">
           <div class="form-text" id="adjustmentReason-help">Obrigatória para percentual ou valor profissional manual.</div>
@@ -167,6 +170,7 @@
       <div>
         <label class="form-label" for="notes">Observações</label>
         <textarea class="form-control" id="notes" rows="4" th:field="*{notes}"
+                  data-trim-outer-whitespace
                   placeholder="Fornecedor, comprovante ou contexto do gasto"></textarea>
       </div>
     </section>

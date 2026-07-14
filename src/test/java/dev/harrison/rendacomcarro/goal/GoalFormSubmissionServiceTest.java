@@ -9,6 +9,7 @@ import dev.harrison.rendacomcarro.draft.application.FormDraftService.SaveDraftCo
 import dev.harrison.rendacomcarro.draft.domain.FormDraftType;
 import dev.harrison.rendacomcarro.goal.application.GoalFormSubmissionService;
 import dev.harrison.rendacomcarro.goal.application.GoalService;
+import dev.harrison.rendacomcarro.goal.domain.WorkloadPeriodicity;
 import dev.harrison.rendacomcarro.goal.web.GoalForm;
 import dev.harrison.rendacomcarro.support.PostgresIntegrationTest;
 import java.math.BigDecimal;
@@ -45,6 +46,50 @@ class GoalFormSubmissionServiceTest extends PostgresIntegrationTest {
     }
 
     @Test
+    void persistsWeeklySourceCalculatedMonthAndDailyAllocations() {
+        GoalForm form = new GoalForm();
+        form.setMonth(YearMonth.of(2027, 4));
+        form.setPersonalNetGoal(new BigDecimal("2500.00"));
+        form.setOperationalGoal(new BigDecimal("4000.00"));
+        form.setWorkloadPeriodicity(WorkloadPeriodicity.WEEKLY);
+        form.setWorkloadHours(40L);
+        form.setWorkloadMinutes(0);
+        form.setPlannedDates("2027-04-01,2027-04-02");
+
+        var goal = submissions.submit("goal-submission-owner", form);
+
+        assertThat(goal.getWorkloadPeriodicity()).isEqualTo(WorkloadPeriodicity.WEEKLY);
+        assertThat(goal.getEnteredDurationMinutes()).isEqualTo(2_400);
+        assertThat(goal.getCalculatedMonthMinutes()).isEqualTo(960);
+        assertThat(goal.getPlannedHours()).isEqualByComparingTo("16.00");
+        assertThat(goals.plannedDays(goal.getId()))
+            .extracting(day -> day.getAllocatedDurationMinutes())
+            .containsExactly(480L, 480L);
+        assertThat(goals.plannedDays(goal.getId()))
+            .extracting(day -> day.getPlannedHours())
+            .containsExactly(new BigDecimal("8.00"), new BigDecimal("8.00"));
+    }
+
+    @Test
+    void persistsRemainderMinutesWithoutDecimalHourDrift() {
+        GoalForm form = new GoalForm();
+        form.setMonth(YearMonth.of(2027, 3));
+        form.setPersonalNetGoal(new BigDecimal("100.00"));
+        form.setOperationalGoal(new BigDecimal("200.00"));
+        form.setWorkloadPeriodicity(WorkloadPeriodicity.MONTHLY);
+        form.setWorkloadHours(0L);
+        form.setWorkloadMinutes(1);
+        form.setPlannedDates("2027-03-01,2027-03-02,2027-03-03");
+
+        var goal = submissions.submit("goal-submission-owner", form);
+
+        assertThat(goal.getCalculatedMonthMinutes()).isEqualTo(1);
+        assertThat(goals.plannedDays(goal.getId()))
+            .extracting(day -> day.getAllocatedDurationMinutes())
+            .containsExactly(1L, 0L, 0L);
+    }
+
+    @Test
     void duplicateGoalPreservesDraft() {
         GoalForm form = validForm(YearMonth.of(2027, 2));
         submissions.submit("goal-submission-owner", form);
@@ -63,7 +108,9 @@ class GoalFormSubmissionServiceTest extends PostgresIntegrationTest {
         form.setMonth(month);
         form.setPersonalNetGoal(new BigDecimal("2500.00"));
         form.setOperationalGoal(new BigDecimal("4000.00"));
-        form.setPlannedHours(new BigDecimal("160"));
+        form.setWorkloadPeriodicity(WorkloadPeriodicity.MONTHLY);
+        form.setWorkloadHours(160L);
+        form.setWorkloadMinutes(0);
         form.setPlannedDates(month.atDay(1) + "," + month.atDay(2));
         return form;
     }
@@ -72,14 +119,16 @@ class GoalFormSubmissionServiceTest extends PostgresIntegrationTest {
         drafts.save("goal-submission-owner", new SaveDraftCommand(
             FormDraftType.MONTHLY_GOAL,
             form.draftContextKey(),
-            1,
+            2,
             2,
             null,
             mapper.createObjectNode()
                 .put("month", form.getMonth().toString())
                 .put("personalNetGoal", "2500,00")
                 .put("operationalGoal", "4000,00")
-                .put("plannedHours", "160")
+                .put("workloadPeriodicity", form.getWorkloadPeriodicity().name())
+                .put("workloadHours", form.getWorkloadHours())
+                .put("workloadMinutes", form.getWorkloadMinutes())
                 .put("plannedDates", form.getPlannedDates()),
             false
         ));

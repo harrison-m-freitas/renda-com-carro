@@ -33,6 +33,7 @@
         <div class="col-md-6">
           <label class="form-label" for="creditor">Credor <span class="required-mark">*</span></label>
           <input class="form-control" id="creditor" th:field="*{creditor}"
+                 data-normalize-spaces
                  placeholder="Ex.: Banco, financeira ou familiar"
                  aria-describedby="creditor-error" required>
           <div class="invalid-feedback d-block" id="creditor-error" th:errors="*{creditor}"></div>
@@ -80,6 +81,7 @@
             <span class="input-group-text">R$</span>
             <input class="form-control" id="principal" type="text" inputmode="decimal"
                    placeholder="0,00" th:field="*{principal}"
+                   data-money-input data-max-digits="14"
                    aria-describedby="principal-error" required>
           </div>
           <div class="invalid-feedback d-block" id="principal-error" th:errors="*{principal}"></div>
@@ -88,11 +90,12 @@
           <label class="form-label" for="annualRatePercent">Juros anuais</label>
           <div class="input-group input-unit">
             <input class="form-control" id="annualRatePercent" type="text" inputmode="decimal"
-                   placeholder="12" th:field="*{annualRatePercent}"
+                   placeholder="0,00" th:field="*{annualRatePercent}"
+                   data-percentage-input data-max-digits="5" data-max-value="100"
                    aria-describedby="annualRatePercent-help annualRatePercent-error">
             <span class="input-group-text">%</span>
           </div>
-          <div class="form-text" id="annualRatePercent-help">Informe de 0 a 100. Ex.: 12 representa 12% ao ano.</div>
+          <div class="form-text" id="annualRatePercent-help">Informe de 0 a 100. Digite 1200 para informar 12,00% ao ano.</div>
           <div class="invalid-feedback d-block" id="annualRatePercent-error"
                th:errors="*{annualRatePercent}"></div>
         </div>
@@ -123,7 +126,7 @@
         <div class="col-md-4">
           <label class="form-label" for="termMonths">Parcelas <span class="required-mark">*</span></label>
           <input class="form-control" id="termMonths" type="number" min="1" step="1"
-                 th:field="*{termMonths}" aria-describedby="termMonths-error">
+                 inputmode="numeric" th:field="*{termMonths}" aria-describedby="termMonths-error">
           <div class="invalid-feedback d-block" id="termMonths-error" th:errors="*{termMonths}"></div>
         </div>
         <div class="col-md-4">
@@ -132,6 +135,7 @@
             <span class="input-group-text">R$</span>
             <input class="form-control" id="plannedInstallment" type="text" inputmode="decimal"
                    placeholder="0,00" th:field="*{plannedInstallment}"
+                   data-money-input data-max-digits="14"
                    aria-describedby="plannedInstallment-error">
           </div>
           <div class="invalid-feedback d-block" id="plannedInstallment-error"
@@ -145,6 +149,7 @@
             <span class="input-group-text">R$</span>
             <input class="form-control" id="monthlyTarget" type="text" inputmode="decimal"
                    placeholder="0,00" th:field="*{monthlyTarget}"
+                   data-money-input data-max-digits="14"
                    aria-describedby="monthlyTarget-help monthlyTarget-error">
           </div>
           <div class="form-text" id="monthlyTarget-help">Valor que pretende amortizar mensalmente, sem cronograma fixo.</div>
@@ -170,6 +175,7 @@
       </div>
       <label class="form-label" for="notes">Notas</label>
       <textarea class="form-control" id="notes" rows="4" th:field="*{notes}"
+                data-trim-outer-whitespace
                 placeholder="Condições combinadas, origem do empréstimo ou observações"></textarea>
     </section>
 
