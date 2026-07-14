@@ -107,6 +107,10 @@
   margin-top: .75rem;
 }
 
+.expense-manual-allocation-grid:not(:has(> :not([hidden]))) {
+  display: none;
+}
+
 .expense-manual-allocation-grid > [data-percentage-group],
 .expense-manual-allocation-grid > [data-fixed-group] {
   grid-column: 1;
@@ -135,6 +139,10 @@
   align-self: start;
 }
 
+.expense-reference-control[open] {
+  width: min(22rem, 100%);
+}
+
 .expense-reference-control > summary {
   min-height: 42px;
   display: inline-flex;
@@ -150,6 +158,10 @@
   font-size: .875rem;
   list-style: none;
   white-space: nowrap;
+}
+
+.expense-reference-control[open] > summary {
+  width: 100%;
 }
 
 .expense-reference-control > summary::-webkit-details-marker {
@@ -176,7 +188,7 @@
 }
 
 .expense-reference-control__content {
-  width: min(22rem, 100%);
+  width: 100%;
   margin-top: .5rem;
   padding: .75rem;
   border: 1px solid var(--bs-border-color);
@@ -210,17 +222,14 @@
     max-width: none;
   }
 
-  .expense-reference-control {
+  .expense-reference-control,
+  .expense-reference-control[open] {
     width: 100%;
   }
 
   .expense-reference-control > summary {
     width: 100%;
     white-space: normal;
-  }
-
-  .expense-reference-control__content {
-    width: 100%;
   }
 }
 
