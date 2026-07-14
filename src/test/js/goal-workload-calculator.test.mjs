@@ -16,6 +16,8 @@ test('goal workload calculator: daily multiplies every selected date', () => {
 
   assert.equal(result.status, 'ready');
   assert.equal(result.totalMinutes, 1530);
+  assert.equal(result.averageDailyMinutes, 510);
+  assert.equal(result.averageWeeklyMinutes, 1530);
   assert.deepEqual(result.days.map((day) => day.allocatedMinutes), [510, 510, 510]);
 });
 
@@ -28,6 +30,8 @@ test('goal workload calculator: monthly remainder goes to earliest dates', () =>
   });
 
   assert.equal(result.totalMinutes, 10);
+  assert.equal(result.averageDailyMinutes, 3);
+  assert.equal(result.averageWeeklyMinutes, 10);
   assert.deepEqual(result.days.map((day) => day.date), [
     '2026-07-01',
     '2026-07-02',
@@ -49,6 +53,8 @@ test('goal workload calculator: weekly gives full loads to internal weeks', () =
   });
 
   assert.equal(result.totalMinutes, 7200);
+  assert.equal(result.averageDailyMinutes, 480);
+  assert.equal(result.averageWeeklyMinutes, 2400);
   assert.deepEqual(result.weeks.map((week) => week.selectedDays), [4, 5, 6]);
   assert.deepEqual(result.weeks.map((week) => week.allocatedMinutes), [2400, 2400, 2400]);
 });
@@ -62,6 +68,8 @@ test('goal workload calculator: boundary uses five-day fallback without evidence
   });
 
   assert.equal(result.totalMinutes, 960);
+  assert.equal(result.averageDailyMinutes, 480);
+  assert.equal(result.averageWeeklyMinutes, 960);
   assert.equal(result.weeks[0].selectedDays, 2);
   assert.equal(result.weeks[0].expectedDays, 5);
   assert.deepEqual(result.weeks[0].inferredPattern, []);
@@ -95,6 +103,8 @@ test('goal workload calculator: no planned dates returns pending source', () => 
   assert.deepEqual(result, {
     status: 'pending',
     totalMinutes: null,
+    averageDailyMinutes: null,
+    averageWeeklyMinutes: null,
     weeks: [],
     days: []
   });
