@@ -23,7 +23,8 @@ public class GoalFormSubmissionService {
             form.getMonth(),
             form.getPersonalNetGoal(),
             form.getOperationalGoal(),
-            form.getPlannedHours(),
+            form.getWorkloadPeriodicity(),
+            form.enteredDurationMinutes(),
             form.parsedPlannedDates()
         );
         drafts.complete(username, FormDraftType.MONTHLY_GOAL, form.draftContextKey());
