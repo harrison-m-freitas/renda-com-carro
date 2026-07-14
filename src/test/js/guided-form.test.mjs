@@ -3,6 +3,13 @@ import assert from "node:assert/strict";
 
 import { GuidedFormController } from "../../main/resources/static/js/guided-form.js";
 
+const GUIDED_DRAFT_TYPES = [
+  "EXPENSE",
+  "MILEAGE_CLOSING",
+  "MONTHLY_GOAL",
+  "OBLIGATION",
+];
+
 test("immediate mobile step save waits for an in-flight autosave", async () => {
   const originalDocument = globalThis.document;
   const originalCustomEvent = globalThis.CustomEvent;
@@ -65,65 +72,68 @@ test("immediate mobile step save waits for an in-flight autosave", async () => {
   }
 });
 
-test("a trailing autosave keeps edits made while a save is in flight", async () => {
-  const originalDocument = globalThis.document;
-  const originalCustomEvent = globalThis.CustomEvent;
-  globalThis.document = { dispatchEvent() {} };
-  globalThis.CustomEvent = class CustomEvent {
-    constructor(type, options = {}) {
-      this.type = type;
-      this.detail = options.detail;
-    }
-  };
+for (const draftType of GUIDED_DRAFT_TYPES) {
+  test(`${draftType} keeps a trailing autosave made while a save is in flight`, async () => {
+    const originalDocument = globalThis.document;
+    const originalCustomEvent = globalThis.CustomEvent;
+    globalThis.document = { dispatchEvent() {} };
+    globalThis.CustomEvent = class CustomEvent {
+      constructor(type, options = {}) {
+        this.type = type;
+        this.detail = options.detail;
+      }
+    };
 
-  let resolveFirst;
-  let resolveSecond;
-  const calls = [];
-  const client = {
-    save(type, state) {
-      calls.push({ type, state: structuredClone(state) });
-      return new Promise((resolve) => {
-        if (calls.length === 1) resolveFirst = resolve;
-        else resolveSecond = resolve;
+    let resolveFirst;
+    let resolveSecond;
+    const calls = [];
+    const client = {
+      save(type, state) {
+        calls.push({ type, state: structuredClone(state) });
+        return new Promise((resolve) => {
+          if (calls.length === 1) resolveFirst = resolve;
+          else resolveSecond = resolve;
+        });
+      },
+    };
+    const contextKey = `draft:${draftType.toLowerCase()}`;
+    const form = createForm(draftType, contextKey, "notes", "Valor inicial");
+
+    try {
+      const controller = new GuidedFormController(form, { client });
+      const firstSave = controller.save();
+      await Promise.resolve();
+
+      form.elements[0].value = "Valor atualizado";
+      const trailingSave = controller.save();
+      await Promise.resolve();
+
+      assert.equal(calls.length, 1, "the trailing autosave must wait for the active request");
+
+      resolveFirst({
+        contextKey,
+        version: 0,
+        updatedAt: "2026-07-14T00:00:00Z",
       });
-    },
-  };
-  const contextKey = "draft:123e4567-e89b-12d3-a456-426614174001";
-  const form = createForm("EXPENSE", contextKey, "notes", "Combustível");
+      await firstSave;
+      await Promise.resolve();
 
-  try {
-    const controller = new GuidedFormController(form, { client });
-    const firstSave = controller.save();
-    await Promise.resolve();
+      assert.equal(calls.length, 2, "the latest edits must be saved after the active request");
+      assert.equal(calls[1].type, draftType);
+      assert.equal(calls[1].state.version, 0);
+      assert.equal(calls[1].state.payload.notes, "Valor atualizado");
 
-    form.elements[0].value = "Combustível atualizado";
-    const trailingSave = controller.save();
-    await Promise.resolve();
-
-    assert.equal(calls.length, 1, "the trailing autosave must wait for the active request");
-
-    resolveFirst({
-      contextKey,
-      version: 0,
-      updatedAt: "2026-07-14T00:00:00Z",
-    });
-    await firstSave;
-    await Promise.resolve();
-
-    assert.equal(calls.length, 2, "the latest edits must be saved after the active request");
-    assert.equal(calls[1].state.version, 0);
-    assert.equal(calls[1].state.payload.notes, "Combustível atualizado");
-
-    resolveSecond({
-      contextKey,
-      version: 1,
-      updatedAt: "2026-07-14T00:00:01Z",
-    });
-    await trailingSave;
-  } finally {
-    restoreBrowserGlobals(originalDocument, originalCustomEvent);
-  }
-});
+      resolveSecond({
+        contextKey,
+        version: 1,
+        updatedAt: "2026-07-14T00:00:01Z",
+      });
+      await trailingSave;
+    } finally {
+      restoreBrowserGlobals(originalDocument, originalCustomEvent);
+    }
+  });
+}
 
 function createForm(type, contextKey, fieldName, fieldValue) {
   return {
