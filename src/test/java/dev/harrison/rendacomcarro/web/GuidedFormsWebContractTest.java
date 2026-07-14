@@ -85,15 +85,25 @@ class GuidedFormsWebContractTest extends PostgresIntegrationTest {
 
     @Test
     @WithMockUser(username = "guided-contract-owner", roles = "OWNER")
-    void simpleFormsRemainCompact() throws Exception {
+    void vehicleUsesAStandaloneMobileFlowWithoutDraftContracts() throws Exception {
         mvc.perform(get("/vehicles/new"))
             .andExpect(status().isOk())
-            .andExpect(content().string(not(containsString("data-guided-form"))));
+            .andExpect(content().string(containsString("data-vehicle-flow")))
+            .andExpect(content().string(containsString("data-vehicle-step=\"identification\"")))
+            .andExpect(content().string(containsString("data-vehicle-step=\"operation\"")))
+            .andExpect(content().string(not(containsString("data-guided-form"))))
+            .andExpect(content().string(not(containsString("data-draft-type"))))
+            .andExpect(content().string(not(containsString("data-guided-save-status"))));
+    }
 
+    @Test
+    @WithMockUser(username = "guided-contract-owner", roles = "OWNER")
+    void operationDayFormRemainsCompact() throws Exception {
         createVehicle();
         mvc.perform(get("/operation-days/new"))
             .andExpect(status().isOk())
-            .andExpect(content().string(not(containsString("data-guided-form"))));
+            .andExpect(content().string(not(containsString("data-guided-form"))))
+            .andExpect(content().string(not(containsString("data-vehicle-flow"))));
     }
 
     private void assertGuided(String path, String type, String finalCopy) throws Exception {
