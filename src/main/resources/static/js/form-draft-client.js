@@ -1,4 +1,7 @@
-import { draftStorageKey } from "./guided-form-state.js";
+import {
+  draftStorageKey,
+  isDraftFrameworkControlName,
+} from "./guided-form-state.js";
 
 export class DraftConflictError extends Error {
   constructor(message, current) {
@@ -91,7 +94,7 @@ export class FormDraftClient {
     const raw = this.storage?.getItem(draftStorageKey(type, contextKey));
     if (!raw) return null;
     try {
-      return JSON.parse(raw);
+      return sanitizeEmergency(JSON.parse(raw));
     } catch {
       this.storage?.removeItem(draftStorageKey(type, contextKey));
       return null;
@@ -137,6 +140,26 @@ export class FormDraftClient {
     }
     throw new DraftHttpError(message, response.status);
   }
+}
+
+function sanitizeEmergency(emergency) {
+  const payload = emergency?.state?.payload;
+  if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
+    return emergency;
+  }
+
+  const sanitizedPayload = { ...payload };
+  Object.keys(sanitizedPayload).forEach((name) => {
+    if (isDraftFrameworkControlName(name)) delete sanitizedPayload[name];
+  });
+
+  return {
+    ...emergency,
+    state: {
+      ...emergency.state,
+      payload: sanitizedPayload,
+    },
+  };
 }
 
 function readMeta(name) {
