@@ -72,11 +72,7 @@ class OperationalGoalSuggestionServiceTest {
         overdueInstallmentId = UUID.randomUUID();
         flexibleObligationId = UUID.randomUUID();
 
-        when(expenses.findSuggestionCandidates(
-            LocalDate.of(2026, 7, 1),
-            LocalDate.of(2026, 7, 31),
-            Set.of(selectedVehicleId)
-        )).thenReturn(List.of(
+        List<ExpenseSuggestionProjection> expenseCandidates = List.of(
             expense(sharedExpenseId, null, "500.00", ExpenseClassification.PROFESSIONAL,
                 null, null, null, LocalDate.of(2026, 7, 1)),
             expense(manualPercentageExpenseId, selectedVehicleId, "600.00",
@@ -97,19 +93,26 @@ class OperationalGoalSuggestionServiceTest {
             expense(mileageExpenseId, selectedVehicleId, "100.00",
                 ExpenseClassification.MIXED, AllocationMethod.MILEAGE_RATIO,
                 null, null, LocalDate.of(2026, 7, 1))
-        ));
+        );
+        when(expenses.findSuggestionCandidates(
+            LocalDate.of(2026, 7, 1),
+            LocalDate.of(2026, 7, 31),
+            Set.of(selectedVehicleId)
+        )).thenReturn(expenseCandidates);
         when(closings
             .findAllByVehicleIdInAndReferenceMonthLessThanEqualOrderByVehicleIdAscReferenceMonthDesc(
                 Set.of(selectedVehicleId), LocalDate.of(2026, 7, 1)
             )).thenReturn(List.of());
-        when(installments.findSuggestionCandidates(
-            Set.of(selectedVehicleId), LocalDate.of(2026, 7, 31)
-        )).thenReturn(List.of(
+        List<InstallmentSuggestionProjection> installmentCandidates = List.of(
             installment(currentInstallmentId, "700.00", "0.00", LocalDate.of(2026, 7, 5)),
             installment(overdueInstallmentId, "600.00", "250.00", LocalDate.of(2026, 6, 5))
-        ));
+        );
+        when(installments.findSuggestionCandidates(
+            Set.of(selectedVehicleId), LocalDate.of(2026, 7, 31)
+        )).thenReturn(installmentCandidates);
+        FinancialObligation flexible = flexibleObligation();
         when(obligations.findActiveFlexibleTargets(Set.of(selectedVehicleId)))
-            .thenReturn(List.of(flexibleObligation()));
+            .thenReturn(List.of(flexible));
     }
 
     @Test

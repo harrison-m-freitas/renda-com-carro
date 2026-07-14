@@ -23,7 +23,7 @@ public class GoalSuggestionController {
     public OperationalGoalSuggestionResponse suggestion(
         @RequestParam
         @DateTimeFormat(pattern = "yyyy-MM") YearMonth month,
-        @RequestParam Set<UUID> vehicleIds
+        @RequestParam(required = false) Set<UUID> vehicleIds
     ) {
         return OperationalGoalSuggestionResponse.from(
             suggestions.suggest(month, vehicleIds)
