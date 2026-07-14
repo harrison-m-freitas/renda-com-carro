@@ -90,6 +90,10 @@ class GoalWebTest extends PostgresIntegrationTest {
         mvc.perform(get("/goals/{id}/edit", goal.getId()))
             .andExpect(status().isOk())
             .andExpect(content().string(containsString("Editar meta mensal")))
+            .andExpect(content().string(containsString(
+                "action=\"/goals/" + goal.getId() + "\""
+            )))
+            .andExpect(content().string(containsString("Atualizar meta")))
             .andExpect(model().attribute("goalForm", allOf(
                 hasProperty("workloadPeriodicity", is(WorkloadPeriodicity.WEEKLY)),
                 hasProperty("workloadHours", is(40L)),
