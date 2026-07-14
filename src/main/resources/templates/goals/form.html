@@ -37,6 +37,21 @@
                  aria-describedby="month-error" required data-save-on-blur>
           <div class="invalid-feedback d-block" id="month-error" th:errors="*{month}"></div>
         </div>
+        <fieldset class="col-12">
+          <legend class="form-label mb-2">Veículos considerados <span class="required-mark">*</span></legend>
+          <div class="d-flex flex-wrap gap-2" role="group" aria-describedby="vehicleIds-help vehicleIds-error">
+            <div class="form-check form-check-inline m-0" th:each="vehicle : ${vehicles}">
+              <input class="form-check-input" type="checkbox" th:field="*{vehicleIds}"
+                     th:value="${vehicle.id}" th:id="${'goal-vehicle-' + vehicle.id}">
+              <label class="form-check-label" th:for="${'goal-vehicle-' + vehicle.id}">
+                <span th:text="${vehicle.name}"></span>
+                <span class="text-secondary" th:if="${vehicle.primaryVehicle}"> · principal</span>
+              </label>
+            </div>
+          </div>
+          <div class="form-text" id="vehicleIds-help">A sugestão financeira considerará somente os veículos selecionados.</div>
+          <div class="invalid-feedback d-block" id="vehicleIds-error" th:errors="*{vehicleIds}"></div>
+        </fieldset>
         <div class="col-md-4">
           <label class="form-label" for="personalNetGoal">Meta líquida pessoal <span class="required-mark">*</span></label>
           <div class="input-group input-unit">

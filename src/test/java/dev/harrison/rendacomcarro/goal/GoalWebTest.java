@@ -16,10 +16,15 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import dev.harrison.rendacomcarro.goal.application.GoalService;
 import dev.harrison.rendacomcarro.goal.domain.WorkloadPeriodicity;
 import dev.harrison.rendacomcarro.support.PostgresIntegrationTest;
+import dev.harrison.rendacomcarro.vehicle.application.VehicleService;
+import dev.harrison.rendacomcarro.vehicle.domain.FuelType;
+import dev.harrison.rendacomcarro.vehicle.domain.Vehicle;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.YearMonth;
 import java.util.Set;
+import java.util.UUID;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -39,6 +44,20 @@ import org.springframework.transaction.annotation.Transactional;
 class GoalWebTest extends PostgresIntegrationTest {
     @Autowired MockMvc mvc;
     @Autowired GoalService goals;
+    @Autowired VehicleService vehicles;
+
+    private Vehicle primaryVehicle;
+
+    @BeforeEach
+    void createPrimaryVehicle() {
+        String plate = "G" + UUID.randomUUID().toString().replace("-", "")
+            .substring(0, 6).toUpperCase();
+        primaryVehicle = vehicles.create(new VehicleService.CreateVehicleCommand(
+            "Veículo da meta web", "Toyota", "Etios", 2018, plate, FuelType.FLEX,
+            new BigDecimal("10000.0"), new BigDecimal("35000.00")
+        ));
+        vehicles.activateAsPrimary(primaryVehicle.getId());
+    }
 
     @Test
     @WithMockUser(username = "goal-web-owner", roles = "OWNER")
@@ -49,6 +68,8 @@ class GoalWebTest extends PostgresIntegrationTest {
             .andExpect(content().string(containsString("data-draft-type=\"MONTHLY_GOAL\"")))
             .andExpect(content().string(containsString("data-draft-context-key=\"month:2027-03\"")))
             .andExpect(content().string(containsString("data-draft-schema-version=\"2\"")))
+            .andExpect(content().string(containsString("name=\"vehicleIds\"")))
+            .andExpect(content().string(containsString(primaryVehicle.getName())))
             .andExpect(content().string(containsString("name=\"workloadPeriodicity\"")))
             .andExpect(content().string(containsString("id=\"workload-DAILY\"")))
             .andExpect(content().string(containsString("for=\"workload-DAILY\"")))
@@ -84,7 +105,8 @@ class GoalWebTest extends PostgresIntegrationTest {
                 LocalDate.of(2027, 5, 5),
                 LocalDate.of(2027, 5, 6),
                 LocalDate.of(2027, 5, 7)
-            )
+            ),
+            Set.of(primaryVehicle.getId())
         );
 
         mvc.perform(get("/goals/{id}/edit", goal.getId()))
@@ -103,6 +125,7 @@ class GoalWebTest extends PostgresIntegrationTest {
         mvc.perform(post("/goals/{id}", goal.getId())
                 .with(csrf())
                 .param("month", month.toString())
+                .param("vehicleIds", primaryVehicle.getId().toString())
                 .param("personalNetGoal", "2.600,00")
                 .param("operationalGoal", "4.100,00")
                 .param("workloadPeriodicity", "DAILY")
@@ -127,6 +150,7 @@ class GoalWebTest extends PostgresIntegrationTest {
         mvc.perform(post("/goals")
                 .with(csrf())
                 .param("month", "2027-04")
+                .param("vehicleIds", primaryVehicle.getId().toString())
                 .param("personalNetGoal", "2.500,00")
                 .param("operationalGoal", "4.000,00")
                 .param("workloadPeriodicity", "WEEKLY")
@@ -145,6 +169,7 @@ class GoalWebTest extends PostgresIntegrationTest {
         mvc.perform(post("/goals")
                 .with(csrf())
                 .param("month", month.toString())
+                .param("vehicleIds", primaryVehicle.getId().toString())
                 .param("personalNetGoal", "2.500,00")
                 .param("operationalGoal", "4.000,00")
                 .param("workloadPeriodicity", "WEEKLY")
@@ -175,6 +200,7 @@ class GoalWebTest extends PostgresIntegrationTest {
         mvc.perform(post("/goals")
                 .with(csrf())
                 .param("month", "2027-08")
+                .param("vehicleIds", primaryVehicle.getId().toString())
                 .param("personalNetGoal", "2500")
                 .param("operationalGoal", "4000")
                 .param("workloadPeriodicity", "MONTHLY")
