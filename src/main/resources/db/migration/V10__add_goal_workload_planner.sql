@@ -20,3 +20,14 @@ ALTER TABLE monthly_goal
         CHECK (entered_duration_minutes >= 0),
     ADD CONSTRAINT ck_monthly_goal_calculated_month_minutes
         CHECK (calculated_month_minutes >= 0);
+
+ALTER TABLE planned_work_day
+    ADD COLUMN allocated_duration_minutes BIGINT;
+
+UPDATE planned_work_day
+SET allocated_duration_minutes = CAST(ROUND(planned_hours * 60) AS BIGINT);
+
+ALTER TABLE planned_work_day
+    ALTER COLUMN allocated_duration_minutes SET NOT NULL,
+    ADD CONSTRAINT ck_planned_work_day_allocated_duration_minutes
+        CHECK (allocated_duration_minutes >= 0);
