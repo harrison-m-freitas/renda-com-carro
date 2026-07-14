@@ -1,15 +1,25 @@
 package dev.harrison.rendacomcarro.goal;
 
+import static org.hamcrest.Matchers.allOf;
 import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.hasProperty;
+import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.not;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.model;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.redirectedUrl;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import dev.harrison.rendacomcarro.goal.application.GoalService;
+import dev.harrison.rendacomcarro.goal.domain.WorkloadPeriodicity;
 import dev.harrison.rendacomcarro.support.PostgresIntegrationTest;
+import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.YearMonth;
+import java.util.Set;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -28,6 +38,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional
 class GoalWebTest extends PostgresIntegrationTest {
     @Autowired MockMvc mvc;
+    @Autowired GoalService goals;
 
     @Test
     @WithMockUser(username = "goal-web-owner", roles = "OWNER")
@@ -55,6 +66,55 @@ class GoalWebTest extends PostgresIntegrationTest {
             .andExpect(content().string(containsString("data-money-input")))
             .andExpect(content().string(containsString("Dias planejados")))
             .andExpect(content().string(containsString("type=\"module\"")));
+    }
+
+    @Test
+    @WithMockUser(username = "goal-web-owner", roles = "OWNER")
+    void editFormRestoresOriginalWeeklySourceAndUpdatesAuthoritatively() throws Exception {
+        YearMonth month = YearMonth.of(2027, 5);
+        var goal = goals.create(
+            month,
+            new BigDecimal("2500.00"),
+            new BigDecimal("4000.00"),
+            WorkloadPeriodicity.WEEKLY,
+            2_430,
+            Set.of(
+                LocalDate.of(2027, 5, 3),
+                LocalDate.of(2027, 5, 4),
+                LocalDate.of(2027, 5, 5),
+                LocalDate.of(2027, 5, 6),
+                LocalDate.of(2027, 5, 7)
+            )
+        );
+
+        mvc.perform(get("/goals/{id}/edit", goal.getId()))
+            .andExpect(status().isOk())
+            .andExpect(content().string(containsString("Editar meta mensal")))
+            .andExpect(model().attribute("goalForm", allOf(
+                hasProperty("workloadPeriodicity", is(WorkloadPeriodicity.WEEKLY)),
+                hasProperty("workloadHours", is(40L)),
+                hasProperty("workloadMinutes", is(30))
+            )));
+
+        mvc.perform(post("/goals/{id}", goal.getId())
+                .with(csrf())
+                .param("month", month.toString())
+                .param("personalNetGoal", "2.600,00")
+                .param("operationalGoal", "4.100,00")
+                .param("workloadPeriodicity", "DAILY")
+                .param("workloadHours", "8")
+                .param("workloadMinutes", "30")
+                .param("plannedDates", "2027-05-03,2027-05-04"))
+            .andExpect(status().is3xxRedirection())
+            .andExpect(redirectedUrl("/goals"));
+
+        var updated = goals.find(month).orElseThrow();
+        org.assertj.core.api.Assertions.assertThat(updated.getWorkloadPeriodicity())
+            .isEqualTo(WorkloadPeriodicity.DAILY);
+        org.assertj.core.api.Assertions.assertThat(updated.getEnteredDurationMinutes())
+            .isEqualTo(510);
+        org.assertj.core.api.Assertions.assertThat(updated.getCalculatedMonthMinutes())
+            .isEqualTo(1_020);
     }
 
     @Test
