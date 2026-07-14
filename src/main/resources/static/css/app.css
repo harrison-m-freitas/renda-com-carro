@@ -73,13 +73,60 @@
   outline-offset: 1px;
 }
 
-.vehicle-form-page { max-width: 57.5rem; }
+/*.vehicle-form-page { max-width: 57.5rem; }*/
 .vehicle-form-back { color: var(--bs-secondary-color); font-weight: 600; }
 .vehicle-form-back:hover { color: var(--bs-primary); }
 .vehicle-form-back > span:first-child { font-size: 1.5rem; line-height: 1; }
 .vehicle-form { overflow: visible; }
+.vehicle-form-progress {
+  padding: 1rem 1.5rem 0;
+}
+.vehicle-form-progress__copy {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: .5rem;
+  color: var(--bs-secondary-color);
+  font-size: .875rem;
+  font-weight: 600;
+}
+.vehicle-form-progress__track {
+  height: .375rem;
+  background: var(--bs-tertiary-bg);
+}
+.vehicle-form-progress__track .progress-bar {
+  border-radius: inherit;
+}
 .vehicle-form-section { padding: 1.25rem 1.5rem; }
 .vehicle-form-section__header { margin-bottom: 1rem; }
+.vehicle-form [data-vehicle-step-heading]:focus-visible {
+  border-radius: var(--bs-border-radius-sm);
+  outline: 3px solid rgba(13, 110, 253, .25);
+  outline-offset: 3px;
+}
+.vehicle-form [data-vehicle-step-error] { margin-bottom: 1rem; }
+.vehicle-acquisition-toggle {
+  width: 100%;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--bs-body-color);
+  font: inherit;
+  font-weight: 600;
+  text-align: left;
+}
+.vehicle-acquisition-toggle:focus-visible {
+  border-radius: var(--bs-border-radius);
+  outline: 3px solid rgba(13, 110, 253, .25);
+  outline-offset: 2px;
+}
+.vehicle-acquisition-panel { min-width: 0; }
 .vehicle-identification-grid,
 .vehicle-year-plate-grid,
 .vehicle-operation-grid,
@@ -170,8 +217,17 @@
     margin-bottom: .5rem;
     font-size: .875rem;
   }
-  .vehicle-form-page { padding-bottom: 5.5rem; }
+  .vehicle-form-page { padding-bottom: 6.5rem; }
+  .vehicle-form--enhanced [data-vehicle-step][hidden],
+  .vehicle-form--enhanced [data-vehicle-acquisition-panel][hidden],
+  .vehicle-form-actions [hidden] {
+    display: none !important;
+  }
+  .vehicle-form-progress { padding: 1rem 1rem 0; }
   .vehicle-form-section { padding: 1.1rem 1rem; }
+  .vehicle-acquisition-toggle + .vehicle-acquisition-panel:not([hidden]) {
+    padding-top: .75rem;
+  }
   .vehicle-form-actions {
     position: fixed;
     z-index: 1020;
@@ -184,7 +240,10 @@
     border-top: 1px solid var(--bs-border-color);
     box-shadow: 0 -.25rem 1rem rgba(0, 0, 0, .08);
   }
-  .vehicle-form-actions .btn { flex: 1 1 0; }
+  .vehicle-form-actions .btn {
+    flex: 1 1 0;
+    min-width: 0;
+  }
 }
 
 @media (min-width: 768px) {
@@ -193,4 +252,25 @@
   [data-guided-next],
   [data-guided-previous],
   .guided-mobile-actions { display: none !important; }
+
+  [data-vehicle-progress],
+  [data-vehicle-previous],
+  [data-vehicle-next],
+  [data-vehicle-acquisition-toggle] {
+    display: none !important;
+  }
+  [data-vehicle-step],
+  [data-vehicle-acquisition-panel] {
+    display: block !important;
+  }
+  [data-vehicle-cancel-action],
+  [data-vehicle-submit] {
+    display: inline-flex !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .vehicle-form [data-vehicle-submit-spinner] {
+    animation: none;
+  }
 }

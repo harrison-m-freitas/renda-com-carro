@@ -52,12 +52,15 @@ class VehicleWebTest extends PostgresIntegrationTest {
             .andExpect(content().string(containsString("Identificação")))
             .andExpect(content().string(containsString("Dados de operação")))
             .andExpect(content().string(containsString("Aquisição")))
-            .andExpect(content().string(containsString("Apelido do veículo")))
+            .andExpect(content().string(containsString("Nome para identificação")))
             .andExpect(content().string(containsString("Cadastrar veículo")))
             .andExpect(content().string(containsString("appMobileNavigation")))
             .andExpect(content().string(containsString("vehicle-identification-grid")))
             .andExpect(content().string(containsString("vehicle-operation-grid")))
             .andExpect(content().string(containsString("vehicle-acquisition-grid")))
+            .andExpect(content().string(containsString("vehicle-form-progress__copy")))
+            .andExpect(content().string(containsString("vehicle-acquisition-toggle")))
+            .andExpect(content().string(containsString("vehicle-acquisition-panel")))
             .andExpect(content().string(containsString("data-normalize-spaces")))
             .andExpect(content().string(containsString("data-odometer-input")))
             .andExpect(content().string(containsString("data-money-input")))
@@ -65,6 +68,36 @@ class VehicleWebTest extends PostgresIntegrationTest {
             .andExpect(content().string(containsString("data-max-integer-digits=\"11\"")))
             .andExpect(content().string(containsString("type=\"module\"")))
             .andExpect(content().string(not(containsString(">Salvar veículo<"))));
+    }
+
+
+    @Test
+    @WithMockUser(username = "harrison", roles = "OWNER")
+    void newVehicleFormDeclaresTwoStepMobileFlowInEssentialFieldOrder() throws Exception {
+        String html = mvc.perform(get("/vehicles/new"))
+            .andExpect(status().isOk())
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+
+        assertThat(html).contains(
+            "data-vehicle-flow",
+            "data-vehicle-progress",
+            "data-vehicle-step=\"identification\"",
+            "data-vehicle-step=\"operation\"",
+            "data-vehicle-next",
+            "data-vehicle-previous",
+            "data-vehicle-acquisition-toggle",
+            "data-vehicle-acquisition-panel"
+        );
+        assertThat(html).contains("type=\"button\"");
+        assertThat(html).contains("type=\"submit\"", "data-vehicle-submit");
+        assertThat(html).doesNotContain("data-guided-form", "data-draft-type");
+
+        assertThat(html.indexOf("id=\"make\"")).isLessThan(html.indexOf("id=\"model\""));
+        assertThat(html.indexOf("id=\"model\"")).isLessThan(html.indexOf("id=\"year\""));
+        assertThat(html.indexOf("id=\"year\"")).isLessThan(html.indexOf("id=\"plate\""));
+        assertThat(html.indexOf("id=\"plate\"")).isLessThan(html.indexOf("id=\"name\""));
     }
 
     @Test
@@ -165,6 +198,27 @@ class VehicleWebTest extends PostgresIntegrationTest {
             .andExpect(content().string(containsString("Salvar alterações")))
             .andExpect(content().string(containsString("Renault Sandero")))
             .andExpect(content().string(containsString("QWE1R23")));
+    }
+
+    @Test
+    @WithMockUser(username = "harrison", roles = "OWNER")
+    void negativePurchasePriceReturnsInvalidFieldInsideOperationStep() throws Exception {
+        mvc.perform(post("/vehicles")
+                .with(csrf())
+                .param("name", "")
+                .param("make", "Renault")
+                .param("model", "Sandero")
+                .param("year", "2013")
+                .param("plate", "ABC1D23")
+                .param("fuelType", "FLEX")
+                .param("initialOdometer", "10.000")
+                .param("purchasePrice", "-1,00"))
+            .andExpect(status().isOk())
+            .andExpect(view().name("vehicles/form"))
+            .andExpect(content().string(containsString("data-vehicle-step=\"operation\"")))
+            .andExpect(content().string(containsString("id=\"purchasePrice\"")))
+            .andExpect(content().string(containsString("is-invalid")))
+            .andExpect(content().string(containsString("O preço de compra não pode ser negativo")));
     }
 
     @Test
