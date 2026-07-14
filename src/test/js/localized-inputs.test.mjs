@@ -112,6 +112,9 @@ const createHarness = ({
       fireInputListener('beforeinput', event);
       return event;
     },
+    blur() {
+      fireInputListener('blur', new FakeEvent('blur'));
+    },
     restore() {
       for (const listener of documentListeners.get('guided-form:restored') || []) {
         listener({ detail: { form } });
@@ -179,6 +182,19 @@ test('localized inputs: percentage keeps the typed value and reports values abov
   formatLocalizedInputs(percentage.form);
   assert.equal(percentage.input.value, '100,00');
   assert.equal(percentage.input.customValidity, '');
+});
+
+test('localized inputs: normalized text emits one autosave input after blur', () => {
+  const harness = createHarness({
+    attribute: 'data-normalize-spaces',
+    value: '  Banco   Familiar  '
+  });
+  initializeLocalizedInputs(harness.form);
+
+  harness.blur();
+
+  assert.equal(harness.input.value, 'Banco Familiar');
+  assert.equal(harness.dispatched.filter((item) => item.type === 'input').length, 1);
 });
 
 test('localized inputs: final formatting trims normalized text', () => {
