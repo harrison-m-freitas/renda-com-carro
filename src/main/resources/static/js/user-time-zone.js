@@ -130,6 +130,13 @@ export async function initializeUserTimeZone({
   });
 }
 
+export function scheduleUserTimeZoneInitialization(
+  initializer = () => initializeUserTimeZone().catch(() => {}),
+  scheduler = globalThis.queueMicrotask ?? ((callback) => Promise.resolve().then(callback))
+) {
+  scheduler(initializer);
+}
+
 if (typeof document !== 'undefined') {
-  initializeUserTimeZone().catch(() => {});
+  scheduleUserTimeZoneInitialization();
 }
