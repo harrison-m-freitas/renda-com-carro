@@ -29,6 +29,9 @@ public class PlannedWorkDay {
     @Column(name = "planned_hours", nullable = false, precision = 6, scale = 2)
     private BigDecimal plannedHours;
 
+    @Column(name = "allocated_duration_minutes", nullable = false)
+    private long allocatedDurationMinutes;
+
     @Column(nullable = false)
     private boolean available;
 
@@ -50,6 +53,7 @@ public class PlannedWorkDay {
         day.id = UUID.randomUUID();
         day.monthlyGoal = goal;
         day.workDate = date;
+        day.allocatedDurationMinutes = allocatedMinutes;
         day.plannedHours = BigDecimal.valueOf(allocatedMinutes)
             .divide(BigDecimal.valueOf(60), 2, RoundingMode.HALF_UP);
         day.available = true;
@@ -73,5 +77,10 @@ public class PlannedWorkDay {
     public UUID getId() { return id; }
     public LocalDate getWorkDate() { return workDate; }
     public BigDecimal getPlannedHours() { return plannedHours; }
+    public long getAllocatedDurationMinutes() { return allocatedDurationMinutes; }
+    public long getAllocatedHours() { return allocatedDurationMinutes / 60; }
+    public int getAllocatedRemainderMinutes() {
+        return (int) (allocatedDurationMinutes % 60);
+    }
     public boolean isAvailable() { return available; }
 }
