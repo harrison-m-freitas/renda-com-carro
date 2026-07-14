@@ -72,6 +72,7 @@ class GuidedFormsWebContractTest extends PostgresIntegrationTest {
             "name=\"principal\"", "name=\"plannedInstallment\"",
             "name=\"monthlyTarget\"", "data-money-input",
             "name=\"annualRatePercent\"", "data-percentage-input",
+            "Digite 1200 para informar 12,00% ao ano.",
             "name=\"creditor\"", "data-normalize-spaces"
         );
 
