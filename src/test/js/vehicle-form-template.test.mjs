@@ -41,3 +41,12 @@ test('vehicle template: places essential identification fields before optional n
   assert.deepEqual([...positions].sort((left, right) => left - right), positions);
   assert.ok(html.includes('Nome para identificação'));
 });
+
+test('vehicle template: keeps final submission available before JavaScript enhancement', async () => {
+  const html = await loadTemplate();
+
+  assert.match(html, /data-vehicle-previous\s+hidden/);
+  assert.match(html, /data-vehicle-next\s+hidden/);
+  assert.match(html, /type="submit"\s+data-vehicle-submit/);
+  assert.doesNotMatch(html, /type="submit"\s+data-vehicle-submit\s+hidden/);
+});
