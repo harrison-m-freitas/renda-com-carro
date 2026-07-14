@@ -59,12 +59,13 @@ class WorkloadPlannerServiceTest {
     }
 
     @Test
-    void weeklyAssignsAFullLoadToEveryNonEmptyInternalWeek() {
-        YearMonth month = YearMonth.of(2026, 7);
+    void weeklyAssignsAFullLoadToInternalWeeksWithThreeFourFiveAndSixDays() {
+        YearMonth month = YearMonth.of(2026, 3);
         Set<LocalDate> dates = new LinkedHashSet<>();
-        dates.addAll(dates(2026, 7, 6, 7, 8, 9));
-        dates.addAll(dates(2026, 7, 13, 14, 15, 16, 17));
-        dates.addAll(dates(2026, 7, 20, 21, 22, 23, 24, 25));
+        dates.addAll(dates(2026, 3, 2, 3, 4));
+        dates.addAll(dates(2026, 3, 9, 10, 11, 12));
+        dates.addAll(dates(2026, 3, 16, 17, 18, 19, 20));
+        dates.addAll(dates(2026, 3, 23, 24, 25, 26, 27, 28));
 
         WorkloadCalculation result = service.calculate(
             month,
@@ -73,10 +74,10 @@ class WorkloadPlannerServiceTest {
             dates
         );
 
-        assertThat(result.totalMinutes()).isEqualTo(7_200);
+        assertThat(result.totalMinutes()).isEqualTo(9_600);
         assertThat(result.weeks())
             .extracting(WorkloadCalculation.WeekAllocation::selectedDays)
-            .containsExactly(4, 5, 6);
+            .containsExactly(3, 4, 5, 6);
         assertThat(result.weeks())
             .extracting(WorkloadCalculation.WeekAllocation::allocatedMinutes)
             .containsOnly(2_400L);
@@ -150,6 +151,32 @@ class WorkloadPlannerServiceTest {
             assertThat(week.allocatedMinutes()).isEqualTo(960);
             assertThat(week.inferredPattern()).isEmpty();
         });
+    }
+
+    @Test
+    void weeklyFiveDayFallbackProratesThreeAndFourDaysAndCapsSixDays() {
+        WorkloadCalculation threeDays = service.calculate(
+            YearMonth.of(2026, 7),
+            WorkloadPeriodicity.WEEKLY,
+            40 * 60,
+            dates(2026, 7, 1, 2, 3)
+        );
+        WorkloadCalculation fourDays = service.calculate(
+            YearMonth.of(2026, 7),
+            WorkloadPeriodicity.WEEKLY,
+            40 * 60,
+            dates(2026, 7, 1, 2, 3, 4)
+        );
+        WorkloadCalculation sixDays = service.calculate(
+            YearMonth.of(2026, 10),
+            WorkloadPeriodicity.WEEKLY,
+            40 * 60,
+            dates(2026, 10, 26, 27, 28, 29, 30, 31)
+        );
+
+        assertThat(threeDays.totalMinutes()).isEqualTo(1_440);
+        assertThat(fourDays.totalMinutes()).isEqualTo(1_920);
+        assertThat(sixDays.totalMinutes()).isEqualTo(2_400);
     }
 
     @Test
