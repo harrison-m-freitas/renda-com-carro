@@ -38,9 +38,11 @@ class EnumPresentationWebTest extends PostgresIntegrationTest {
     void expenseFormUsesFriendlyClassificationAndAllocationLabels() throws Exception {
         mvc.perform(get("/expenses/new"))
             .andExpect(status().isOk())
-            .andExpect(content().string(containsString(">Profissional</option>")))
+            .andExpect(content().string(containsString("<strong>Profissional</strong>")))
+            .andExpect(content().string(containsString("value=\"PROFESSIONAL\"")))
+            .andExpect(content().string(containsString("<strong>Pela quilometragem do mês</strong>")))
+            .andExpect(content().string(containsString("value=\"MILEAGE_RATIO\"")))
             .andExpect(content().string(not(containsString(">PROFESSIONAL</option>"))))
-            .andExpect(content().string(containsString(">Proporcional à quilometragem</option>")))
             .andExpect(content().string(not(containsString(">MILEAGE_RATIO</option>"))));
     }
 
