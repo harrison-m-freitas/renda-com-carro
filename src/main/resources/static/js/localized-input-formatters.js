@@ -20,17 +20,32 @@ export const applyFixedScaleEdit = (
     inputType = '',
     data = '',
     replaceAll = false,
+    selectionStart = null,
+    selectionEnd = null,
     maxDigits = DEFAULT_FIXED_SCALE_DIGITS
   } = {}
 ) => {
   const current = digitsOnly(currentDigits).slice(0, maxDigits);
+  const hasSelection = Number.isInteger(selectionStart)
+    && Number.isInteger(selectionEnd)
+    && selectionEnd > selectionStart;
+  const start = hasSelection ? Math.max(0, Math.min(selectionStart, current.length)) : current.length;
+  const end = hasSelection ? Math.max(start, Math.min(selectionEnd, current.length)) : current.length;
+  const baseBefore = replaceAll ? '' : current.slice(0, start);
+  const baseAfter = replaceAll ? '' : current.slice(end);
+
   if (inputType.startsWith('delete')) {
-    return replaceAll ? '' : current.slice(0, -1);
+    if (replaceAll) return '';
+    if (hasSelection) return `${baseBefore}${baseAfter}`;
+    return current.slice(0, -1);
   }
 
   const inserted = digitsOnly(data);
   if (!inserted) return current;
 
+  if (hasSelection) {
+    return `${baseBefore}${inserted}${baseAfter}`.slice(0, maxDigits);
+  }
   const base = replaceAll ? '' : current;
   return `${base}${inserted}`.slice(0, maxDigits);
 };
