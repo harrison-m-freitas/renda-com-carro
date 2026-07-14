@@ -12,6 +12,7 @@ import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
+import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -24,6 +25,7 @@ class UserTimeZoneServiceTest {
     void setUp() {
         currentUsers = mock(CurrentUserService.class);
         user = new AppUser("owner", "encoded-password");
+        when(currentUsers.find("owner")).thenReturn(Optional.of(user));
         when(currentUsers.require("owner")).thenReturn(user);
         Clock clock = Clock.fixed(Instant.parse("2026-07-14T10:30:00Z"), ZoneOffset.UTC);
         service = new UserTimeZoneService(currentUsers, clock);
@@ -40,6 +42,15 @@ class UserTimeZoneServiceTest {
     void applicationZoneIsUsedWhenUserHasNoPreference() {
         assertThat(service.resolve("owner")).isEqualTo(ZoneOffset.UTC);
         assertThat(service.today("owner")).isEqualTo(LocalDate.of(2026, 7, 14));
+    }
+
+    @Test
+    void unknownAuthenticatedPrincipalUsesApplicationZoneForPageDefaults() {
+        when(currentUsers.find("test-principal")).thenReturn(Optional.empty());
+
+        assertThat(service.resolve("test-principal")).isEqualTo(ZoneOffset.UTC);
+        assertThat(service.today("test-principal")).isEqualTo(LocalDate.of(2026, 7, 14));
+        assertThat(service.savedTimeZoneId("test-principal")).isEmpty();
     }
 
     @Test
