@@ -72,6 +72,69 @@ test("immediate mobile step save waits for an in-flight autosave", async () => {
   }
 });
 
+test("a queued save still runs with the latest payload after the active save fails", async () => {
+  const originalDocument = globalThis.document;
+  const originalCustomEvent = globalThis.CustomEvent;
+  globalThis.document = { dispatchEvent() {} };
+  globalThis.CustomEvent = class CustomEvent {
+    constructor(type, options = {}) {
+      this.type = type;
+      this.detail = options.detail;
+    }
+  };
+
+  let rejectFirst;
+  let resolveSecond;
+  const calls = [];
+  const client = {
+    save(type, state) {
+      calls.push({ type, state: structuredClone(state) });
+      return new Promise((resolve, reject) => {
+        if (calls.length === 1) rejectFirst = reject;
+        else resolveSecond = resolve;
+      });
+    },
+  };
+  const contextKey = "draft:obligation-failure";
+  const form = createForm("OBLIGATION", contextKey, "creditor", "Banco");
+
+  try {
+    const controller = new GuidedFormController(form, { client });
+    const firstSave = controller.save();
+    const firstFailure = assert.rejects(firstSave, /network failure/);
+    await Promise.resolve();
+
+    form.elements[0].value = "Banco atualizado";
+    const trailingSave = controller.save();
+    const trailingOutcome = trailingSave.then(
+      (value) => ({ value }),
+      (error) => ({ error }),
+    );
+    await Promise.resolve();
+
+    assert.equal(calls.length, 1, "the trailing save must wait for the active request");
+
+    rejectFirst(new Error("network failure"));
+    await firstFailure;
+    await Promise.resolve();
+
+    assert.equal(calls.length, 2, "the queued save must retry after the failed request settles");
+    assert.equal(calls[1].state.version, null);
+    assert.equal(calls[1].state.payload.creditor, "Banco atualizado");
+
+    resolveSecond({
+      contextKey,
+      version: 0,
+      updatedAt: "2026-07-14T00:00:01Z",
+    });
+    const outcome = await trailingOutcome;
+    assert.equal(outcome.error, undefined);
+    assert.equal(outcome.value.version, 0);
+  } finally {
+    restoreBrowserGlobals(originalDocument, originalCustomEvent);
+  }
+});
+
 for (const draftType of GUIDED_DRAFT_TYPES) {
   test(`${draftType} keeps a trailing autosave made while a save is in flight`, async () => {
     const originalDocument = globalThis.document;
