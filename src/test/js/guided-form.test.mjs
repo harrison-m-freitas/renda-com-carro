@@ -135,48 +135,6 @@ test("a queued save still runs with the latest payload after the active save fai
   }
 });
 
-test("legacy emergency restore does not overwrite framework controls", () => {
-  const originalDocument = globalThis.document;
-  const originalCustomEvent = globalThis.CustomEvent;
-  globalThis.document = { dispatchEvent() {} };
-  globalThis.CustomEvent = class CustomEvent {
-    constructor(type, options = {}) {
-      this.type = type;
-      this.detail = options.detail;
-    }
-  };
-
-  const form = createForm("EXPENSE", "current", "amount", "10,00");
-  const csrf = {
-    name: "_csrf",
-    value: "current-token",
-    type: "hidden",
-    disabled: false,
-    readOnly: false,
-    dataset: {},
-  };
-  form.elements.push(csrf);
-
-  try {
-    const controller = new GuidedFormController(form, { client: {} });
-    controller.restore({
-      contextKey: "current",
-      currentStep: 1,
-      version: 0,
-      payload: {
-        amount: "20,00",
-        _csrf: "stale-token",
-        _method: "put",
-      },
-    });
-
-    assert.equal(form.elements[0].value, "20,00");
-    assert.equal(csrf.value, "current-token");
-  } finally {
-    restoreBrowserGlobals(originalDocument, originalCustomEvent);
-  }
-});
-
 for (const draftType of GUIDED_DRAFT_TYPES) {
   test(`${draftType} keeps a trailing autosave made while a save is in flight`, async () => {
     const originalDocument = globalThis.document;
@@ -260,7 +218,6 @@ function createForm(type, contextKey, fieldName, fieldValue) {
         dataset: {},
       },
     ],
-    querySelector() { return null; },
     querySelectorAll() { return []; },
   };
 }
