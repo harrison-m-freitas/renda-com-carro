@@ -79,7 +79,13 @@
           <tbody>
           <tr th:each="day : ${plannedDays}">
             <td th:text="${#temporals.format(day.workDate, 'dd/MM/yyyy')}"></td>
-            <td class="text-end" th:text="${day.plannedHours + ' h'}"></td>
+            <td class="text-end">
+              <span th:if="${day.allocatedHours > 0}"
+                    th:text="${day.allocatedHours + ' h'}"></span>
+              <span th:if="${day.allocatedRemainderMinutes > 0}"
+                    th:text="${(day.allocatedHours > 0 ? ' ' : '') + day.allocatedRemainderMinutes + ' min'}"></span>
+              <span th:if="${day.allocatedDurationMinutes == 0}">0 min</span>
+            </td>
           </tr>
           </tbody>
         </table>
