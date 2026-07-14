@@ -1,5 +1,7 @@
 export const MOBILE_BREAKPOINT = 768;
 
+const FRAMEWORK_CONTROL_NAMES = new Set(["_csrf", "_method"]);
+
 export function clampStep(step, maxStep) {
   const parsedStep = Number.isFinite(Number(step)) ? Number(step) : 1;
   const parsedMax = Math.max(1, Number(maxStep) || 1);
@@ -26,6 +28,7 @@ export function serializeEditableFields(form) {
   const payload = {};
   for (const field of Array.from(form?.elements ?? [])) {
     if (!field?.name || field.disabled) continue;
+    if (FRAMEWORK_CONTROL_NAMES.has(field.name)) continue;
     if (Object.prototype.hasOwnProperty.call(field.dataset ?? {}, "draftIgnore")) continue;
 
     const type = String(field.type ?? "").toLowerCase();
