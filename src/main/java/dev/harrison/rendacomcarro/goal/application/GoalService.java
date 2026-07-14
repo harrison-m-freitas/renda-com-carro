@@ -96,7 +96,7 @@ public class GoalService {
             throw new IllegalArgumentException("Meta mensal já cadastrada");
         }
 
-        WorkloadCalculation calculation = workloadPlanner.calculate(
+        WorkloadCalculation calculation = calculate(
             month,
             periodicity,
             enteredDurationMinutes,
@@ -110,9 +110,46 @@ public class GoalService {
             enteredDurationMinutes,
             calculation.totalMinutes()
         ));
-        calculation.days().stream()
-            .map(day -> PlannedWorkDay.create(goal, day.date(), day.allocatedMinutes()))
-            .forEach(days::save);
+        savePlannedDays(goal, calculation);
+        return goal;
+    }
+
+    @Transactional
+    public MonthlyGoal update(
+        UUID id,
+        YearMonth month,
+        BigDecimal personal,
+        BigDecimal operational,
+        WorkloadPeriodicity periodicity,
+        long enteredDurationMinutes,
+        Set<LocalDate> plannedDates
+    ) {
+        MonthlyGoal goal = get(id);
+        goals.findByReferenceMonth(month.atDay(1))
+            .filter(existing -> !existing.getId().equals(id))
+            .ifPresent(existing -> {
+                throw new IllegalArgumentException("Meta mensal já cadastrada");
+            });
+
+        WorkloadCalculation calculation = calculate(
+            month,
+            periodicity,
+            enteredDurationMinutes,
+            plannedDates
+        );
+        goal.update(
+            month,
+            personal,
+            operational,
+            periodicity,
+            enteredDurationMinutes,
+            calculation.totalMinutes()
+        );
+        goals.save(goal);
+
+        days.deleteAllByMonthlyGoalId(id);
+        days.flush();
+        savePlannedDays(goal, calculation);
         return goal;
     }
 
@@ -141,6 +178,12 @@ public class GoalService {
     }
 
     @Transactional(readOnly = true)
+    public MonthlyGoal get(UUID id) {
+        return goals.findById(id)
+            .orElseThrow(() -> new IllegalArgumentException("Meta mensal não encontrada"));
+    }
+
+    @Transactional(readOnly = true)
     public Optional<MonthlyGoal> find(YearMonth month) {
         return goals.findByReferenceMonth(month.atDay(1));
     }
@@ -148,5 +191,28 @@ public class GoalService {
     @Transactional(readOnly = true)
     public List<PlannedWorkDay> plannedDays(UUID goalId) {
         return days.findAllByMonthlyGoalIdOrderByWorkDateAsc(goalId);
+    }
+
+    private WorkloadCalculation calculate(
+        YearMonth month,
+        WorkloadPeriodicity periodicity,
+        long enteredDurationMinutes,
+        Set<LocalDate> plannedDates
+    ) {
+        return workloadPlanner.calculate(
+            month,
+            periodicity,
+            enteredDurationMinutes,
+            plannedDates
+        );
+    }
+
+    private void savePlannedDays(
+        MonthlyGoal goal,
+        WorkloadCalculation calculation
+    ) {
+        calculation.days().stream()
+            .map(day -> PlannedWorkDay.create(goal, day.date(), day.allocatedMinutes()))
+            .forEach(days::save);
     }
 }
