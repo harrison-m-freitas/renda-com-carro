@@ -146,7 +146,16 @@ const buildResult = (allocatedByDate, weekMetadata = new Map()) => {
     };
   });
   const totalMinutes = days.reduce((total, day) => total + day.allocatedMinutes, 0);
-  return { status: 'ready', totalMinutes, weeks, days };
+  const averageDailyMinutes = divideHalfUp(totalMinutes, 1, days.length);
+  const averageWeeklyMinutes = divideHalfUp(totalMinutes, 1, weeks.length);
+  return {
+    status: 'ready',
+    totalMinutes,
+    averageDailyMinutes,
+    averageWeeklyMinutes,
+    weeks,
+    days
+  };
 };
 
 export const calculateGoalWorkload = ({
@@ -166,7 +175,14 @@ export const calculateGoalWorkload = ({
 
   const dates = normalizeDates(month, plannedDates);
   if (dates.length === 0) {
-    return { status: 'pending', totalMinutes: null, weeks: [], days: [] };
+    return {
+      status: 'pending',
+      totalMinutes: null,
+      averageDailyMinutes: null,
+      averageWeeklyMinutes: null,
+      weeks: [],
+      days: []
+    };
   }
 
   if (normalizedPeriodicity === 'DAILY') {
