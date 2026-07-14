@@ -17,6 +17,7 @@ import dev.harrison.rendacomcarro.expense.web.ExpenseForm;
 import dev.harrison.rendacomcarro.support.PostgresIntegrationTest;
 import dev.harrison.rendacomcarro.vehicle.application.VehicleService;
 import dev.harrison.rendacomcarro.vehicle.domain.FuelType;
+import jakarta.persistence.EntityManager;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.YearMonth;
@@ -24,9 +25,9 @@ import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.jdbc.core.JdbcTemplate;
 
 @SpringBootTest
 @TestPropertySource(properties = {
@@ -42,6 +43,7 @@ class ExpenseFormSubmissionServiceTest extends PostgresIntegrationTest {
     @Autowired VehicleService vehicles;
     @Autowired ObjectMapper mapper;
     @Autowired JdbcTemplate jdbc;
+    @Autowired EntityManager entityManager;
 
     @Test
     void createsExpenseAndDeletesMatchingDraftAtomically() {
@@ -142,6 +144,8 @@ class ExpenseFormSubmissionServiceTest extends PostgresIntegrationTest {
 
         var active = createVehicle();
         jdbc.update("update expense_category set active = false where id = ?", category.getId());
+        entityManager.flush();
+        entityManager.clear();
         assertThatThrownBy(() -> submissions.submit(
             "expense-submission-owner", validForm(active.getId(), category.getId())
         )).hasMessage("Categoria ativa não encontrada");
