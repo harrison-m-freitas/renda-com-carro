@@ -1,0 +1,39 @@
+name: PR15 merge diagnostic
+
+on:
+  push:
+    branches:
+      - feat/obligation-financing-redesign
+
+permissions:
+  contents: write
+
+jobs:
+  diagnose:
+    if: ${{ !contains(github.event.head_commit.message, '[skip ci]') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: feat/obligation-financing-redesign
+      - name: Detect merge conflicts
+        shell: bash
+        run: |
+          set +e
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git fetch origin main
+          git merge --no-commit --no-ff origin/main
+          status=$?
+          if [ "$status" -eq 0 ]; then
+            printf 'NO_CONFLICTS\n' > docs/pr15-merge-conflicts.txt
+            git merge --abort || true
+          else
+            git diff --name-only --diff-filter=U > /tmp/conflicts.txt
+            git merge --abort
+            cp /tmp/conflicts.txt docs/pr15-merge-conflicts.txt
+          fi
+          git add docs/pr15-merge-conflicts.txt
+          git commit -m 'chore: record PR 15 merge conflicts [skip ci]'
+          git push origin HEAD:feat/obligation-financing-redesign
