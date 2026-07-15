@@ -4,20 +4,38 @@
 <section>
   <div class="mb-4">
     <h1 class="h2 mb-1">Novo gasto</h1>
-    <p class="text-secondary mb-0">Registre o gasto em três etapas e revise o valor atribuído à operação.</p>
+    <p class="text-secondary mb-1">Registre o gasto em três etapas e confira como ele afeta o resultado da operação.</p>
+    <p class="small text-secondary mb-0"><span class="required-mark" aria-hidden="true">*</span> Campos obrigatórios.</p>
   </div>
 
-  <form id="expense-form" class="guided-form" th:action="@{/expenses}"
+  <form id="expense-form" class="guided-form expense-form" th:action="@{/expenses}"
         th:object="${expenseForm}" method="post"
         data-guided-form
         data-draft-type="EXPENSE"
         data-draft-context-key="current"
-        data-draft-schema-version="1"
+        data-draft-schema-version="2"
         data-draft-current-step="1"
         data-form-max-step="3">
 
-    <div class="alert alert-danger" th:if="${#fields.hasGlobalErrors()}">
-      <div th:each="error : ${#fields.globalErrors()}" th:text="${error}"></div>
+    <input type="hidden" th:field="*{operationalDayId}">
+    <input type="hidden" th:field="*{shiftId}">
+
+    <div class="alert alert-danger" tabindex="-1" role="alert"
+         data-expense-error-summary
+         th:hidden="${!#fields.hasAnyErrors()}">
+      <p class="fw-semibold mb-2">
+        Não foi possível salvar o gasto. Corrija
+        <span data-expense-error-count th:text="${#fields.allErrors().size()}">0</span>
+        <span th:text="${#fields.allErrors().size() == 1 ? 'erro' : 'erros'}">erros</span>:
+      </p>
+      <ul class="mb-0">
+        <li th:each="error : ${#fields.detailedErrors()}">
+          <a th:if="${!error.global}"
+             th:href="${'#' + error.fieldName}"
+             th:text="${error.message}">Campo inválido.</a>
+          <span th:if="${error.global}" th:text="${error.message}">Erro no formulário.</span>
+        </li>
+      </ul>
     </div>
 
     <section class="guided-step" data-form-step="1" aria-labelledby="expense-step-1-title">
@@ -28,123 +46,214 @@
           <p class="text-secondary mb-0">Identifique o veículo, a categoria, o valor e a data.</p>
         </div>
       </div>
+
       <div class="row g-3">
         <div class="col-md-6">
-          <label class="form-label" for="vehicleId">Veículo <span class="required-mark">*</span></label>
+          <label class="form-label" for="vehicleId">Veículo <span class="required-mark" aria-hidden="true">*</span></label>
           <select class="form-select" id="vehicleId" th:field="*{vehicleId}"
+                  th:classappend="${#fields.hasErrors('vehicleId')} ? 'is-invalid'"
+                  th:attr="aria-invalid=${#fields.hasErrors('vehicleId')}"
                   aria-describedby="vehicleId-error" required data-save-on-blur>
             <option value="">Selecione um veículo</option>
             <option th:each="vehicle : ${vehicles}" th:value="${vehicle.id}"
-                    th:text="${vehicle.name + ' · ' + vehicle.plate}"></option>
+                    th:text="${vehicle.name + ' · ' + vehicle.plate + (vehicle.primaryVehicle ? ' · Principal' : '')}"></option>
           </select>
-          <div class="invalid-feedback d-block" id="vehicleId-error" th:errors="*{vehicleId}"></div>
+          <div class="invalid-feedback" id="vehicleId-error" th:errors="*{vehicleId}"></div>
         </div>
+
         <div class="col-md-6">
-          <label class="form-label" for="categoryId">Categoria <span class="required-mark">*</span></label>
+          <label class="form-label" for="categoryId">Categoria <span class="required-mark" aria-hidden="true">*</span></label>
           <select class="form-select" id="categoryId" th:field="*{categoryId}"
+                  th:classappend="${#fields.hasErrors('categoryId')} ? 'is-invalid'"
+                  th:attr="aria-invalid=${#fields.hasErrors('categoryId')}"
                   aria-describedby="categoryId-error" required data-save-on-blur>
             <option value="">Selecione uma categoria</option>
             <option th:each="category : ${categories}" th:value="${category.id}"
                     th:text="${category.name}"></option>
           </select>
-          <div class="invalid-feedback d-block" id="categoryId-error" th:errors="*{categoryId}"></div>
+          <div class="invalid-feedback" id="categoryId-error" th:errors="*{categoryId}"></div>
         </div>
+
         <div class="col-md-6">
-          <label class="form-label" for="amount">Valor <span class="required-mark">*</span></label>
+          <label class="form-label" for="amount">Valor <span class="required-mark" aria-hidden="true">*</span></label>
           <div class="input-group input-unit">
             <span class="input-group-text">R$</span>
             <input class="form-control" id="amount" type="text" inputmode="decimal"
                    placeholder="0,00" th:field="*{amount}" data-money-input data-max-digits="14"
+                   th:classappend="${#fields.hasErrors('amount')} ? 'is-invalid'"
+                   th:attr="aria-invalid=${#fields.hasErrors('amount')}"
                    aria-describedby="amount-error" required>
           </div>
           <div class="invalid-feedback d-block" id="amount-error" th:errors="*{amount}"></div>
         </div>
+
         <div class="col-md-6">
-          <label class="form-label" for="expenseDate">Data do gasto <span class="required-mark">*</span></label>
+          <label class="form-label" for="expenseDate">Data do gasto <span class="required-mark" aria-hidden="true">*</span></label>
           <input class="form-control" id="expenseDate" type="date" th:field="*{expenseDate}"
-                 aria-describedby="expenseDate-error" required data-save-on-blur>
-          <div class="invalid-feedback d-block" id="expenseDate-error" th:errors="*{expenseDate}"></div>
+                 th:classappend="${#fields.hasErrors('expenseDate')} ? 'is-invalid'"
+                 th:attr="aria-invalid=${#fields.hasErrors('expenseDate')}"
+                 aria-describedby="expenseDate-help expenseDate-error" required data-save-on-blur>
+          <div class="form-text" id="expenseDate-help">Preenchida conforme o fuso horário ativo da sua conta ou dispositivo.</div>
+          <div class="invalid-feedback" id="expenseDate-error" th:errors="*{expenseDate}"></div>
         </div>
       </div>
     </section>
 
-    <section class="guided-step" data-form-step="2" aria-labelledby="expense-step-2-title">
+    <section class="guided-step expense-results-step" data-form-step="2" aria-labelledby="expense-step-2-title">
       <div class="guided-step__header d-flex gap-3 align-items-start">
         <span class="guided-step__number" aria-hidden="true">2</span>
         <div>
-          <h2 class="h4 mb-1" id="expense-step-2-title">Classificação e competência</h2>
-          <p class="text-secondary mb-0">Defina quanto do gasto pertence à atividade profissional.</p>
+          <h2 class="h4 mb-1" id="expense-step-2-title">Como o gasto entra nos resultados?</h2>
+          <p class="text-secondary mb-0">Classifique o gasto e informe a situação do pagamento.</p>
         </div>
       </div>
-      <div class="row g-3">
-        <div class="col-md-4">
-          <label class="form-label" for="classification">Classificação <span class="required-mark">*</span></label>
-          <select class="form-select" id="classification" th:field="*{classification}"
-                  aria-describedby="classification-help classification-error" required>
-            <option th:each="classification : ${classifications}"
-                    th:value="${classification}" th:text="${classification.label}"></option>
-          </select>
-          <div class="form-text" id="classification-help">Profissional entra integralmente; pessoal não entra; misto será rateado.</div>
-          <div class="invalid-feedback d-block" id="classification-error" th:errors="*{classification}"></div>
+
+      <fieldset class="expense-choice-section" id="classification" tabindex="-1"
+                aria-describedby="classification-description classification-error">
+        <legend class="form-label mb-2">Classificação do gasto <span class="required-mark" aria-hidden="true">*</span></legend>
+        <div class="expense-segmented-group expense-segmented-group--three">
+          <label class="expense-segmented-option">
+            <input class="form-check-input" type="radio" th:field="*{classification}"
+                   value="PROFESSIONAL" required>
+            <span>Profissional</span>
+          </label>
+          <label class="expense-segmented-option">
+            <input class="form-check-input" type="radio" th:field="*{classification}"
+                   value="PERSONAL" required>
+            <span>Pessoal</span>
+          </label>
+          <label class="expense-segmented-option">
+            <input class="form-check-input" type="radio" th:field="*{classification}"
+                   value="MIXED" required>
+            <span>Misto</span>
+          </label>
         </div>
-        <div class="col-md-4">
-          <label class="form-label" for="competenceMonth">Competência <span class="required-mark">*</span></label>
-          <input class="form-control" id="competenceMonth" type="month"
-                 th:field="*{competenceMonth}" aria-describedby="competenceMonth-error"
-                 required data-save-on-blur>
-          <div class="invalid-feedback d-block" id="competenceMonth-error" th:errors="*{competenceMonth}"></div>
+        <p class="form-text expense-choice-description" id="classification-description"
+           data-classification-description></p>
+        <div class="invalid-feedback d-block" id="classification-error" th:errors="*{classification}"></div>
+      </fieldset>
+
+      <fieldset class="expense-allocation-panel" id="allocationMethod" tabindex="-1" data-allocation-group
+                aria-describedby="allocation-method-description allocationMethod-error">
+        <legend class="form-label mb-2">Divisão do gasto <span class="required-mark" aria-hidden="true">*</span></legend>
+        <div class="expense-segmented-group expense-segmented-group--three expense-allocation-methods">
+          <label class="expense-segmented-option">
+            <input class="form-check-input" type="radio" th:field="*{allocationMethod}"
+                   value="MILEAGE_RATIO">
+            <span>Quilometragem</span>
+          </label>
+          <label class="expense-segmented-option">
+            <input class="form-check-input" type="radio" th:field="*{allocationMethod}"
+                   value="MANUAL_PERCENTAGE">
+            <span>Percentual</span>
+          </label>
+          <label class="expense-segmented-option">
+            <input class="form-check-input" type="radio" th:field="*{allocationMethod}"
+                   value="FIXED_AMOUNT">
+            <span>Valor</span>
+          </label>
         </div>
-        <div class="col-md-4">
-          <label class="form-label" for="paidDate">Pago em</label>
-          <input class="form-control" id="paidDate" type="date" th:field="*{paidDate}"
-                 aria-describedby="paidDate-help paidDate-error" data-save-on-blur>
-          <div class="form-text" id="paidDate-help">Deixe vazio enquanto estiver pendente.</div>
-          <div class="invalid-feedback d-block" id="paidDate-error" th:errors="*{paidDate}"></div>
+        <p class="form-text expense-choice-description" id="allocation-method-description"
+           data-allocation-method-description></p>
+        <div class="invalid-feedback d-block" id="allocationMethod-error" th:errors="*{allocationMethod}"></div>
+
+        <div class="expense-allocation-preview" data-allocation-preview
+             role="status" aria-live="polite" aria-atomic="true" aria-busy="false" hidden>
+          <strong data-allocation-preview-title>Consultando rateio…</strong>
+          <p class="mb-0 mt-1" data-allocation-preview-message></p>
+          <p class="small text-secondary mb-0 mt-1" data-allocation-preview-warning></p>
         </div>
 
-        <div class="col-md-4" data-allocation-group>
-          <label class="form-label" for="allocationMethod">Método de rateio <span class="required-mark">*</span></label>
-          <select class="form-select" id="allocationMethod" th:field="*{allocationMethod}"
-                  aria-describedby="allocationMethod-error">
-            <option value="">Selecione o método de rateio</option>
-            <option th:each="method : ${allocationMethods}" th:value="${method}"
-                    th:text="${method.label}"></option>
-          </select>
-          <div class="invalid-feedback d-block" id="allocationMethod-error" th:errors="*{allocationMethod}"></div>
-        </div>
-        <div class="col-md-4" data-percentage-group>
-          <label class="form-label" for="professionalPercentagePercent">Percentual profissional <span class="required-mark">*</span></label>
-          <div class="input-group input-unit">
-            <input class="form-control" id="professionalPercentagePercent" type="text"
-                   inputmode="decimal" placeholder="0,00" th:field="*{professionalPercentagePercent}"
-                   data-percentage-input data-max-digits="5" data-max-value="100"
-                   aria-describedby="professionalPercentagePercent-help professionalPercentagePercent-error">
-            <span class="input-group-text">%</span>
+        <div class="expense-manual-allocation-grid">
+          <div data-percentage-group>
+            <label class="form-label" for="professionalPercentagePercent">Percentual profissional <span class="required-mark" aria-hidden="true">*</span></label>
+            <div class="input-group input-unit">
+              <input class="form-control" id="professionalPercentagePercent" type="text"
+                     inputmode="decimal" placeholder="75" th:field="*{professionalPercentagePercent}"
+                     data-natural-percentage-input data-max-digits="5" data-max-value="100"
+                     aria-describedby="professionalPercentagePercent-help professionalPercentagePercent-error">
+              <span class="input-group-text">%</span>
+            </div>
+            <div class="form-text" id="professionalPercentagePercent-help">Exemplo: digite 75 para informar 75%.</div>
+            <div class="invalid-feedback d-block" id="professionalPercentagePercent-error"
+                 th:errors="*{professionalPercentagePercent}"></div>
           </div>
-          <div class="form-text" id="professionalPercentagePercent-help">Informe um valor de 0 a 100.</div>
-          <div class="invalid-feedback d-block" id="professionalPercentagePercent-error"
-               th:errors="*{professionalPercentagePercent}"></div>
-        </div>
-        <div class="col-md-4" data-fixed-group>
-          <label class="form-label" for="professionalFixedAmount">Valor profissional fixo <span class="required-mark">*</span></label>
-          <div class="input-group input-unit">
-            <span class="input-group-text">R$</span>
-            <input class="form-control" id="professionalFixedAmount" type="text"
-                   inputmode="decimal" placeholder="0,00" th:field="*{professionalFixedAmount}"
-                   data-money-input data-max-digits="14"
-                   aria-describedby="professionalFixedAmount-error">
+
+          <div data-fixed-group>
+            <label class="form-label" for="professionalFixedAmount">Valor profissional <span class="required-mark" aria-hidden="true">*</span></label>
+            <div class="input-group input-unit">
+              <span class="input-group-text">R$</span>
+              <input class="form-control" id="professionalFixedAmount" type="text"
+                     inputmode="decimal" placeholder="0,00" th:field="*{professionalFixedAmount}"
+                     data-money-input data-max-digits="14"
+                     aria-describedby="professionalFixedAmount-error">
+            </div>
+            <div class="invalid-feedback d-block" id="professionalFixedAmount-error"
+                 th:errors="*{professionalFixedAmount}"></div>
           </div>
-          <div class="invalid-feedback d-block" id="professionalFixedAmount-error"
-               th:errors="*{professionalFixedAmount}"></div>
+
+          <div class="expense-manual-allocation-reason" data-reason-group>
+            <label class="form-label" for="adjustmentReason">Justificativa do rateio manual <span class="required-mark" aria-hidden="true">*</span></label>
+            <input class="form-control" id="adjustmentReason" th:field="*{adjustmentReason}"
+                   maxlength="300" data-normalize-spaces
+                   placeholder="Explique por que o rateio foi informado manualmente"
+                   aria-describedby="adjustmentReason-help adjustmentReason-error">
+            <div class="form-text" id="adjustmentReason-help">Obrigatória para percentual ou valor manual.</div>
+            <div class="invalid-feedback d-block" id="adjustmentReason-error" th:errors="*{adjustmentReason}"></div>
+          </div>
         </div>
-        <div class="col-12" data-reason-group>
-          <label class="form-label" for="adjustmentReason">Justificativa do rateio manual <span class="required-mark">*</span></label>
-          <input class="form-control" id="adjustmentReason" th:field="*{adjustmentReason}"
-                 data-normalize-spaces
-                 placeholder="Explique por que o rateio foi informado manualmente"
-                 aria-describedby="adjustmentReason-help adjustmentReason-error">
-          <div class="form-text" id="adjustmentReason-help">Obrigatória para percentual ou valor profissional manual.</div>
-          <div class="invalid-feedback d-block" id="adjustmentReason-error" th:errors="*{adjustmentReason}"></div>
+      </fieldset>
+
+      <hr class="expense-section-divider" aria-hidden="true">
+
+      <fieldset class="expense-choice-section" id="paymentStatus" tabindex="-1"
+                aria-describedby="payment-description paymentStatus-error">
+        <legend class="form-label mb-2">Situação do pagamento <span class="required-mark" aria-hidden="true">*</span></legend>
+        <div class="expense-segmented-group expense-segmented-group--payment">
+          <label class="expense-segmented-option">
+            <input class="form-check-input" type="radio" th:field="*{paymentStatus}" value="PAID" required>
+            <span>Pago</span>
+          </label>
+          <label class="expense-segmented-option">
+            <input class="form-check-input" type="radio" th:field="*{paymentStatus}" value="PENDING" required>
+            <span>Pendente</span>
+          </label>
+        </div>
+        <p class="form-text expense-choice-description" id="payment-description"
+           data-payment-description></p>
+        <div class="invalid-feedback d-block" id="paymentStatus-error" th:errors="*{paymentStatus}"></div>
+      </fieldset>
+
+      <div class="expense-payment-grid">
+        <div data-paid-date-group>
+          <label class="form-label" for="paidDate">Data do pagamento <span class="required-mark" aria-hidden="true">*</span></label>
+          <input class="form-control" id="paidDate" type="date" th:field="*{paidDate}"
+                 th:classappend="${#fields.hasErrors('paidDate')} ? 'is-invalid'"
+                 th:attr="aria-invalid=${#fields.hasErrors('paidDate')}"
+                 aria-describedby="paidDate-help paidDate-error" data-save-on-blur>
+          <div class="form-text" id="paidDate-help">Acompanha a data do gasto até ser alterada manualmente.</div>
+          <div class="invalid-feedback" id="paidDate-error" th:errors="*{paidDate}"></div>
+        </div>
+
+        <div class="expense-reference-wrap">
+          <span class="expense-reference-control__spacer" aria-hidden="true"></span>
+          <details class="expense-reference-control" data-expense-more-options>
+            <summary>
+              <span>Referência: <strong data-reference-label>—</strong></span>
+              <span class="expense-reference-control__action">Alterar</span>
+            </summary>
+            <div class="expense-reference-control__content">
+              <label class="form-label" for="competenceMonth">Mês de referência <span class="required-mark" aria-hidden="true">*</span></label>
+              <input class="form-control" id="competenceMonth" type="month"
+                     th:field="*{competenceMonth}"
+                     th:classappend="${#fields.hasErrors('competenceMonth')} ? 'is-invalid'"
+                     th:attr="aria-invalid=${#fields.hasErrors('competenceMonth')}"
+                     aria-describedby="competenceMonth-help competenceMonth-error"
+                     required data-save-on-blur>
+              <div class="form-text" id="competenceMonth-help">Mês em que o gasto será considerado nos resultados.</div>
+              <div class="invalid-feedback" id="competenceMonth-error" th:errors="*{competenceMonth}"></div>
+            </div>
+          </details>
         </div>
       </div>
     </section>
@@ -154,23 +263,48 @@
         <span class="guided-step__number" aria-hidden="true">3</span>
         <div>
           <h2 class="h4 mb-1" id="expense-step-3-title">Revisão e observações</h2>
-          <p class="text-secondary mb-0">Confira o impacto do gasto antes de salvar.</p>
+          <p class="text-secondary mb-0">Confira o impacto financeiro antes de salvar.</p>
         </div>
       </div>
-      <div class="guided-summary mb-3" aria-live="polite">
-        <div class="d-flex justify-content-between gap-3 mb-2">
-          <span>Valor do gasto</span>
+
+      <div class="guided-summary expense-summary mb-3">
+        <div class="expense-summary__row">
+          <span>Total do gasto</span>
           <strong data-summary-total>R$ 0,00</strong>
         </div>
-        <div class="d-flex justify-content-between gap-3">
-          <span>Valor atribuído à operação</span>
+        <div class="expense-summary__row">
+          <span data-summary-professional-label>Parte profissional</span>
           <strong data-summary-professional>R$ 0,00</strong>
         </div>
+        <div class="expense-summary__row">
+          <span data-summary-personal-label>Parte pessoal</span>
+          <strong data-summary-personal>R$ 0,00</strong>
+        </div>
+        <div class="expense-summary__row">
+          <span>Situação</span>
+          <strong data-summary-payment>Pago</strong>
+        </div>
+        <div class="expense-summary__row">
+          <span>Data do pagamento</span>
+          <strong data-summary-paid-date>—</strong>
+        </div>
+        <div class="expense-summary__row">
+          <span>Mês de referência</span>
+          <strong data-summary-reference>—</strong>
+        </div>
+        <div class="expense-summary__row">
+          <span>Critério</span>
+          <strong data-summary-criterion>Integralmente profissional</strong>
+        </div>
+        <p class="expense-summary__conclusion mb-0" data-summary-conclusion></p>
       </div>
+      <div class="visually-hidden" role="status" aria-live="polite" aria-atomic="true"
+           data-expense-status></div>
+
       <div>
         <label class="form-label" for="notes">Observações</label>
-        <textarea class="form-control" id="notes" rows="4" th:field="*{notes}"
-                  data-trim-outer-whitespace
+        <textarea class="form-control" id="notes" rows="4" maxlength="2000"
+                  th:field="*{notes}" data-trim-outer-whitespace
                   placeholder="Fornecedor, comprovante ou contexto do gasto"></textarea>
       </div>
     </section>
@@ -178,12 +312,15 @@
     <div class="d-none d-md-flex justify-content-between align-items-center gap-2 mt-3">
       <span th:replace="~{fragments/guided-form :: draft-status}"></span>
       <div class="d-flex gap-2">
-        <a class="btn btn-outline-secondary" th:href="@{/expenses}">Cancelar</a>
-        <button class="btn btn-primary" type="submit">Salvar gasto</button>
+        <button class="btn btn-link text-danger" type="button" data-expense-discard-draft>
+          Descartar rascunho
+        </button>
+        <a class="btn btn-outline-secondary" th:href="@{/expenses}">Voltar aos gastos</a>
+        <button class="btn btn-primary" type="submit" data-expense-submit>Salvar gasto</button>
       </div>
     </div>
 
-    <div th:replace="~{fragments/guided-form :: mobile-actions('Revisar e salvar')}"></div>
+    <div th:replace="~{fragments/guided-form :: mobile-actions('Salvar gasto')}"></div>
     <div th:replace="~{fragments/guided-form :: recovery-modal('expense')}"></div>
     <div th:replace="~{fragments/guided-form :: conflict-modal('expense')}"></div>
   </form>

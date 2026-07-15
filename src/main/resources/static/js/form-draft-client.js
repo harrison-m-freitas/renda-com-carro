@@ -1,3 +1,4 @@
+import "./expense-draft-policy.js";
 import {
   draftStorageKey,
   isDraftFrameworkControlName,
@@ -75,11 +76,8 @@ export class FormDraftClient {
     }
   }
 
-  async discard(type, contextKey, version = null) {
+  async discard(type, contextKey) {
     const params = new URLSearchParams({ contextKey });
-    if (version !== null && version !== undefined) {
-      params.set("version", String(version));
-    }
     const response = await this.fetchImpl(
       `${this.baseUrl}/${encodeURIComponent(type)}?${params.toString()}`,
       {

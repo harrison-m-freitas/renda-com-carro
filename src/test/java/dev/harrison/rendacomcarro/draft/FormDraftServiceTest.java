@@ -82,7 +82,7 @@ class FormDraftServiceTest extends PostgresIntegrationTest {
             owner,
             FormDraftType.EXPENSE,
             "current",
-            1,
+            2,
             1,
             "{}",
             now.minusDays(8),
@@ -95,17 +95,18 @@ class FormDraftServiceTest extends PostgresIntegrationTest {
     }
 
     @Test
-    void discardChecksVersionAndCompleteIsIdempotent() {
+    void explicitDiscardIgnoresStaleVersionAndIsIdempotent() {
         service.save("draft-service-owner", expenseCommand(null, false, "100,00"));
         service.save("draft-service-owner", expenseCommand(0L, false, "110,00"));
 
-        assertThatThrownBy(() -> service.discard(
+        assertThatNoException().isThrownBy(() -> service.discard(
             "draft-service-owner", FormDraftType.EXPENSE, "current", 0L
-        )).isInstanceOf(FormDraftConflictException.class);
-
-        service.discard("draft-service-owner", FormDraftType.EXPENSE, "current", 1L);
+        ));
         assertThat(service.find("draft-service-owner", FormDraftType.EXPENSE, "current"))
             .isEmpty();
+        assertThatNoException().isThrownBy(() -> service.discard(
+            "draft-service-owner", FormDraftType.EXPENSE, "current", 1L
+        ));
         assertThatNoException().isThrownBy(() -> service.complete(
             "draft-service-owner", FormDraftType.EXPENSE, "current"
         ));
@@ -121,7 +122,7 @@ class FormDraftServiceTest extends PostgresIntegrationTest {
             new SaveDraftCommand(
                 FormDraftType.EXPENSE,
                 "current",
-                1,
+                2,
                 1,
                 null,
                 payload,
@@ -145,7 +146,7 @@ class FormDraftServiceTest extends PostgresIntegrationTest {
         return new SaveDraftCommand(
             FormDraftType.EXPENSE,
             "current",
-            1,
+            2,
             1,
             version,
             validExpensePayload(amount),
@@ -158,6 +159,7 @@ class FormDraftServiceTest extends PostgresIntegrationTest {
             .put("vehicleId", UUID.randomUUID().toString())
             .put("categoryId", UUID.randomUUID().toString())
             .put("expenseDate", "2026-07-13")
+            .put("paymentStatus", "PENDING")
             .put("amount", amount);
     }
 

@@ -245,7 +245,8 @@ class AcceptanceFlowTest extends PostgresIntegrationTest {
         mvc.perform(get("/expenses/new").session(session))
             .andExpect(status().isOk())
             .andExpect(content().string(containsString("Profissional")))
-            .andExpect(content().string(containsString("Proporcional à quilometragem")));
+            .andExpect(content().string(containsString("Quilometragem")))
+            .andExpect(content().string(containsString("expense-segmented-group")));
 
         mvc.perform(get("/").session(session))
             .andExpect(status().isOk())

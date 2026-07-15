@@ -19,7 +19,9 @@ public class ExpenseService {
  public ExpenseService(ExpenseRepository expenses,ExpenseCategoryRepository categories,VehicleService vehicles,OperationalDayService days,ShiftService shifts){this.expenses=expenses;this.categories=categories;this.vehicles=vehicles;this.days=days;this.shifts=shifts;}
  public record CreateExpenseCommand(UUID vehicleId,UUID operationalDayId,UUID shiftId,UUID categoryId,LocalDate expenseDate,LocalDate competenceDate,LocalDate paidDate,BigDecimal amount,ExpenseClassification classification,AllocationMethod allocationMethod,BigDecimal professionalPercentage,BigDecimal professionalFixedAmount,String adjustmentReason,String notes){}
  @Transactional public Expense create(CreateExpenseCommand c){
-  var vehicle=vehicles.get(c.vehicleId()); ExpenseCategory category=categories.findById(c.categoryId()).orElseThrow(()->new IllegalArgumentException("Categoria não encontrada"));
+  var vehicle=vehicles.getActive(c.vehicleId()); ExpenseCategory category=categories.findById(c.categoryId())
+    .filter(ExpenseCategory::isActive)
+    .orElseThrow(()->new IllegalArgumentException("Categoria ativa não encontrada"));
   OperationalDay day=c.operationalDayId()==null?null:days.get(c.operationalDayId()); Shift shift=c.shiftId()==null?null:shifts.get(c.shiftId());
   if(day!=null&&!day.getVehicle().getId().equals(vehicle.getId())) throw new IllegalArgumentException("Dia não pertence ao veículo");
   if(shift!=null&&(day==null||!shift.getOperationalDay().getId().equals(day.getId()))) throw new IllegalArgumentException("Turno não pertence ao dia informado");

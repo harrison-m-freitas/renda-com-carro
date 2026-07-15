@@ -73,6 +73,37 @@ export const formatMoneyInput = (raw, maxDigits = DEFAULT_MONEY_DIGITS) =>
 export const formatPercentageInput = (raw, maxDigits = DEFAULT_PERCENTAGE_DIGITS) =>
   formatFixedScaleInput(raw, { scale: 2, maxDigits });
 
+export const formatNaturalPercentageInput = (
+  raw,
+  {
+    final = false,
+    maxIntegerDigits = 3,
+    maxDecimalDigits = 2
+  } = {}
+) => {
+  const source = asText(raw)
+    .replace(/\s/g, '')
+    .replace(/%/g, '')
+    .replace(/\./g, ',')
+    .replace(/[^\d,]/g, '');
+  if (!source) return '';
+
+  const separatorIndex = source.indexOf(',');
+  const hasSeparator = separatorIndex >= 0;
+  const integerSource = hasSeparator ? source.slice(0, separatorIndex) : source;
+  const decimalSource = hasSeparator
+    ? source.slice(separatorIndex + 1).replace(/,/g, '')
+    : '';
+  const integerDigits = digitsOnly(integerSource).slice(0, maxIntegerDigits);
+  const integer = trimLeadingZeros(integerDigits || '0');
+  if (!hasSeparator) return integer;
+
+  let decimals = digitsOnly(decimalSource).slice(0, maxDecimalDigits);
+  if (final && decimals) decimals = decimals.padEnd(maxDecimalDigits, '0');
+  if (final && !decimals) return integer;
+  return `${integer},${decimals}`;
+};
+
 const splitOdometer = (raw) => {
   const source = asText(raw)
     .replace(/\s/g, '')

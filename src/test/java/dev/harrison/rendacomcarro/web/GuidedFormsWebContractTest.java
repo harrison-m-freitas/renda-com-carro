@@ -35,17 +35,13 @@ class GuidedFormsWebContractTest extends PostgresIntegrationTest {
 
     @Test
     @WithMockUser(username = "guided-contract-owner", roles = "OWNER")
-    void complexFormsContainGuidedSectionsRecoveryConflictAndRealSubmitButtons() throws Exception {
+    void complexFormsContainGuidedSectionsConflictAndRealSubmitButtons() throws Exception {
         var vehicle = createVehicle();
         YearMonth month = YearMonth.of(2028, 1);
 
         assertGuided("/expenses/new", "EXPENSE", "Salvar gasto");
         assertGuided("/goals/new?month=2028-01", "MONTHLY_GOAL", "Salvar meta");
-        assertGuided(
-            "/obligations/new?draftKey=draft:" + UUID.randomUUID(),
-            "OBLIGATION",
-            "Salvar obrigação"
-        );
+        assertGuided("/obligations/new", "OBLIGATION", "Salvar obrigação");
         assertGuided(
             "/mileage-closings/new?vehicleId=" + vehicle.getId() + "&month=" + month,
             "MILEAGE_CLOSING",
@@ -61,14 +57,14 @@ class GuidedFormsWebContractTest extends PostgresIntegrationTest {
 
         assertLocalizedInputs("/expenses/new",
             "name=\"amount\"", "data-money-input",
-            "name=\"professionalPercentagePercent\"", "data-percentage-input",
+            "name=\"professionalPercentagePercent\"", "data-natural-percentage-input",
             "name=\"professionalFixedAmount\"", "data-normalize-spaces");
 
         assertLocalizedInputs("/goals/new?month=2028-01",
             "name=\"personalNetGoal\"", "name=\"operationalGoal\"", "data-money-input");
 
         assertLocalizedInputs(
-            "/obligations/new?draftKey=draft:" + UUID.randomUUID(),
+            "/obligations/new",
             "name=\"principal\"", "name=\"plannedInstallment\"",
             "name=\"monthlyTarget\"", "data-money-input",
             "name=\"annualRatePercent\"", "data-percentage-input",
@@ -81,6 +77,35 @@ class GuidedFormsWebContractTest extends PostgresIntegrationTest {
             "name=\"initialOdometer\"", "name=\"finalOdometer\"",
             "name=\"professionalKilometers\"", "data-odometer-input"
         );
+    }
+
+    @Test
+    @WithMockUser(username = "guided-contract-owner", roles = "OWNER")
+    void expenseGuidedFormExposesAccessibleChoiceGroupsAndReviewStatus() throws Exception {
+        mvc.perform(get("/expenses/new"))
+            .andExpect(status().isOk())
+            .andExpect(content().string(containsString("data-draft-schema-version=\"2\"")))
+            .andExpect(content().string(containsString("<legend")))
+            .andExpect(content().string(containsString("expense-segmented-group")))
+            .andExpect(content().string(containsString("data-classification-description")))
+            .andExpect(content().string(containsString("data-payment-description")))
+            .andExpect(content().string(containsString("data-reference-label")))
+            .andExpect(content().string(containsString("data-summary-personal")))
+            .andExpect(content().string(containsString("data-expense-status")))
+            .andExpect(content().string(not(containsString("classification-card"))));
+    }
+
+    @Test
+    @WithMockUser(username = "guided-contract-owner", roles = "OWNER")
+    void expenseAndObligationFormsDoNotRequireAutomaticRecoveryDialogs() throws Exception {
+        mvc.perform(get("/expenses/new"))
+            .andExpect(status().isOk())
+            .andExpect(content().string(containsString("data-draft-type=\"EXPENSE\"")));
+
+        mvc.perform(get("/obligations/new"))
+            .andExpect(status().isOk())
+            .andExpect(content().string(containsString("data-draft-recovery-mode=\"none\"")))
+            .andExpect(content().string(not(containsString("data-guided-dialog=\"recovery\""))));
     }
 
     @Test
@@ -111,7 +136,6 @@ class GuidedFormsWebContractTest extends PostgresIntegrationTest {
             .andExpect(status().isOk())
             .andExpect(content().string(containsString("data-guided-form")))
             .andExpect(content().string(containsString("data-draft-type=\"" + type + "\"")))
-            .andExpect(content().string(containsString("data-guided-dialog=\"recovery\"")))
             .andExpect(content().string(containsString("data-guided-dialog=\"conflict\"")))
             .andExpect(content().string(containsString("data-guided-save-status")))
             .andExpect(content().string(containsString(finalCopy)));

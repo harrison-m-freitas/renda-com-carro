@@ -4,7 +4,14 @@ public class FormDraftConflictException extends RuntimeException {
     private final FormDraftService.DraftView current;
 
     public FormDraftConflictException(FormDraftService.DraftView current) {
-        super("Este rascunho foi alterado em outro dispositivo.");
+        this("Existem alterações diferentes neste rascunho.", current);
+    }
+
+    public FormDraftConflictException(
+        String message,
+        FormDraftService.DraftView current
+    ) {
+        super(message);
         this.current = current;
     }
 

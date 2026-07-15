@@ -37,18 +37,19 @@ class ObligationWebTest extends PostgresIntegrationTest {
 
     @Test
     @WithMockUser(username = "obligation-web-owner", roles = "OWNER")
-    void obligationFormUsesGuidedLocalizedInputsAndUniqueDraftKey() throws Exception {
-        String key = "draft:" + UUID.randomUUID();
-
-        mvc.perform(get("/obligations/new").param("draftKey", key))
+    void obligationFormUsesGuidedLocalizedInputsAndCandidateDraftKey() throws Exception {
+        mvc.perform(get("/obligations/new"))
             .andExpect(status().isOk())
             .andExpect(content().string(containsString("data-guided-form")))
             .andExpect(content().string(containsString("data-draft-type=\"OBLIGATION\"")))
-            .andExpect(content().string(containsString("data-draft-context-key=\"" + key + "\"")))
+            .andExpect(content().string(containsString("data-draft-context-key=\"draft:")))
+            .andExpect(content().string(containsString("data-draft-recovery-mode=\"none\"")))
             .andExpect(content().string(containsString("data-form-step=\"1\"")))
             .andExpect(content().string(containsString("data-form-step=\"2\"")))
             .andExpect(content().string(containsString("data-form-step=\"3\"")))
             .andExpect(content().string(containsString("data-form-step=\"4\"")))
+            .andExpect(content().string(containsString("Sair e manter rascunho")))
+            .andExpect(content().string(containsString("Descartar rascunho")))
             .andExpect(content().string(containsString("R$")))
             .andExpect(content().string(containsString("Juros anuais")))
             .andExpect(content().string(containsString("%")))
@@ -74,7 +75,7 @@ class ObligationWebTest extends PostgresIntegrationTest {
 
     @Test
     @WithMockUser(username = "obligation-web-owner", roles = "OWNER")
-    void obligationListShowsOnlyOwnerDrafts() throws Exception {
+    void obligationListAndNewEntryExposeTheSingleOwnerDraft() throws Exception {
         String ownKey = "draft:" + UUID.randomUUID();
         drafts.save("obligation-web-owner", new SaveDraftCommand(
             FormDraftType.OBLIGATION,
@@ -88,13 +89,23 @@ class ObligationWebTest extends PostgresIntegrationTest {
             false
         ));
 
-        mvc.perform(get("/obligations")
-                .with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user(
-                    "obligation-web-owner"
-                ).roles("OWNER")))
+        mvc.perform(get("/obligations"))
             .andExpect(status().isOk())
-            .andExpect(content().string(containsString("Rascunhos em andamento")))
+            .andExpect(content().string(containsString("Obrigação em andamento")))
             .andExpect(content().string(containsString("Banco em rascunho")))
+            .andExpect(content().string(containsString(ownKey)))
+            .andExpect(content().string(containsString("Descartar")));
+
+        mvc.perform(get("/obligations/new"))
+            .andExpect(status().isOk())
+            .andExpect(content().string(containsString("Você já possui uma obrigação em andamento")))
+            .andExpect(content().string(containsString("Continuar rascunho")))
+            .andExpect(content().string(containsString("Descartar e começar novamente")))
             .andExpect(content().string(containsString(ownKey)));
+
+        mvc.perform(get("/obligations/new").param("draftKey", ownKey))
+            .andExpect(status().isOk())
+            .andExpect(content().string(containsString("data-draft-recovery-mode=\"auto\"")))
+            .andExpect(content().string(containsString("data-draft-context-key=\"" + ownKey + "\"")));
     }
 }
