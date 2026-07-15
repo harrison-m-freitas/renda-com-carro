@@ -8,6 +8,7 @@ import dev.harrison.rendacomcarro.expense.domain.ExpenseClassification;
 import dev.harrison.rendacomcarro.expense.web.ExpenseForm;
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.List;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -43,8 +44,19 @@ public class ExpenseFormSubmissionService {
             normalized.adjustmentReason(),
             form.getNotes()
         ));
-        drafts.complete(username, FormDraftType.EXPENSE, "current");
+        drafts.completeAll(
+            username,
+            FormDraftType.EXPENSE,
+            List.of(
+                nullToEmpty(form.getDraftContextKey()),
+                nullToEmpty(form.getPreviousDraftContextKey())
+            )
+        );
         return created;
+    }
+
+    private String nullToEmpty(String value) {
+        return value == null ? "" : value;
     }
 
     private NormalizedExpense normalize(ExpenseForm form) {
