@@ -133,10 +133,19 @@
   max-width: 34rem;
 }
 
-.expense-reference-control {
+.expense-reference-wrap {
   width: max-content;
   max-width: 100%;
-  align-self: start;
+}
+
+.expense-reference-control__spacer {
+  display: block;
+  height: 1.5rem;
+  margin-bottom: .5rem;
+}
+
+.expense-reference-control {
+  width: 100%;
 }
 
 .expense-reference-control[open] {
@@ -187,6 +196,12 @@
   color: var(--bs-secondary-color);
 }
 
+.expense-section-divider {
+  margin: 1.5rem 0 1.25rem;
+  border: 0;
+  border-top: 1px solid var(--bs-border-color-translucent);
+}
+
 .expense-reference-control__content {
   width: 100%;
   margin-top: .5rem;
@@ -222,9 +237,14 @@
     max-width: none;
   }
 
+  .expense-reference-wrap,
   .expense-reference-control,
   .expense-reference-control[open] {
     width: 100%;
+  }
+
+  .expense-reference-control__spacer {
+    display: none;
   }
 
   .expense-reference-control > summary {

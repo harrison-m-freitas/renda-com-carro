@@ -204,6 +204,8 @@
         </div>
       </fieldset>
 
+      <hr class="expense-section-divider" aria-hidden="true">
+
       <fieldset class="expense-choice-section" id="paymentStatus" tabindex="-1"
                 aria-describedby="payment-description paymentStatus-error">
         <legend class="form-label mb-2">Situação do pagamento <span class="required-mark" aria-hidden="true">*</span></legend>
@@ -233,23 +235,26 @@
           <div class="invalid-feedback" id="paidDate-error" th:errors="*{paidDate}"></div>
         </div>
 
-        <details class="expense-reference-control" data-expense-more-options>
-          <summary>
-            <span>Referência: <strong data-reference-label>—</strong></span>
-            <span class="expense-reference-control__action">Alterar</span>
-          </summary>
-          <div class="expense-reference-control__content">
-            <label class="form-label" for="competenceMonth">Mês de referência <span class="required-mark" aria-hidden="true">*</span></label>
-            <input class="form-control" id="competenceMonth" type="month"
-                   th:field="*{competenceMonth}"
-                   th:classappend="${#fields.hasErrors('competenceMonth')} ? 'is-invalid'"
-                   th:attr="aria-invalid=${#fields.hasErrors('competenceMonth')}"
-                   aria-describedby="competenceMonth-help competenceMonth-error"
-                   required data-save-on-blur>
-            <div class="form-text" id="competenceMonth-help">Mês em que o gasto será considerado nos resultados.</div>
-            <div class="invalid-feedback" id="competenceMonth-error" th:errors="*{competenceMonth}"></div>
-          </div>
-        </details>
+        <div class="expense-reference-wrap">
+          <span class="expense-reference-control__spacer" aria-hidden="true"></span>
+          <details class="expense-reference-control" data-expense-more-options>
+            <summary>
+              <span>Referência: <strong data-reference-label>—</strong></span>
+              <span class="expense-reference-control__action">Alterar</span>
+            </summary>
+            <div class="expense-reference-control__content">
+              <label class="form-label" for="competenceMonth">Mês de referência <span class="required-mark" aria-hidden="true">*</span></label>
+              <input class="form-control" id="competenceMonth" type="month"
+                     th:field="*{competenceMonth}"
+                     th:classappend="${#fields.hasErrors('competenceMonth')} ? 'is-invalid'"
+                     th:attr="aria-invalid=${#fields.hasErrors('competenceMonth')}"
+                     aria-describedby="competenceMonth-help competenceMonth-error"
+                     required data-save-on-blur>
+              <div class="form-text" id="competenceMonth-help">Mês em que o gasto será considerado nos resultados.</div>
+              <div class="invalid-feedback" id="competenceMonth-error" th:errors="*{competenceMonth}"></div>
+            </div>
+          </details>
+        </div>
       </div>
     </section>
 
