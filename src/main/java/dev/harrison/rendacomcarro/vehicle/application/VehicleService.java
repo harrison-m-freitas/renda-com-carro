@@ -64,7 +64,7 @@ public class VehicleService {
         Vehicle vehicle = Vehicle.create(
             command.name(), command.make(), command.model(), command.year(), command.plate(),
             command.fuelType(), command.initialOdometer(), command.purchasePrice());
-        return repository.save(vehicle);
+        return repository.saveAndFlush(vehicle);
     }
 
     @Transactional(readOnly = true)
@@ -131,8 +131,10 @@ public class VehicleService {
         operational.stream()
             .filter(vehicle -> vehicle.getStatus() == VehicleStatus.ACTIVE)
             .forEach(Vehicle::deactivate);
-        selected.activate();
         repository.saveAllAndFlush(operational);
+
+        selected.activate();
+        repository.saveAndFlush(selected);
     }
 
     @Transactional
