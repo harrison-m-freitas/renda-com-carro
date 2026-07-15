@@ -23,9 +23,12 @@ public class FormDraftController {
         this.drafts = drafts;
     }
 
-    @GetMapping("/OBLIGATION/list")
-    public List<FormDraftSummaryResponse> listObligations(Authentication authentication) {
-        return drafts.listActive(authentication.getName(), FormDraftType.OBLIGATION)
+    @GetMapping("/{type}/list")
+    public List<FormDraftSummaryResponse> list(
+        @PathVariable FormDraftType type,
+        Authentication authentication
+    ) {
+        return drafts.listActive(authentication.getName(), type)
             .stream()
             .map(FormDraftSummaryResponse::from)
             .toList();
@@ -59,10 +62,9 @@ public class FormDraftController {
     public ResponseEntity<Void> discard(
         @PathVariable FormDraftType type,
         @RequestParam String contextKey,
-        @RequestParam(required = false) Long version,
         Authentication authentication
     ) {
-        drafts.discard(authentication.getName(), type, contextKey, version);
+        drafts.discard(authentication.getName(), type, contextKey);
         return ResponseEntity.noContent().build();
     }
 }
