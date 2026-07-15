@@ -63,6 +63,7 @@ class ObligationFormValidatorTest {
     void singlePaymentMustNotBeBelowTheAmountReceived() {
         ObligationForm form = baseForm();
         form.setMode(ObligationMode.SINGLE_PAYMENT);
+        form.setCalculationMethod(ObligationCalculationMethod.TOTAL_KNOWN);
         form.setFirstDueDate(LocalDate.of(2026, 8, 14));
         form.setSinglePaymentAmount(new BigDecimal("9000.00"));
 
