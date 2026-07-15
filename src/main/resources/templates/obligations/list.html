@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="pt-BR" xmlns:th="http://www.thymeleaf.org"
       th:replace="~{layouts/app :: layout(~{::section}, 'Obrigações')}">
-<section>
+<section th:attr="data-obligation-active-draft-key=${#lists.isEmpty(obligationDrafts) ? '' : obligationDrafts[0].contextKey}">
   <div class="d-flex justify-content-between align-items-center mb-4">
     <h1 class="h2 mb-0">Obrigações</h1>
     <a class="btn btn-primary" th:href="@{/obligations/new}">Nova obrigação</a>
@@ -10,23 +10,35 @@
   <section class="card mb-4" th:if="${!#lists.isEmpty(obligationDrafts)}"
            aria-labelledby="obligation-drafts-title">
     <div class="card-header">
-      <h2 class="h5 mb-1" id="obligation-drafts-title">Rascunhos em andamento</h2>
-      <p class="text-secondary small mb-0">Continue obrigações iniciadas neste ou em outro dispositivo.</p>
+      <div>
+        <h2 class="h5 mb-1" id="obligation-drafts-title">Obrigação em andamento</h2>
+        <p class="text-secondary small mb-0">Existe somente um rascunho ativo por vez.</p>
+      </div>
     </div>
     <div class="list-group list-group-flush">
-      <a class="list-group-item list-group-item-action d-flex justify-content-between align-items-center gap-3"
-         th:each="draft : ${obligationDrafts}"
-         th:href="@{/obligations/new(draftKey=${draft.contextKey})}">
+      <div class="list-group-item d-flex flex-column flex-sm-row justify-content-between align-items-sm-center gap-3"
+           th:with="draft=${obligationDrafts[0]}">
         <span>
           <strong class="d-block" th:text="${draft.creditor}">Credor</strong>
           <small class="text-secondary">
             Etapa <span th:text="${draft.currentStep}"></span> ·
-            salvo em <span th:text="${#temporals.format(draft.updatedAt, 'dd/MM/yyyy HH:mm')}"></span>
+            salva em <span th:text="${#temporals.format(draft.updatedAt, 'dd/MM/yyyy HH:mm')}"></span>
           </small>
-          <span class="visually-hidden" th:text="${draft.contextKey}"></span>
         </span>
-        <span class="btn btn-sm btn-outline-primary">Continuar</span>
-      </a>
+        <div class="d-flex flex-wrap gap-2">
+          <a class="btn btn-sm btn-outline-primary"
+             th:href="@{/obligations/new(draftKey=${draft.contextKey})}">
+            Continuar
+          </a>
+          <form th:action="@{/obligations/draft/discard}" method="post"
+                data-obligation-draft-discard
+                th:attr="data-draft-key=${draft.contextKey}"
+                onsubmit="return confirm('Descartar esta obrigação em andamento?');">
+            <input type="hidden" name="next" value="list">
+            <button class="btn btn-sm btn-outline-danger" type="submit">Descartar</button>
+          </form>
+        </div>
+      </div>
     </div>
   </section>
 
@@ -49,5 +61,7 @@
       </table>
     </div>
   </div>
+
+  <script type="module" th:src="@{/js/obligation-draft-actions.js}"></script>
 </section>
 </html>
