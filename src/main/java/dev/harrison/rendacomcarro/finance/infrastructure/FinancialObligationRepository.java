@@ -2,7 +2,6 @@ package dev.harrison.rendacomcarro.finance.infrastructure;
 
 import dev.harrison.rendacomcarro.finance.domain.FinancialObligation;
 import java.util.List;
-import java.util.Set;
 import java.util.UUID;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -21,10 +20,10 @@ public interface FinancialObligationRepository
           and o.mode = dev.harrison.rendacomcarro.finance.domain.ObligationMode.FLEXIBLE
           and o.monthlyTarget is not null
           and o.monthlyTarget > 0
-          and v.id in :vehicleIds
+          and v.id = :vehicleId
         order by o.createdAt asc
         """)
     List<FinancialObligation> findActiveFlexibleTargets(
-        @Param("vehicleIds") Set<UUID> vehicleIds
+        @Param("vehicleId") UUID vehicleId
     );
 }

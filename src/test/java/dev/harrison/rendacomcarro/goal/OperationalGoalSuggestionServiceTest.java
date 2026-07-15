@@ -23,7 +23,6 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.YearMonth;
 import java.util.List;
-import java.util.Set;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -97,28 +96,28 @@ class OperationalGoalSuggestionServiceTest {
         when(expenses.findSuggestionCandidates(
             LocalDate.of(2026, 7, 1),
             LocalDate.of(2026, 7, 31),
-            Set.of(selectedVehicleId)
+            selectedVehicleId
         )).thenReturn(expenseCandidates);
         when(closings
-            .findAllByVehicleIdInAndReferenceMonthLessThanEqualOrderByVehicleIdAscReferenceMonthDesc(
-                Set.of(selectedVehicleId), LocalDate.of(2026, 7, 1)
+            .findAllByVehicleIdAndReferenceMonthLessThanEqualOrderByReferenceMonthDesc(
+                selectedVehicleId, LocalDate.of(2026, 7, 1)
             )).thenReturn(List.of());
         List<InstallmentSuggestionProjection> installmentCandidates = List.of(
             installment(currentInstallmentId, "700.00", "0.00", LocalDate.of(2026, 7, 5)),
             installment(overdueInstallmentId, "600.00", "250.00", LocalDate.of(2026, 6, 5))
         );
         when(installments.findSuggestionCandidates(
-            Set.of(selectedVehicleId), LocalDate.of(2026, 7, 31)
+            selectedVehicleId, LocalDate.of(2026, 7, 31)
         )).thenReturn(installmentCandidates);
         FinancialObligation flexible = flexibleObligation("500.00", "500.00");
-        when(obligations.findActiveFlexibleTargets(Set.of(selectedVehicleId)))
+        when(obligations.findActiveFlexibleTargets(selectedVehicleId))
             .thenReturn(List.of(flexible));
     }
 
     @Test
     void consolidatesCurrentOverdueSharedMixedAndVehicleObligationCosts() {
         OperationalGoalSuggestion result = service.suggest(
-            YearMonth.of(2026, 7), Set.of(selectedVehicleId)
+            YearMonth.of(2026, 7), selectedVehicleId
         );
 
         assertThat(result.currentExpenses()).isEqualByComparingTo("930.00");
@@ -143,11 +142,11 @@ class OperationalGoalSuggestionServiceTest {
     @Test
     void capsFlexibleMonthlyTargetAtTheRemainingBalance() {
         FinancialObligation capped = flexibleObligation("700.00", "300.00");
-        when(obligations.findActiveFlexibleTargets(Set.of(selectedVehicleId)))
+        when(obligations.findActiveFlexibleTargets(selectedVehicleId))
             .thenReturn(List.of(capped));
 
         OperationalGoalSuggestion result = service.suggest(
-            YearMonth.of(2026, 7), Set.of(selectedVehicleId)
+            YearMonth.of(2026, 7), selectedVehicleId
         );
 
         assertThat(result.currentVehicleObligations()).isEqualByComparingTo("1000.00");
@@ -160,7 +159,7 @@ class OperationalGoalSuggestionServiceTest {
     @Test
     void excludesMileageAllocatedExpenseWithoutSnapshotAndExplainsWhy() {
         OperationalGoalSuggestion result = service.suggest(
-            YearMonth.of(2026, 7), Set.of(selectedVehicleId)
+            YearMonth.of(2026, 7), selectedVehicleId
         );
 
         assertThat(result.ignoredItems()).extracting(OperationalGoalSuggestionItem::sourceId)

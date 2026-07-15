@@ -140,7 +140,7 @@ class FormDraftDefinitionTest {
     }
 
     @Test
-    void goalDraftSchemaThreePreservesWeeklySourceWithoutRequiringDatesDuringAutosave() {
+    void goalDraftSchemaFourPreservesWeeklySourceWithoutRequiringDatesDuringAutosave() {
         ObjectNode payload = mapper.createObjectNode()
             .put("month", "2026-07")
             .put("personalNetGoal", "2000,00")
@@ -148,11 +148,9 @@ class FormDraftDefinitionTest {
             .put("workloadPeriodicity", "weekly")
             .put("workloadHours", "40")
             .put("workloadMinutes", "0");
-        payload.putArray("vehicleIds").add(UUID.randomUUID().toString());
-
         ObjectNode normalized = goal.normalizeAndValidate(payload, 2, false);
 
-        assertThat(goal.schemaVersion()).isEqualTo(3);
+        assertThat(goal.schemaVersion()).isEqualTo(4);
         assertThat(normalized.path("workloadPeriodicity").asText()).isEqualTo("WEEKLY");
         assertThat(normalized.path("workloadHours").asLong()).isEqualTo(40);
         assertThat(normalized.path("workloadMinutes").asInt()).isZero();
@@ -164,9 +162,20 @@ class FormDraftDefinitionTest {
     }
 
     @Test
-    void monthlyGoalDraftNormalizesVehicleIdArray() {
-        UUID idA = UUID.fromString("00000000-0000-0000-0000-000000000001");
-        UUID idB = UUID.fromString("00000000-0000-0000-0000-000000000002");
+    void monthlyGoalDraftMigratesSchemaThreeWithoutClientVehicleSelection() {
+        ObjectNode legacy = mapper.createObjectNode()
+            .put("month", "2026-07")
+            .put("personalNetGoal", "2000,00");
+        legacy.putArray("vehicleIds").add(UUID.randomUUID().toString());
+
+        ObjectNode migrated = goal.migrate(3, legacy);
+
+        assertThat(migrated.has("vehicleIds")).isFalse();
+        assertThat(migrated.path("month").asText()).isEqualTo("2026-07");
+    }
+
+    @Test
+    void monthlyGoalDraftDiscardsLegacyVehicleIds() {
         ObjectNode payload = mapper.createObjectNode()
             .put("month", "2026-07")
             .put("personalNetGoal", "2000,00")
@@ -175,29 +184,11 @@ class FormDraftDefinitionTest {
             .put("workloadHours", "160")
             .put("workloadMinutes", "0")
             .put("plannedDates", "2026-07-01");
-        payload.putArray("vehicleIds")
-            .add(idB.toString())
-            .add(idA.toString())
-            .add(idA.toString());
 
         ObjectNode normalized = goal.normalizeAndValidate(payload, 3, true);
 
-        assertThat(goal.schemaVersion()).isEqualTo(3);
-        assertThat(normalized.withArray("vehicleIds"))
-            .extracting(node -> node.asText())
-            .containsExactly(idA.toString(), idB.toString());
-    }
-
-    @Test
-    void monthlyGoalDraftRequiresVehicleIdsAtFirstValidatedStep() {
-        ObjectNode payload = mapper.createObjectNode()
-            .put("month", "2026-07")
-            .put("personalNetGoal", "2000,00")
-            .put("operationalGoal", "3000,00");
-
-        assertThatThrownBy(() -> goal.normalizeAndValidate(payload, 1, true))
-            .isInstanceOf(DomainValidationException.class)
-            .hasMessageContaining("Veículos");
+        assertThat(goal.schemaVersion()).isEqualTo(4);
+        assertThat(normalized.has("vehicleIds")).isFalse();
     }
 
     @Test
@@ -210,7 +201,6 @@ class FormDraftDefinitionTest {
             .put("workloadHours", "40")
             .put("workloadMinutes", "60")
             .put("plannedDates", "2026-07-05");
-        payload.putArray("vehicleIds").add(UUID.randomUUID().toString());
 
         assertThatThrownBy(() -> goal.normalizeAndValidate(payload, 3))
             .isInstanceOf(DomainValidationException.class)

@@ -17,7 +17,6 @@ import dev.harrison.rendacomcarro.vehicle.domain.Vehicle;
 import dev.harrison.rendacomcarro.support.PostgresIntegrationTest;
 import java.math.BigDecimal;
 import java.time.YearMonth;
-import java.util.Set;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -39,17 +38,16 @@ class GoalFormSubmissionServiceTest extends PostgresIntegrationTest {
     @Autowired ObjectMapper mapper;
     @Autowired VehicleService vehicles;
 
-    private Vehicle primaryVehicle;
+    private Vehicle activeVehicle;
 
     @BeforeEach
     void createPrimaryVehicle() {
         String plate = "G" + UUID.randomUUID().toString().replace("-", "")
             .substring(0, 6).toUpperCase();
-        primaryVehicle = vehicles.create(new VehicleService.CreateVehicleCommand(
+        activeVehicle = vehicles.create(new VehicleService.CreateVehicleCommand(
             "Veículo da meta", "Toyota", "Etios", 2018, plate, FuelType.FLEX,
             new BigDecimal("10000.0"), new BigDecimal("35000.00")
         ));
-        vehicles.activateAsPrimary(primaryVehicle.getId());
     }
 
     @Test
@@ -75,7 +73,6 @@ class GoalFormSubmissionServiceTest extends PostgresIntegrationTest {
         form.setWorkloadHours(40L);
         form.setWorkloadMinutes(0);
         form.setPlannedDates("2027-04-01,2027-04-02");
-        form.setVehicleIds(Set.of(primaryVehicle.getId()));
 
         var goal = submissions.submit("goal-submission-owner", form);
 
@@ -101,7 +98,6 @@ class GoalFormSubmissionServiceTest extends PostgresIntegrationTest {
         form.setWorkloadHours(0L);
         form.setWorkloadMinutes(1);
         form.setPlannedDates("2027-03-01,2027-03-02,2027-03-03");
-        form.setVehicleIds(Set.of(primaryVehicle.getId()));
 
         var goal = submissions.submit("goal-submission-owner", form);
 
@@ -134,7 +130,6 @@ class GoalFormSubmissionServiceTest extends PostgresIntegrationTest {
         form.setWorkloadHours(160L);
         form.setWorkloadMinutes(0);
         form.setPlannedDates(month.atDay(1) + "," + month.atDay(2));
-        form.setVehicleIds(Set.of(primaryVehicle.getId()));
         return form;
     }
 
@@ -147,14 +142,10 @@ class GoalFormSubmissionServiceTest extends PostgresIntegrationTest {
             .put("workloadHours", form.getWorkloadHours())
             .put("workloadMinutes", form.getWorkloadMinutes())
             .put("plannedDates", form.getPlannedDates());
-        payload.set(
-            "vehicleIds",
-            mapper.createArrayNode().add(primaryVehicle.getId().toString())
-        );
         drafts.save("goal-submission-owner", new SaveDraftCommand(
             FormDraftType.MONTHLY_GOAL,
             form.draftContextKey(),
-            3,
+            4,
             2,
             null,
             payload,

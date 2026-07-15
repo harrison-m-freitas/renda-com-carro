@@ -25,10 +25,10 @@ export const calculateGoalRates = ({
 export const calculateOperationalSuggestion = (personalGoal, professionalCosts) =>
   Number(personalGoal || 0) + Number(professionalCosts || 0);
 
-export const buildOperationalSuggestionUrl = (month, vehicleIds) => {
+export const buildOperationalSuggestionUrl = (month, goalId = null) => {
   const params = new URLSearchParams();
   params.set('month', String(month ?? ''));
-  Array.from(vehicleIds ?? []).forEach((id) => params.append('vehicleIds', String(id)));
+  if (goalId) params.set('goalId', String(goalId));
   return `/goals/operational-suggestion?${params.toString()}`;
 };
 
@@ -39,7 +39,6 @@ export function initializeGoalFinancialPlanner(form, options = {}) {
   const month = form.querySelector('[name="month"]');
   const personal = form.querySelector('[name="personalNetGoal"]');
   const operational = form.querySelector('[name="operationalGoal"]');
-  const vehicleFields = Array.from(form.querySelectorAll('[name="vehicleIds"]'));
   const dates = form.querySelector('[name="plannedDates"]');
   const hours = form.querySelector('[name="workloadHours"]');
   const minutes = form.querySelector('[name="workloadMinutes"]');
@@ -53,10 +52,6 @@ export function initializeGoalFinancialPlanner(form, options = {}) {
   let controller = null;
   let suggestion = null;
   let applyingSuggestion = false;
-
-  const selectedVehicleIds = () => vehicleFields
-    .filter((field) => field.checked)
-    .map((field) => field.value);
 
   const selectedDates = () => [...new Set(String(dates?.value ?? '')
     .split(/[,;\s]+/)
@@ -126,8 +121,8 @@ export function initializeGoalFinancialPlanner(form, options = {}) {
     appendLine(breakdown, 'Meta líquida pessoal', personalValue);
     appendLine(breakdown, 'Gastos profissionais do mês', Number(payload.currentExpenses));
     appendLine(breakdown, 'Gastos profissionais pendentes', Number(payload.overdueProfessionalExpenses), 'is-overdue');
-    appendLine(breakdown, 'Obrigações dos veículos no mês', Number(payload.currentVehicleObligations));
-    appendLine(breakdown, 'Obrigações vencidas dos veículos', Number(payload.overdueVehicleObligations), 'is-overdue');
+    appendLine(breakdown, 'Obrigações do veículo no mês', Number(payload.currentVehicleObligations));
+    appendLine(breakdown, 'Obrigações vencidas do veículo', Number(payload.overdueVehicleObligations), 'is-overdue');
     appendLine(breakdown, 'Meta operacional sugerida', total, 'is-total');
     const details = documentObject.createElement('div');
     details.className = 'goal-financial-breakdown__items';
@@ -147,8 +142,7 @@ export function initializeGoalFinancialPlanner(form, options = {}) {
   };
 
   const loadSuggestion = async () => {
-    const vehicleIds = selectedVehicleIds();
-    if (!fetchImpl || !month?.value || vehicleIds.length === 0) {
+    if (!fetchImpl || !month?.value) {
       suggestion = null;
       if (applyButton) applyButton.disabled = true;
       if (breakdown) breakdown.replaceChildren();
@@ -160,7 +154,7 @@ export function initializeGoalFinancialPlanner(form, options = {}) {
     if (loading) loading.hidden = false;
     if (error) error.hidden = true;
     try {
-      const response = await fetchImpl(buildOperationalSuggestionUrl(month.value, vehicleIds), {
+      const response = await fetchImpl(buildOperationalSuggestionUrl(month.value, form.dataset.goalId), {
         signal: controller.signal,
         credentials: 'same-origin',
         headers: { Accept: 'application/json' },
@@ -210,7 +204,6 @@ export function initializeGoalFinancialPlanner(form, options = {}) {
     field?.addEventListener('change', field === month ? loadSuggestion : refreshRates);
     field?.addEventListener('input', field === month ? loadSuggestion : refreshRates);
   });
-  vehicleFields.forEach((field) => field.addEventListener('change', loadSuggestion));
   periodicityFields.forEach((field) => field.addEventListener('change', refreshRates));
   loadSuggestion();
   refreshRates();

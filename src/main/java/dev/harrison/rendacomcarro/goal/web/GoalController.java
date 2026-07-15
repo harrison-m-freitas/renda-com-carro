@@ -5,15 +5,11 @@ import dev.harrison.rendacomcarro.goal.application.GoalMonthLabelFormatter;
 import dev.harrison.rendacomcarro.goal.application.GoalService;
 import dev.harrison.rendacomcarro.goal.domain.MonthlyGoal;
 import dev.harrison.rendacomcarro.goal.domain.WorkloadPeriodicity;
-import dev.harrison.rendacomcarro.vehicle.domain.Vehicle;
-import dev.harrison.rendacomcarro.vehicle.domain.VehicleStatus;
-import dev.harrison.rendacomcarro.vehicle.infrastructure.VehicleRepository;
+import dev.harrison.rendacomcarro.vehicle.application.VehicleService;
 import jakarta.validation.Valid;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.YearMonth;
-import java.util.LinkedHashSet;
-import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
 import org.springframework.format.annotation.DateTimeFormat;
@@ -34,13 +30,13 @@ import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 public class GoalController {
     private final GoalService service;
     private final GoalFormSubmissionService submissions;
-    private final VehicleRepository vehicles;
+    private final VehicleService vehicles;
     private final GoalMonthLabelFormatter monthLabels;
 
     public GoalController(
         GoalService service,
         GoalFormSubmissionService submissions,
-        VehicleRepository vehicles,
+        VehicleService vehicles,
         GoalMonthLabelFormatter monthLabels
     ) {
         this.service = service;
@@ -93,17 +89,8 @@ public class GoalController {
         if (month != null) {
             form.setMonth(month);
         }
-        List<Vehicle> activeVehicles = activeVehicles();
-        if (form.getVehicleIds().isEmpty()) {
-            activeVehicles.stream()
-                .filter(Vehicle::isPrimaryVehicle)
-                .findFirst()
-                .ifPresent(vehicle -> form.setVehicleIds(
-                    new LinkedHashSet<>(java.util.Set.of(vehicle.getId()))
-                ));
-        }
         model.addAttribute("goalForm", form);
-        model.addAttribute("vehicles", activeVehicles);
+        model.addAttribute("vehicle", vehicles.findActiveVehicle().orElse(null));
         model.addAttribute("editing", false);
         return "goals/form";
     }
@@ -115,9 +102,6 @@ public class GoalController {
         form.setMonth(goal.getMonth());
         form.setPersonalNetGoal(goal.getPersonalNetGoal());
         form.setOperationalGoal(goal.getOperationalGoal());
-        form.setVehicleIds(goal.getVehicles().stream()
-            .map(Vehicle::getId)
-            .collect(Collectors.toCollection(LinkedHashSet::new)));
         form.setWorkloadPeriodicity(goal.getWorkloadPeriodicity());
         form.setWorkloadHours(goal.getEnteredHours());
         form.setWorkloadMinutes(goal.getEnteredRemainderMinutes());
@@ -127,7 +111,7 @@ public class GoalController {
 
         model.addAttribute("goalForm", form);
         model.addAttribute("goal", goal);
-        model.addAttribute("vehicles", activeVehicles());
+        model.addAttribute("vehicle", goal.getVehicle());
         model.addAttribute("editing", true);
         return "goals/form";
     }
@@ -148,7 +132,7 @@ public class GoalController {
             }
         }
         if (result.hasErrors()) {
-            model.addAttribute("vehicles", activeVehicles());
+            model.addAttribute("vehicle", vehicles.findActiveVehicle().orElse(null));
             model.addAttribute("editing", false);
             return "goals/form";
         }
@@ -175,7 +159,7 @@ public class GoalController {
         }
         if (result.hasErrors()) {
             model.addAttribute("goal", goal);
-            model.addAttribute("vehicles", activeVehicles());
+            model.addAttribute("vehicle", goal.getVehicle());
             model.addAttribute("editing", true);
             return "goals/form";
         }
@@ -196,18 +180,12 @@ public class GoalController {
                 .divide(BigDecimal.valueOf(totalMinutes), 2, RoundingMode.HALF_UP);
     }
 
-    private List<Vehicle> activeVehicles() {
-        return vehicles.findAllByStatusOrderByPrimaryVehicleDescNameAsc(
-            VehicleStatus.ACTIVE
-        );
-    }
-
     private void mapSubmissionError(BindingResult result, IllegalArgumentException exception) {
         String message = exception.getMessage() == null
             ? "Não foi possível salvar a meta."
             : exception.getMessage();
         if (message.contains("veículo") || message.contains("Veículo")) {
-            result.rejectValue("vehicleIds", "invalid", message);
+            result.reject("vehicle", message);
         } else if (message.contains("data")
             || message.contains("Domingos")
             || message.contains("dia planejado")

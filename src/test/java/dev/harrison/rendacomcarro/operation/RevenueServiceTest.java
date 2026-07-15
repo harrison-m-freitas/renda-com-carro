@@ -43,7 +43,7 @@ class RevenueServiceTest extends PostgresIntegrationTest {
             "Carro receitas " + java.util.UUID.randomUUID(), "Fiat", "Argo", 2020,
             "R" + java.util.UUID.randomUUID().toString().substring(0, 6).toUpperCase(), FuelType.FLEX,
             new BigDecimal("1000.0"), new BigDecimal("50000.00")));
-        vehicleService.activateAsPrimary(vehicle.getId());
+        vehicleService.activate(vehicle.getId());
         var day = dayService.openDay(LocalDate.now(), vehicle.getId(), new BigDecimal("200.00"), new BigDecimal("1000.0"));
         uberId = platformRepository.findByCode("UBER").map(Platform::getId).orElseThrow();
         shiftId = shiftService.openShift(day.getId(), LocalDateTime.now().minusHours(1),

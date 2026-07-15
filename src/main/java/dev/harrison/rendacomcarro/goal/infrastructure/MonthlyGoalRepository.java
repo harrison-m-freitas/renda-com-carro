@@ -8,10 +8,10 @@ import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface MonthlyGoalRepository extends JpaRepository<MonthlyGoal, UUID> {
-    @EntityGraph(attributePaths = "vehicles")
+    @EntityGraph(attributePaths = "vehicle")
     Optional<MonthlyGoal> findByReferenceMonth(LocalDate referenceMonth);
 
     @Override
-    @EntityGraph(attributePaths = "vehicles")
+    @EntityGraph(attributePaths = "vehicle")
     Optional<MonthlyGoal> findById(UUID id);
 }

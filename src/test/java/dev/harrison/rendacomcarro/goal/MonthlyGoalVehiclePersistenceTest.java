@@ -29,9 +29,9 @@ class MonthlyGoalVehiclePersistenceTest extends PostgresIntegrationTest {
     @Autowired VehicleService vehicles;
 
     @Test
-    void savesAndRestoresMoreThanOneVehicle() {
-        Vehicle first = vehicle("Meta A", "AAA1A11");
-        Vehicle second = vehicle("Meta B", "BBB2B22");
+    void newGoalUsesActiveVehicleAndEditPreservesOriginalVehicle() {
+        vehicle("Meta anterior", "AAA1A11");
+        Vehicle activeWhenCreated = vehicle("Meta atual", "BBB2B22");
 
         var goal = goals.create(
             YearMonth.of(2028, 7),
@@ -39,13 +39,26 @@ class MonthlyGoalVehiclePersistenceTest extends PostgresIntegrationTest {
             new BigDecimal("4000.00"),
             WorkloadPeriodicity.MONTHLY,
             4_800,
-            Set.of(LocalDate.of(2028, 7, 1)),
-            Set.of(first.getId(), second.getId())
+            Set.of(LocalDate.of(2028, 7, 1))
         );
 
-        assertThat(goals.get(goal.getId()).getVehicles())
-            .extracting(Vehicle::getId)
-            .containsExactlyInAnyOrder(first.getId(), second.getId());
+        assertThat(goals.get(goal.getId()).getVehicle().getId())
+            .isEqualTo(activeWhenCreated.getId());
+
+        Vehicle newlyActive = vehicle("Meta futura", "CCC3C33");
+        goals.update(
+            goal.getId(),
+            YearMonth.of(2028, 7),
+            new BigDecimal("2200.00"),
+            new BigDecimal("4100.00"),
+            WorkloadPeriodicity.MONTHLY,
+            4_800,
+            Set.of(LocalDate.of(2028, 7, 2))
+        );
+
+        assertThat(vehicles.getActiveVehicle().getId()).isEqualTo(newlyActive.getId());
+        assertThat(goals.get(goal.getId()).getVehicle().getId())
+            .isEqualTo(activeWhenCreated.getId());
     }
 
     private Vehicle vehicle(String name, String plate) {

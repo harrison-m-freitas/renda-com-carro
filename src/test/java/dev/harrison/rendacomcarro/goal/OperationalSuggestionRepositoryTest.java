@@ -22,7 +22,6 @@ import dev.harrison.rendacomcarro.vehicle.domain.Vehicle;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
-import java.util.Set;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -76,7 +75,7 @@ class OperationalSuggestionRepositoryTest extends PostgresIntegrationTest {
         List<ExpenseSuggestionProjection> result = expenses.findSuggestionCandidates(
             LocalDate.of(2026, 7, 1),
             LocalDate.of(2026, 7, 31),
-            Set.of(selectedVehicle.getId())
+            selectedVehicle.getId()
         );
 
         assertThat(result).extracting(ExpenseSuggestionProjection::getId)
@@ -129,11 +128,11 @@ class OperationalSuggestionRepositoryTest extends PostgresIntegrationTest {
 
         List<InstallmentSuggestionProjection> structured = installments
             .findSuggestionCandidates(
-                Set.of(selectedVehicle.getId()),
+                selectedVehicle.getId(),
                 LocalDate.of(2026, 7, 31)
             );
         List<FinancialObligation> flexible = obligations
-            .findActiveFlexibleTargets(Set.of(selectedVehicle.getId()));
+            .findActiveFlexibleTargets(selectedVehicle.getId());
 
         assertThat(structured).extracting(InstallmentSuggestionProjection::getInstallmentId)
             .containsExactlyInAnyOrder(currentPartial, overduePending)

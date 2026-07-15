@@ -56,7 +56,7 @@
                   aria-describedby="vehicleId-error" required data-save-on-blur>
             <option value="">Selecione um veículo</option>
             <option th:each="vehicle : ${vehicles}" th:value="${vehicle.id}"
-                    th:text="${vehicle.name + ' · ' + vehicle.plate + (vehicle.primaryVehicle ? ' · Principal' : '')}"></option>
+                    th:text="${vehicle.name + ' · ' + vehicle.plate}"></option>
           </select>
           <div class="invalid-feedback" id="vehicleId-error" th:errors="*{vehicleId}"></div>
         </div>
