@@ -9,10 +9,16 @@ import dev.harrison.rendacomcarro.expense.domain.ExpenseClassification;
 import dev.harrison.rendacomcarro.shared.domain.DomainValidationException;
 import java.math.BigDecimal;
 import java.util.Set;
+import java.util.UUID;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import org.springframework.stereotype.Component;
 
 @Component
 public class ExpenseDraftDefinition implements FormDraftDefinition {
+    private static final Pattern SESSION_KEY = Pattern.compile(
+        "^expense:new:([0-9a-fA-F-]{36})$"
+    );
     private static final Set<String> ALLOWED_FIELDS = Set.of(
         "vehicleId", "operationalDayId", "shiftId", "categoryId",
         "expenseDate", "competenceMonth", "paymentStatus", "paidDate",
@@ -49,8 +55,17 @@ public class ExpenseDraftDefinition implements FormDraftDefinition {
     @Override
     public String normalizeContextKey(String contextKey) {
         String normalized = contextKey == null ? "" : contextKey.trim();
-        if (!"current".equals(normalized)) {
-            throw new DomainValidationException("A chave do rascunho de gasto deve ser current.");
+        if ("current".equals(normalized)) {
+            return normalized;
+        }
+        Matcher matcher = SESSION_KEY.matcher(normalized);
+        if (!matcher.matches()) {
+            throw new DomainValidationException("A chave do rascunho de gasto é inválida.");
+        }
+        try {
+            UUID.fromString(matcher.group(1));
+        } catch (IllegalArgumentException exception) {
+            throw new DomainValidationException("A chave do rascunho de gasto é inválida.");
         }
         return normalized;
     }
