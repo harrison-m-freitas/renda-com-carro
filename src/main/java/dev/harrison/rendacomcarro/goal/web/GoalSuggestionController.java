@@ -25,6 +25,9 @@ public class GoalSuggestionController {
         @DateTimeFormat(pattern = "yyyy-MM") YearMonth month,
         @RequestParam(required = false) Set<UUID> vehicleIds
     ) {
+        if (vehicleIds == null || vehicleIds.isEmpty()) {
+            throw new IllegalArgumentException("Selecione pelo menos um veículo.");
+        }
         return OperationalGoalSuggestionResponse.from(
             suggestions.suggest(month, vehicleIds)
         );

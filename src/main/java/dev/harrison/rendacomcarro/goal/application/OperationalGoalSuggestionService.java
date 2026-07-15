@@ -159,7 +159,9 @@ public class OperationalGoalSuggestionService {
         }
 
         for (FinancialObligation obligation : obligations.findActiveFlexibleTargets(vehicleIds)) {
-            BigDecimal target = DecimalPolicy.money(obligation.getMonthlyTarget());
+            BigDecimal target = DecimalPolicy.money(
+                obligation.getMonthlyTarget().min(obligation.getCurrentBalance())
+            );
             if (target.signum() == 0) {
                 continue;
             }

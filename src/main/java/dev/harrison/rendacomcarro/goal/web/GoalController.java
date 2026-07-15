@@ -1,14 +1,16 @@
 package dev.harrison.rendacomcarro.goal.web;
 
 import dev.harrison.rendacomcarro.goal.application.GoalFormSubmissionService;
+import dev.harrison.rendacomcarro.goal.application.GoalMonthLabelFormatter;
 import dev.harrison.rendacomcarro.goal.application.GoalService;
 import dev.harrison.rendacomcarro.goal.domain.MonthlyGoal;
 import dev.harrison.rendacomcarro.goal.domain.WorkloadPeriodicity;
-import dev.harrison.rendacomcarro.vehicle.application.VehicleService;
 import dev.harrison.rendacomcarro.vehicle.domain.Vehicle;
 import dev.harrison.rendacomcarro.vehicle.domain.VehicleStatus;
+import dev.harrison.rendacomcarro.vehicle.infrastructure.VehicleRepository;
 import jakarta.validation.Valid;
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.YearMonth;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -32,16 +34,19 @@ import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 public class GoalController {
     private final GoalService service;
     private final GoalFormSubmissionService submissions;
-    private final VehicleService vehicles;
+    private final VehicleRepository vehicles;
+    private final GoalMonthLabelFormatter monthLabels;
 
     public GoalController(
         GoalService service,
         GoalFormSubmissionService submissions,
-        VehicleService vehicles
+        VehicleRepository vehicles,
+        GoalMonthLabelFormatter monthLabels
     ) {
         this.service = service;
         this.submissions = submissions;
         this.vehicles = vehicles;
+        this.monthLabels = monthLabels;
     }
 
     @ModelAttribute("workloadPeriodicities")
@@ -57,16 +62,22 @@ public class GoalController {
             return "redirect:/goals/new";
         }
         var entity = goal.orElseThrow();
+        var plannedDays = service.plannedDays(entity.getId());
+        int dayCount = plannedDays.size();
+        long totalMinutes = entity.getCalculatedMonthMinutes();
         model.addAttribute("goal", entity);
-        model.addAttribute("plannedDays", service.plannedDays(entity.getId()));
+        model.addAttribute("monthLabel", monthLabels.format(entity.getMonth()));
+        model.addAttribute("plannedDays", plannedDays);
         model.addAttribute("projection", service.project(
             month,
             entity.getPersonalNetGoal(),
             BigDecimal.ZERO,
-            service.plannedDays(entity.getId()).stream()
-                .map(day -> day.getWorkDate())
-                .collect(Collectors.toSet())
+            plannedDays.stream().map(day -> day.getWorkDate()).collect(Collectors.toSet())
         ));
+        model.addAttribute("operationalPerDay", perDay(entity.getOperationalGoal(), dayCount));
+        model.addAttribute("operationalPerHour", perHour(entity.getOperationalGoal(), totalMinutes));
+        model.addAttribute("personalPerDay", perDay(entity.getPersonalNetGoal(), dayCount));
+        model.addAttribute("personalPerHour", perHour(entity.getPersonalNetGoal(), totalMinutes));
         return "goals/detail";
     }
 
@@ -172,10 +183,23 @@ public class GoalController {
         return "redirect:/goals";
     }
 
+    private BigDecimal perDay(BigDecimal value, int dayCount) {
+        return dayCount <= 0
+            ? BigDecimal.ZERO.setScale(2)
+            : value.divide(BigDecimal.valueOf(dayCount), 2, RoundingMode.HALF_UP);
+    }
+
+    private BigDecimal perHour(BigDecimal value, long totalMinutes) {
+        return totalMinutes <= 0
+            ? BigDecimal.ZERO.setScale(2)
+            : value.multiply(BigDecimal.valueOf(60))
+                .divide(BigDecimal.valueOf(totalMinutes), 2, RoundingMode.HALF_UP);
+    }
+
     private List<Vehicle> activeVehicles() {
-        return vehicles.listAll().stream()
-            .filter(vehicle -> vehicle.getStatus() == VehicleStatus.ACTIVE)
-            .toList();
+        return vehicles.findAllByStatusOrderByPrimaryVehicleDescNameAsc(
+            VehicleStatus.ACTIVE
+        );
     }
 
     private void mapSubmissionError(BindingResult result, IllegalArgumentException exception) {

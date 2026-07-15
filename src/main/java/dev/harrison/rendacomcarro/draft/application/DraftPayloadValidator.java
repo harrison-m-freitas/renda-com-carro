@@ -11,6 +11,7 @@ import java.time.format.DateTimeParseException;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Set;
+import java.util.TreeSet;
 import java.util.UUID;
 import org.springframework.stereotype.Component;
 
@@ -53,6 +54,25 @@ public class DraftPayloadValidator {
         }
         String value = sanitize(node.textValue()).trim();
         return value.isBlank() ? null : value;
+    }
+
+    public Set<UUID> requireUuidArray(ObjectNode payload, String field, String label) {
+        JsonNode node = payload.get(field);
+        if (node == null || !node.isArray() || node.isEmpty()) {
+            throw new DomainValidationException(label + " é obrigatório.");
+        }
+        TreeSet<UUID> values = new TreeSet<>();
+        node.forEach(item -> {
+            if (!item.isTextual()) {
+                throw new DomainValidationException(label + " é inválido.");
+            }
+            try {
+                values.add(UUID.fromString(item.asText()));
+            } catch (IllegalArgumentException exception) {
+                throw new DomainValidationException(label + " é inválido.");
+            }
+        });
+        return Set.copyOf(values);
     }
 
     public UUID requireUuid(ObjectNode payload, String field, String label) {

@@ -1,5 +1,6 @@
 package dev.harrison.rendacomcarro.draft.application.definition;
 
+import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import dev.harrison.rendacomcarro.draft.application.DraftPayloadValidator;
 import dev.harrison.rendacomcarro.draft.application.FormDraftDefinition;
@@ -25,6 +26,7 @@ public class MonthlyGoalDraftDefinition implements FormDraftDefinition {
     private static final Pattern KEY_PATTERN = Pattern.compile("^month:(\\d{4}-\\d{2})$");
     private static final Set<String> ALLOWED_FIELDS = Set.of(
         "month",
+        "vehicleIds",
         "personalNetGoal",
         "operationalGoal",
         "workloadPeriodicity",
@@ -40,7 +42,7 @@ public class MonthlyGoalDraftDefinition implements FormDraftDefinition {
     }
 
     @Override public FormDraftType type() { return FormDraftType.MONTHLY_GOAL; }
-    @Override public int schemaVersion() { return 2; }
+    @Override public int schemaVersion() { return 3; }
     @Override public int maxStep() { return 3; }
 
     @Override
@@ -71,6 +73,7 @@ public class MonthlyGoalDraftDefinition implements FormDraftDefinition {
         );
 
         YearMonth month = normalizeMonth(normalized, currentStep, validateCurrentStep);
+        normalizeVehicleIds(normalized, validateCurrentStep && currentStep >= 1);
         normalizeNonNegativeDecimal(
             normalized,
             "personalNetGoal",
@@ -118,6 +121,28 @@ public class MonthlyGoalDraftDefinition implements FormDraftDefinition {
             normalized.put("plannedDates", datesText);
         }
         return normalized;
+    }
+
+    private void normalizeVehicleIds(ObjectNode payload, boolean required) {
+        if (!payload.has("vehicleIds")) {
+            if (required) {
+                validator.requireUuidArray(payload, "vehicleIds", "Veículos");
+            }
+            return;
+        }
+        if (payload.path("vehicleIds").isArray() && payload.path("vehicleIds").isEmpty()) {
+            if (required) {
+                validator.requireUuidArray(payload, "vehicleIds", "Veículos");
+            }
+            return;
+        }
+        Set<java.util.UUID> values = validator.requireUuidArray(
+            payload,
+            "vehicleIds",
+            "Veículos"
+        );
+        ArrayNode normalized = payload.putArray("vehicleIds");
+        values.stream().sorted().map(java.util.UUID::toString).forEach(normalized::add);
     }
 
     private YearMonth normalizeMonth(
