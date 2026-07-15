@@ -1,0 +1,31 @@
+name: Export PR source snapshot
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - .github/workflows/export-pr-snapshot.yml
+
+permissions:
+  contents: read
+
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout exact PR head
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+
+      - name: Create source archive
+        run: |
+          tar --exclude=.git -czf /tmp/source-snapshot.tar.gz .
+          mv /tmp/source-snapshot.tar.gz source-snapshot.tar.gz
+
+      - name: Upload source archive
+        uses: actions/upload-artifact@v4
+        with:
+          name: source-snapshot
+          path: source-snapshot.tar.gz
+          retention-days: 1
