@@ -1,0 +1,38 @@
+name: PR15 Workbench Bundle
+
+on:
+  push:
+    branches:
+      - feat/obligation-financing-redesign
+    paths:
+      - .github/workflows/pr15-workbench.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  bundle:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout branch history
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Fetch current main
+        run: git fetch origin main:refs/remotes/origin/main
+
+      - name: Create repository bundle
+        run: |
+          git bundle create repository.bundle \
+            refs/heads/feat/obligation-financing-redesign \
+            refs/remotes/origin/main
+
+      - name: Upload repository bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: pr15-repository-bundle
+          path: repository.bundle
+          if-no-files-found: error
+          retention-days: 1
