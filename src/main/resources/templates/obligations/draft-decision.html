@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="pt-BR" xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{layouts/app :: layout(~{::section}, 'Obrigação em andamento')}">
+<section>
+  <div class="mx-auto" style="max-width: 640px"
+       th:attr="data-obligation-active-draft-key=${obligationDraft.contextKey}">
+    <div class="mb-4">
+      <h1 class="h2 mb-1">Você já possui uma obrigação em andamento</h1>
+      <p class="text-secondary mb-0">
+        Continue o preenchimento salvo ou descarte-o antes de iniciar outra obrigação.
+      </p>
+    </div>
+
+    <div class="card">
+      <div class="card-body">
+        <div class="d-flex align-items-start gap-3 mb-4">
+          <span class="guided-step__number" aria-hidden="true">1</span>
+          <div>
+            <h2 class="h4 mb-1" th:text="${obligationDraft.creditor}">Obrigação sem credor</h2>
+            <p class="text-secondary mb-0">
+              Etapa <span th:text="${obligationDraft.currentStep}">1</span> ·
+              salva em
+              <span th:text="${#temporals.format(obligationDraft.updatedAt, 'dd/MM/yyyy HH:mm')}">
+                14/07/2026 21:18
+              </span>
+            </p>
+          </div>
+        </div>
+
+        <div class="d-grid gap-2">
+          <a class="btn btn-primary"
+             th:href="@{/obligations/new(draftKey=${obligationDraft.contextKey})}">
+            Continuar rascunho
+          </a>
+
+          <form th:action="@{/obligations/draft/discard}" method="post"
+                data-obligation-draft-discard
+                th:attr="data-draft-key=${obligationDraft.contextKey}"
+                onsubmit="return confirm('Descartar esta obrigação em andamento e começar novamente?');">
+            <input type="hidden" name="next" value="new">
+            <button class="btn btn-outline-danger w-100" type="submit">
+              Descartar e começar novamente
+            </button>
+          </form>
+
+          <a class="btn btn-link text-secondary" th:href="@{/obligations}">
+            Voltar para obrigações
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" th:src="@{/js/obligation-draft-actions.js}"></script>
+</section>
+</html>
