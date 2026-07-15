@@ -94,6 +94,7 @@ class FormDraftDefinitionTest {
             .put("workloadPeriodicity", "weekly")
             .put("workloadHours", "40")
             .put("workloadMinutes", "0");
+        payload.putArray("vehicleIds").add(UUID.randomUUID().toString());
 
         ObjectNode normalized = goal.normalizeAndValidate(payload, 2, false);
 
@@ -107,7 +108,6 @@ class FormDraftDefinitionTest {
             .isInstanceOf(DomainValidationException.class)
             .hasMessageContaining("Dias planejados");
     }
-
 
     @Test
     void monthlyGoalDraftNormalizesVehicleIdArray() {
@@ -156,6 +156,7 @@ class FormDraftDefinitionTest {
             .put("workloadHours", "40")
             .put("workloadMinutes", "60")
             .put("plannedDates", "2026-07-05");
+        payload.putArray("vehicleIds").add(UUID.randomUUID().toString());
 
         assertThatThrownBy(() -> goal.normalizeAndValidate(payload, 3))
             .isInstanceOf(DomainValidationException.class)
