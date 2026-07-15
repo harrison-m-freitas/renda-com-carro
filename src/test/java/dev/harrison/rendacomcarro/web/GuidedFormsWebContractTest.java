@@ -35,17 +35,13 @@ class GuidedFormsWebContractTest extends PostgresIntegrationTest {
 
     @Test
     @WithMockUser(username = "guided-contract-owner", roles = "OWNER")
-    void complexFormsContainGuidedSectionsRecoveryConflictAndRealSubmitButtons() throws Exception {
+    void complexFormsContainGuidedSectionsConflictAndRealSubmitButtons() throws Exception {
         var vehicle = createVehicle();
         YearMonth month = YearMonth.of(2028, 1);
 
         assertGuided("/expenses/new", "EXPENSE", "Salvar gasto");
         assertGuided("/goals/new?month=2028-01", "MONTHLY_GOAL", "Salvar meta");
-        assertGuided(
-            "/obligations/new?draftKey=draft:" + UUID.randomUUID(),
-            "OBLIGATION",
-            "Salvar obrigação"
-        );
+        assertGuided("/obligations/new", "OBLIGATION", "Salvar obrigação");
         assertGuided(
             "/mileage-closings/new?vehicleId=" + vehicle.getId() + "&month=" + month,
             "MILEAGE_CLOSING",
@@ -68,7 +64,7 @@ class GuidedFormsWebContractTest extends PostgresIntegrationTest {
             "name=\"personalNetGoal\"", "name=\"operationalGoal\"", "data-money-input");
 
         assertLocalizedInputs(
-            "/obligations/new?draftKey=draft:" + UUID.randomUUID(),
+            "/obligations/new",
             "name=\"principal\"", "name=\"plannedInstallment\"",
             "name=\"monthlyTarget\"", "data-money-input",
             "name=\"annualRatePercent\"", "data-percentage-input",
@@ -101,6 +97,19 @@ class GuidedFormsWebContractTest extends PostgresIntegrationTest {
 
     @Test
     @WithMockUser(username = "guided-contract-owner", roles = "OWNER")
+    void expenseAndObligationFormsDoNotRequireAutomaticRecoveryDialogs() throws Exception {
+        mvc.perform(get("/expenses/new"))
+            .andExpect(status().isOk())
+            .andExpect(content().string(containsString("data-draft-type=\"EXPENSE\"")));
+
+        mvc.perform(get("/obligations/new"))
+            .andExpect(status().isOk())
+            .andExpect(content().string(containsString("data-draft-recovery-mode=\"none\"")))
+            .andExpect(content().string(not(containsString("data-guided-dialog=\"recovery\""))));
+    }
+
+    @Test
+    @WithMockUser(username = "guided-contract-owner", roles = "OWNER")
     void vehicleUsesAStandaloneMobileFlowWithoutDraftContracts() throws Exception {
         mvc.perform(get("/vehicles/new"))
             .andExpect(status().isOk())
@@ -127,7 +136,6 @@ class GuidedFormsWebContractTest extends PostgresIntegrationTest {
             .andExpect(status().isOk())
             .andExpect(content().string(containsString("data-guided-form")))
             .andExpect(content().string(containsString("data-draft-type=\"" + type + "\"")))
-            .andExpect(content().string(containsString("data-guided-dialog=\"recovery\"")))
             .andExpect(content().string(containsString("data-guided-dialog=\"conflict\"")))
             .andExpect(content().string(containsString("data-guided-save-status")))
             .andExpect(content().string(containsString(finalCopy)));
