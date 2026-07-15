@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="pt-BR" xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{layouts/app :: layout(~{::section}, 'Plano de compra')}">
+<section>
+  <div class="d-flex flex-column flex-md-row justify-content-between gap-3 mb-4">
+    <div>
+      <nav aria-label="Navegação estrutural" class="small text-secondary mb-2">
+        <a th:href="@{/obligations}">Obrigações</a>
+        <span aria-hidden="true"> / </span>
+        <span aria-current="page" th:text="${summary.plan.title}">Plano</span>
+      </nav>
+      <h1 class="h2 mb-1" th:text="${summary.plan.title}">Compra do veículo</h1>
+      <p class="text-secondary mb-0">
+        Composição do preço da compra e compromissos de pagamento relacionados.
+      </p>
+    </div>
+    <a class="btn btn-primary align-self-md-start"
+       th:href="@{/obligations/new(acquisitionPlanId=${summary.plan.id})}">
+      Adicionar obrigação
+    </a>
+  </div>
+
+  <div class="row g-3 mb-4">
+    <div class="col-sm-6 col-xl-3">
+      <div class="card h-100"><div class="card-body">
+        <div class="text-secondary small">Preço da compra</div>
+        <div class="h3 mb-0" th:text="${#numbers.formatCurrency(summary.plan.purchaseAmount)}">R$ 45.000,00</div>
+      </div></div>
+    </div>
+    <div class="col-sm-6 col-xl-3">
+      <div class="card h-100"><div class="card-body">
+        <div class="text-secondary small">Recursos próprios</div>
+        <div class="h3 mb-0" th:text="${#numbers.formatCurrency(summary.plan.ownResourcesAmount)}">R$ 0,00</div>
+      </div></div>
+    </div>
+    <div class="col-sm-6 col-xl-3">
+      <div class="card h-100"><div class="card-body">
+        <div class="text-secondary small">Dívidas contratadas</div>
+        <div class="h3 mb-0" th:text="${#numbers.formatCurrency(summary.obligationPrincipalAmount)}">R$ 45.000,00</div>
+      </div></div>
+    </div>
+    <div class="col-sm-6 col-xl-3">
+      <div class="card h-100"><div class="card-body">
+        <div class="text-secondary small">Diferença a cobrir</div>
+        <div class="h3 mb-0"
+             th:classappend="${summary.remainingAmount.signum() > 0} ? 'text-warning' : 'text-success'"
+             th:text="${#numbers.formatCurrency(summary.remainingAmount)}">R$ 0,00</div>
+      </div></div>
+    </div>
+  </div>
+
+  <div class="card mb-4">
+    <div class="card-header d-flex justify-content-between align-items-center gap-3">
+      <div>
+        <h2 class="card-title mb-0">Fontes de recursos</h2>
+        <p class="text-secondary small mb-0">Cada valor devolvido a alguém aparece como obrigação separada.</p>
+      </div>
+      <span class="badge bg-secondary-lt" th:text="${summary.obligations.size() + ' obrigação(ões)'}">2 obrigações</span>
+    </div>
+    <div class="table-responsive" th:if="${!summary.obligations.isEmpty()}">
+      <table class="table table-vcenter card-table">
+        <thead><tr><th>Credor</th><th>Tipo</th><th>Valor recebido</th><th>Total planejado</th><th></th></tr></thead>
+        <tbody>
+          <tr th:each="obligation : ${summary.obligations}">
+            <td><strong th:text="${obligation.creditor}">Banco</strong></td>
+            <td th:text="${obligation.type.label}">Financiamento</td>
+            <td th:text="${#numbers.formatCurrency(obligation.principalAmount)}">R$ 35.000,00</td>
+            <td th:text="${obligation.plannedTotalAmount == null ? 'Ainda não calculado' : #numbers.formatCurrency(obligation.plannedTotalAmount)}">R$ 49.896,00</td>
+            <td class="text-end"><a th:href="@{/obligations/{id}(id=${obligation.id})}">Ver detalhes</a></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="card-body text-center text-secondary" th:if="${summary.obligations.isEmpty()}">
+      Nenhuma obrigação adicionada. Cadastre a entrada emprestada, o financiamento ou outra fonte.
+    </div>
+  </div>
+
+  <div class="row g-3">
+    <div class="col-md-6">
+      <div class="card h-100"><div class="card-body">
+        <div class="text-secondary small"
+             th:text="${summary.totalsComplete ? 'Total previsto para devolver' : 'Subtotal conhecido para devolver'}">
+          Total previsto para devolver
+        </div>
+        <div class="h2 mb-1" th:text="${#numbers.formatCurrency(summary.plannedRepaymentAmount)}">R$ 59.896,00</div>
+        <p class="mb-0 text-secondary small" th:if="${summary.totalsComplete}">
+          Soma do principal e do custo financeiro de todas as obrigações.
+        </p>
+        <p class="mb-0 text-warning small" th:unless="${summary.totalsComplete}">
+          Existem obrigações sem total calculado. Este valor é apenas o subtotal conhecido.
+        </p>
+      </div></div>
+    </div>
+    <div class="col-md-6">
+      <div class="card h-100"><div class="card-body">
+        <div class="text-secondary small"
+             th:text="${summary.totalsComplete ? 'Custo financeiro previsto' : 'Subtotal conhecido do custo financeiro'}">
+          Custo financeiro previsto
+        </div>
+        <div class="h2 mb-1" th:text="${#numbers.formatCurrency(summary.financingCostAmount)}">R$ 14.896,00</div>
+        <p class="mb-0 text-secondary small" th:if="${summary.totalsComplete}">
+          Diferença entre o total a devolver e o valor efetivamente recebido.
+        </p>
+        <p class="mb-0 text-warning small" th:unless="${summary.totalsComplete}">
+          O custo final aumentará quando as demais condições forem informadas.
+        </p>
+      </div></div>
+    </div>
+  </div>
+</section>
+</html>

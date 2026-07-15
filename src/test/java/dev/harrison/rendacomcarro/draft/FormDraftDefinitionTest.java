@@ -203,17 +203,18 @@ class FormDraftDefinitionTest {
     }
 
     @Test
-    void obligationStructuredModeRequiresScheduleFieldsAtStepThree() {
+    void obligationFixedModeRequiresScheduleFieldsAtStepThree() {
         ObjectNode payload = mapper.createObjectNode()
             .put("creditor", "Banco")
             .put("type", "BANK_FINANCING")
-            .put("mode", "STRUCTURED")
-            .put("principal", "30000,00")
+            .put("mode", "FIXED_INSTALLMENTS")
+            .put("calculationMethod", "INSTALLMENT_KNOWN")
+            .put("principalAmount", "30000,00")
             .put("startDate", "2026-07-13");
 
         assertThatThrownBy(() -> obligation.normalizeAndValidate(payload, 3))
             .isInstanceOf(DomainValidationException.class)
-            .hasMessageContaining("primeiro vencimento");
+            .hasMessageContaining("Primeiro vencimento");
     }
 
     @Test

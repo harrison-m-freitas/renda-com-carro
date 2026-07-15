@@ -8,6 +8,8 @@ import dev.harrison.rendacomcarro.draft.application.FormDraftService;
 import dev.harrison.rendacomcarro.draft.application.FormDraftService.SaveDraftCommand;
 import dev.harrison.rendacomcarro.draft.domain.FormDraftType;
 import dev.harrison.rendacomcarro.finance.application.ObligationFormSubmissionService;
+import dev.harrison.rendacomcarro.finance.domain.InterestRatePeriod;
+import dev.harrison.rendacomcarro.finance.domain.ObligationCalculationMethod;
 import dev.harrison.rendacomcarro.finance.domain.ObligationMode;
 import dev.harrison.rendacomcarro.finance.domain.ObligationType;
 import dev.harrison.rendacomcarro.finance.web.ObligationForm;
@@ -33,29 +35,35 @@ class ObligationFormSubmissionServiceTest extends PostgresIntegrationTest {
     @Autowired ObjectMapper mapper;
 
     @Test
-    void createsObligationConvertsAnnualPercentAndDeletesExactDraft() {
+    void createsFlexibleObligationConvertsAnnualEffectiveRateAndDeletesExactDraft() {
         ObligationForm form = flexibleForm();
+        form.setCalculationMethod(ObligationCalculationMethod.RATE_KNOWN);
+        form.setInterestRatePercent(new BigDecimal("12"));
+        form.setInterestRatePeriod(InterestRatePeriod.ANNUAL);
         seedDraft(form);
 
         var obligation = submissions.submit("obligation-submission-owner", form);
 
-        assertThat(obligation.getAnnualInterestRate()).isEqualByComparingTo("0.120000");
+        assertThat(obligation.getAnnualEffectiveInterestRate())
+            .isCloseTo(new BigDecimal("0.12"), org.assertj.core.data.Offset.offset(new BigDecimal("0.000001")));
+        assertThat(obligation.getMonthlyInterestRate()).isGreaterThan(BigDecimal.ZERO);
         assertThat(drafts.find(
             "obligation-submission-owner", FormDraftType.OBLIGATION, form.draftContextKey()
         )).isEmpty();
     }
 
     @Test
-    void failedStructuredSubmissionPreservesDraft() {
+    void failedFixedSubmissionPreservesDraft() {
         ObligationForm form = flexibleForm();
-        form.setMode(ObligationMode.STRUCTURED);
+        form.setMode(ObligationMode.FIXED_INSTALLMENTS);
+        form.setCalculationMethod(ObligationCalculationMethod.INSTALLMENT_KNOWN);
         form.setFirstDueDate(null);
         form.setTermMonths(null);
+        form.setInstallmentAmount(null);
         seedDraft(form);
 
         assertThatThrownBy(() -> submissions.submit("obligation-submission-owner", form))
-            .isInstanceOf(IllegalArgumentException.class)
-            .hasMessageContaining("Cronograma");
+            .isInstanceOf(IllegalArgumentException.class);
         assertThat(drafts.find(
             "obligation-submission-owner", FormDraftType.OBLIGATION, form.draftContextKey()
         )).isPresent();
@@ -65,10 +73,10 @@ class ObligationFormSubmissionServiceTest extends PostgresIntegrationTest {
         ObligationForm form = new ObligationForm();
         form.setDraftKey("draft:" + UUID.randomUUID());
         form.setType(ObligationType.FAMILY_LOAN);
-        form.setMode(ObligationMode.FLEXIBLE);
+        form.setMode(ObligationMode.FLEXIBLE_PAYMENTS);
+        form.setCalculationMethod(ObligationCalculationMethod.INTEREST_FREE);
         form.setCreditor("Família");
-        form.setPrincipal(new BigDecimal("30000.00"));
-        form.setAnnualRatePercent(new BigDecimal("12"));
+        form.setPrincipalAmount(new BigDecimal("30000.00"));
         form.setStartDate(LocalDate.of(2026, 7, 13));
         form.setMonthlyTarget(new BigDecimal("500.00"));
         return form;
@@ -79,20 +87,21 @@ class ObligationFormSubmissionServiceTest extends PostgresIntegrationTest {
             .put("creditor", form.getCreditor())
             .put("type", form.getType().name())
             .put("mode", form.getMode().name())
-            .put("principal", form.getPrincipal().toPlainString())
-            .put("annualRatePercent", form.getAnnualRatePercent().toPlainString())
+            .put("calculationMethod", form.getCalculationMethod().name())
+            .put("principalAmount", form.getPrincipalAmount().toPlainString())
             .put("startDate", form.getStartDate().toString());
-        if (form.getMode() == ObligationMode.FLEXIBLE) {
+        if (form.getMode() == ObligationMode.FLEXIBLE_PAYMENTS) {
             payload.put("monthlyTarget", form.getMonthlyTarget().toPlainString());
-        } else {
-            payload.put("firstDueDate", "")
-                .put("termMonths", "");
+            if (form.getCalculationMethod() == ObligationCalculationMethod.RATE_KNOWN) {
+                payload.put("interestRatePercent", form.getInterestRatePercent().toPlainString())
+                    .put("interestRatePeriod", form.getInterestRatePeriod().name());
+            }
         }
         drafts.save("obligation-submission-owner", new SaveDraftCommand(
             FormDraftType.OBLIGATION,
             form.draftContextKey(),
-            1,
             2,
+            1,
             null,
             payload,
             false

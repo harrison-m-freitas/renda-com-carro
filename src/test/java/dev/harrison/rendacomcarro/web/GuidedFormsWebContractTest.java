@@ -65,10 +65,10 @@ class GuidedFormsWebContractTest extends PostgresIntegrationTest {
 
         assertLocalizedInputs(
             "/obligations/new",
-            "name=\"principal\"", "name=\"plannedInstallment\"",
-            "name=\"monthlyTarget\"", "data-money-input",
-            "name=\"annualRatePercent\"", "data-percentage-input",
-            "Digite 1200 para informar 12,00% ao ano.",
+            "name=\"principalAmount\"", "name=\"installmentAmount\"",
+            "name=\"monthlyTarget\"", "data-financial-money",
+            "name=\"interestRatePercent\"", "data-financial-percent",
+            "Digite 2,06 para informar 2,06%.",
             "name=\"creditor\"", "data-normalize-spaces"
         );
 

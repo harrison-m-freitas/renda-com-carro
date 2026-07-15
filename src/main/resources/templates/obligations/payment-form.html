@@ -1,1 +1,63 @@
-<!doctype html><html lang="pt-BR" xmlns:th="http://www.thymeleaf.org" th:replace="~{layouts/app :: layout(~{::section}, 'Pagamento')}"><section><h1 class="h2 mb-4">Pagamento para <span th:text="${obligation.creditor}"></span></h1><form class="card card-body row g-3" th:action="@{/obligations/{id}/payments(id=${obligation.id})}" th:object="${paymentForm}" method="post"><div class="col-md-3"><label>Data</label><input class="form-control" type="date" th:field="*{date}"></div><div class="col-md-3"><label>Principal</label><input class="form-control" type="number" step="0.01" th:field="*{principal}"></div><div class="col-md-3"><label>Juros</label><input class="form-control" type="number" step="0.01" th:field="*{interest}"></div><div class="col-md-3"><label>Amortização extra</label><input class="form-control" type="number" step="0.01" th:field="*{extra}"></div><div class="col-md-6"><label>Referência</label><input class="form-control" th:field="*{externalReference}"></div><div class="col-12"><label>Notas</label><textarea class="form-control" th:field="*{notes}"></textarea></div><div class="col-12"><button class="btn btn-primary">Registrar</button></div></form></section></html>
+<!doctype html>
+<html lang="pt-BR" xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{layouts/app :: layout(~{::section}, 'Pagamento')}">
+<section>
+  <h1 class="h2 mb-4">Pagamento para <span th:text="${obligation.creditor}"></span></h1>
+
+  <form class="card card-body row g-3"
+        th:action="@{/obligations/{id}/payments(id=${obligation.id})}"
+        th:object="${paymentForm}"
+        method="post">
+    <div class="col-md-3">
+      <label class="form-label" for="date">Data</label>
+      <input class="form-control" id="date" type="date" th:field="*{date}"
+             th:classappend="${#fields.hasErrors('date')} ? 'is-invalid'">
+      <div class="invalid-feedback" th:errors="*{date}"></div>
+    </div>
+
+    <div class="col-md-3">
+      <label class="form-label" for="principal">Principal</label>
+      <input class="form-control" id="principal" type="number" step="0.01"
+             th:field="*{principal}"
+             th:classappend="${#fields.hasErrors('principal')} ? 'is-invalid'">
+      <div class="invalid-feedback" th:errors="*{principal}"></div>
+    </div>
+
+    <div class="col-md-3">
+      <label class="form-label" for="interest">Juros</label>
+      <input class="form-control" id="interest" type="number" step="0.01"
+             th:field="*{interest}"
+             th:classappend="${#fields.hasErrors('interest')} ? 'is-invalid'">
+      <div class="invalid-feedback" th:errors="*{interest}"></div>
+    </div>
+
+    <div class="col-md-3">
+      <label class="form-label" for="extra">Amortização extra</label>
+      <input class="form-control" id="extra" type="number" step="0.01"
+             th:field="*{extra}"
+             th:classappend="${#fields.hasErrors('extra')} ? 'is-invalid'">
+      <div class="invalid-feedback" th:errors="*{extra}"></div>
+    </div>
+
+    <div class="col-md-6">
+      <label class="form-label" for="externalReference">Referência</label>
+      <input class="form-control" id="externalReference"
+             th:field="*{externalReference}"
+             maxlength="120"
+             aria-describedby="externalReference-error"
+             th:classappend="${#fields.hasErrors('externalReference')} ? 'is-invalid'">
+      <div class="invalid-feedback" id="externalReference-error"
+           th:errors="*{externalReference}"></div>
+    </div>
+
+    <div class="col-12">
+      <label class="form-label" for="notes">Notas</label>
+      <textarea class="form-control" id="notes" th:field="*{notes}"></textarea>
+    </div>
+
+    <div class="col-12">
+      <button class="btn btn-primary" type="submit">Registrar</button>
+    </div>
+  </form>
+</section>
+</html>

@@ -38,6 +38,9 @@
                 th:attr="data-draft-key=${obligationDraft.contextKey}"
                 onsubmit="return confirm('Descartar esta obrigação em andamento e começar novamente?');">
             <input type="hidden" name="next" value="new">
+            <input type="hidden" name="acquisitionPlanId"
+                   th:if="${requestedAcquisitionPlanId != null}"
+                   th:value="${requestedAcquisitionPlanId}">
             <button class="btn btn-outline-danger w-100" type="submit">
               Descartar e começar novamente
             </button>

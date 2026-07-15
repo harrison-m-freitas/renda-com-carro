@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="pt-BR" xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{layouts/app :: layout(~{::section}, 'Plano de compra')}">
+<section>
+  <link rel="stylesheet" th:href="@{/css/obligation-form.css}">
+
+  <div class="mb-4">
+    <nav aria-label="Navegação estrutural" class="small text-secondary mb-2">
+      <a th:href="@{/obligations}">Obrigações</a>
+      <span aria-hidden="true"> / </span>
+      <span aria-current="page">Novo plano de compra</span>
+    </nav>
+    <h1 class="h2 mb-1">Plano de compra</h1>
+    <p class="text-secondary mb-0">
+      Organize uma compra financiada por várias fontes, como recursos próprios,
+      empréstimo familiar e financiamento bancário.
+    </p>
+  </div>
+
+  <form class="obligation-form" id="acquisition-plan-form"
+        th:action="@{/acquisition-plans}"
+        th:object="${acquisitionPlanForm}"
+        method="post" novalidate>
+    <div class="obligation-error-summary" role="alert"
+         th:if="${#fields.hasAnyErrors()}">
+      <strong>Revise os dados do plano.</strong>
+      <ul class="mb-0 mt-2">
+        <li th:each="error : ${#fields.detailedErrors()}"
+            th:text="${error.message}">Campo inválido</li>
+      </ul>
+    </div>
+
+    <div class="obligation-form__grid">
+      <div class="obligation-step">
+        <div class="obligation-step__header">
+          <span class="obligation-step__number" aria-hidden="true">1</span>
+          <div>
+            <h2 class="h4 mb-1">Dados da compra</h2>
+            <p class="text-secondary mb-0">
+              Registre o preço total. As dívidas serão adicionadas como fontes separadas.
+            </p>
+          </div>
+        </div>
+
+        <div class="row g-3">
+          <div class="col-md-7">
+            <label class="form-label" for="title">Nome do plano <span class="required-mark">*</span></label>
+            <input class="form-control" id="title" th:field="*{title}"
+                   maxlength="160" placeholder="Ex.: Compra do Renault"
+                   th:classappend="${#fields.hasErrors('title')} ? 'is-invalid'" required>
+            <div class="invalid-feedback" th:errors="*{title}"></div>
+          </div>
+          <div class="col-md-5">
+            <label class="form-label" for="vehicleId">Veículo</label>
+            <select class="form-select" id="vehicleId" th:field="*{vehicleId}">
+              <option value="">Ainda não cadastrado ou sem veículo</option>
+              <option th:each="vehicle : ${vehicles}" th:value="${vehicle.id}"
+                      th:text="${vehicle.name + ' · ' + vehicle.plate}"></option>
+            </select>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label" for="purchaseAmount">
+              Valor total da compra <span class="required-mark">*</span>
+            </label>
+            <div class="input-group obligation-input-group">
+              <span class="input-group-text">R$</span>
+              <input class="form-control" id="purchaseAmount" type="text"
+                     inputmode="decimal" th:field="*{purchaseAmount}"
+                     data-financial-money placeholder="45.000,00"
+                     th:classappend="${#fields.hasErrors('purchaseAmount')} ? 'is-invalid'" required>
+            </div>
+            <div class="invalid-feedback d-block" th:errors="*{purchaseAmount}"></div>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label" for="ownResourcesAmount">Recursos próprios</label>
+            <div class="input-group obligation-input-group">
+              <span class="input-group-text">R$</span>
+              <input class="form-control" id="ownResourcesAmount" type="text"
+                     inputmode="decimal" th:field="*{ownResourcesAmount}"
+                     data-financial-money placeholder="0,00"
+                     th:classappend="${#fields.hasErrors('ownResourcesAmount')} ? 'is-invalid'" required>
+            </div>
+            <div class="form-text">Dinheiro que não será devolvido a um credor.</div>
+            <div class="invalid-feedback d-block" th:errors="*{ownResourcesAmount}"></div>
+          </div>
+          <div class="col-md-5">
+            <label class="form-label" for="purchaseDate">Data da compra <span class="required-mark">*</span></label>
+            <input class="form-control" id="purchaseDate" type="date"
+                   th:field="*{purchaseDate}" required>
+          </div>
+          <div class="col-12">
+            <label class="form-label" for="notes">Observações</label>
+            <textarea class="form-control" id="notes" rows="4" th:field="*{notes}"
+                      maxlength="4000"
+                      placeholder="Entrada negociada, taxas, seguros ou outras informações"></textarea>
+          </div>
+        </div>
+      </div>
+
+      <aside class="obligation-review">
+        <div class="obligation-review__sticky">
+          <h2 class="h4 mb-1">Composição inicial</h2>
+          <p class="text-secondary small">
+            Depois de criar o plano, adicione cada empréstimo ou financiamento como uma obrigação.
+          </p>
+          <dl class="obligation-summary" aria-live="polite">
+            <div><dt>Valor da compra</dt><dd data-plan-purchase>R$ 0,00</dd></div>
+            <div><dt>Recursos próprios</dt><dd data-plan-own>R$ 0,00</dd></div>
+            <div class="obligation-summary__highlight">
+              <dt>A cobrir com obrigações</dt><dd data-plan-remaining>R$ 0,00</dd>
+            </div>
+          </dl>
+          <div class="obligation-example mt-4">
+            <strong>Exemplo</strong>
+            <p class="mb-0 small text-secondary">
+              Compra de R$ 45.000: R$ 10.000 emprestados pela mãe e R$ 35.000
+              financiados pelo banco. Após criar o plano, cadastre as duas obrigações.
+            </p>
+          </div>
+        </div>
+      </aside>
+    </div>
+
+    <div class="obligation-form__actions d-flex">
+      <span></span>
+      <div class="d-flex gap-2">
+        <a class="btn btn-outline-secondary" th:href="@{/obligations}">Cancelar</a>
+        <button class="btn btn-primary" type="submit">Criar plano de compra</button>
+      </div>
+    </div>
+  </form>
+
+  <script type="module" th:src="@{/js/acquisition-plan-form.js}"></script>
+</section>
+</html>

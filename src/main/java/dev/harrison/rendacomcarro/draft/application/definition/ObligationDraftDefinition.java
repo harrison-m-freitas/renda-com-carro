@@ -4,6 +4,8 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import dev.harrison.rendacomcarro.draft.application.DraftPayloadValidator;
 import dev.harrison.rendacomcarro.draft.application.FormDraftDefinition;
 import dev.harrison.rendacomcarro.draft.domain.FormDraftType;
+import dev.harrison.rendacomcarro.finance.domain.InterestRatePeriod;
+import dev.harrison.rendacomcarro.finance.domain.ObligationCalculationMethod;
 import dev.harrison.rendacomcarro.finance.domain.ObligationMode;
 import dev.harrison.rendacomcarro.finance.domain.ObligationType;
 import dev.harrison.rendacomcarro.shared.domain.DomainValidationException;
@@ -17,14 +19,14 @@ import org.springframework.stereotype.Component;
 
 @Component
 public class ObligationDraftDefinition implements FormDraftDefinition {
-    private static final Pattern KEY_PATTERN = Pattern.compile(
-        "^draft:([0-9a-fA-F-]{36})$"
-    );
+    private static final Pattern KEY_PATTERN = Pattern.compile("^draft:([0-9a-fA-F-]{36})$");
     private static final Set<String> ALLOWED_FIELDS = Set.of(
-        "vehicleId", "creditor", "type", "mode", "principal",
-        "annualRatePercent", "startDate", "firstDueDate", "termMonths",
-        "plannedInstallment", "monthlyTarget", "notes"
+        "acquisitionPlanId", "vehicleId", "creditor", "type", "mode",
+        "calculationMethod", "principalAmount", "interestRatePercent",
+        "interestRatePeriod", "startDate", "firstDueDate", "termMonths",
+        "installmentAmount", "singlePaymentAmount", "monthlyTarget", "notes"
     );
+    private static final Set<String> TEXT_FIELDS = Set.of("creditor", "notes");
 
     private final DraftPayloadValidator validator;
 
@@ -33,7 +35,7 @@ public class ObligationDraftDefinition implements FormDraftDefinition {
     }
 
     @Override public FormDraftType type() { return FormDraftType.OBLIGATION; }
-    @Override public int schemaVersion() { return 1; }
+    @Override public int schemaVersion() { return 2; }
     @Override public int maxStep() { return 4; }
 
     @Override
@@ -58,217 +60,238 @@ public class ObligationDraftDefinition implements FormDraftDefinition {
         boolean validateCurrentStep
     ) {
         validator.rejectUnknownFields(payload, ALLOWED_FIELDS);
-        ObjectNode normalized = validator.sanitizeTextFields(payload, Set.of("creditor", "notes"));
+        ObjectNode normalized = validator.sanitizeTextFields(payload, TEXT_FIELDS);
+        normalizeOptionalUuid(normalized, "acquisitionPlanId", "Plano de compra");
+        normalizeOptionalUuid(normalized, "vehicleId", "Veículo");
 
-        normalizeVehicle(normalized);
+        boolean step1 = validateCurrentStep && currentStep >= 1;
+        boolean step2 = validateCurrentStep && currentStep >= 2;
+        boolean step3 = validateCurrentStep && currentStep >= 3;
 
-        String creditor = validator.optionalText(normalized, "creditor");
-        if (creditor == null && validateCurrentStep && currentStep >= 1) {
-            validator.requireText(normalized, "creditor", "Credor");
-        } else if (creditor == null) {
-            normalized.remove("creditor");
-        }
-
-        ObligationType type = optionalType(normalized);
-        if (type == null && validateCurrentStep && currentStep >= 1) {
-            type = requireType(normalized);
-        }
+        normalizeRequiredText(normalized, "creditor", "Credor", step1);
+        ObligationType type = enumValue(
+            normalized, "type", "Tipo", ObligationType.class, step1
+        );
         if (type != null) normalized.put("type", type.name());
 
-        ObligationMode mode = optionalMode(normalized);
-        if (mode == null && validateCurrentStep && currentStep >= 2) {
-            mode = requireMode(normalized);
-        }
+        ObligationMode mode = enumValue(
+            normalized, "mode", "Forma de pagamento", ObligationMode.class, step2
+        );
         if (mode != null) normalized.put("mode", mode.name());
 
-        normalizePrincipal(normalized, validateCurrentStep && currentStep >= 2);
-        LocalDate startDate = normalizeStartDate(
-            normalized,
-            validateCurrentStep && currentStep >= 2
+        ObligationCalculationMethod method = enumValue(
+            normalized, "calculationMethod", "Informações conhecidas",
+            ObligationCalculationMethod.class, step3
         );
-        normalizeAnnualRate(normalized);
+        if (method != null) normalized.put("calculationMethod", method.name());
 
-        if (mode == null) {
+        normalizePositiveDecimal(
+            normalized, "principalAmount", "Valor emprestado ou financiado", step2
+        );
+        LocalDate startDate = normalizeDate(
+            normalized, "startDate", "Data do contrato", step2
+        );
+
+        if (mode == null || method == null) {
             return normalized;
         }
-
-        if (mode == ObligationMode.STRUCTURED) {
-            normalized.remove("monthlyTarget");
-            normalizeStructuredFields(
-                normalized,
-                startDate,
-                validateCurrentStep && currentStep >= 3
-            );
-        } else {
-            normalized.remove("firstDueDate");
-            normalized.remove("termMonths");
-            normalized.remove("plannedInstallment");
-            normalizeMonthlyTarget(
-                normalized,
-                validateCurrentStep && currentStep >= 3
-            );
+        switch (mode) {
+            case FIXED_INSTALLMENTS -> normalizeFixed(normalized, method, startDate, step3);
+            case FLEXIBLE_PAYMENTS -> normalizeFlexible(normalized, method, step3);
+            case SINGLE_PAYMENT -> normalizeSingle(normalized, method, startDate, step3);
         }
         return normalized;
     }
 
-    private void normalizeVehicle(ObjectNode payload) {
-        String raw = validator.optionalText(payload, "vehicleId");
-        if (raw == null) {
-            payload.remove("vehicleId");
-            return;
-        }
-        payload.put("vehicleId", validator.optionalUuid(payload, "vehicleId", "Veículo").toString());
-    }
-
-    private void normalizePrincipal(ObjectNode payload, boolean required) {
-        BigDecimal principal = required
-            ? validator.requireDecimal(payload, "principal", "Principal")
-            : validator.optionalDecimal(payload, "principal", "Principal");
-        if (principal == null) {
-            payload.remove("principal");
-            return;
-        }
-        if (principal.signum() <= 0) {
-            throw new DomainValidationException("Principal deve ser maior que zero.");
-        }
-        payload.put("principal", principal.toPlainString());
-    }
-
-    private LocalDate normalizeStartDate(ObjectNode payload, boolean required) {
-        String raw = validator.optionalText(payload, "startDate");
-        if (raw == null && required) {
-            LocalDate date = validator.requireDate(payload, "startDate", "Data de início");
-            payload.put("startDate", date.toString());
-            return date;
-        }
-        if (raw == null) {
-            payload.remove("startDate");
-            return null;
-        }
-        LocalDate date = validator.optionalDate(payload, "startDate", "Data de início");
-        payload.put("startDate", date.toString());
-        return date;
-    }
-
-    private void normalizeAnnualRate(ObjectNode payload) {
-        BigDecimal annualRate = validator.optionalDecimal(
-            payload, "annualRatePercent", "Juros anuais"
-        );
-        if (annualRate == null) {
-            payload.remove("annualRatePercent");
-            return;
-        }
-        if (annualRate.signum() < 0 || annualRate.compareTo(new BigDecimal("100")) > 0) {
-            throw new DomainValidationException("Juros anuais devem estar entre 0 e 100.");
-        }
-        payload.put("annualRatePercent", annualRate.toPlainString());
-    }
-
-    private void normalizeStructuredFields(
+    private void normalizeFixed(
         ObjectNode payload,
+        ObligationCalculationMethod method,
         LocalDate startDate,
         boolean required
     ) {
-        LocalDate firstDueDate = validator.optionalDate(
-            payload, "firstDueDate", "Primeiro vencimento"
-        );
-        if (firstDueDate == null && required) {
-            throw new DomainValidationException(
-                "O primeiro vencimento é obrigatório para obrigação estruturada."
-            );
+        LocalDate due = normalizeDate(payload, "firstDueDate", "Primeiro vencimento", required);
+        validateChronology(startDate, due);
+        Integer term = validator.optionalInteger(payload, "termMonths", "Parcelas");
+        if (term == null && required) {
+            throw new DomainValidationException("A quantidade de parcelas é obrigatória.");
         }
-        if (firstDueDate == null) {
-            payload.remove("firstDueDate");
-        } else {
-            if (startDate != null && firstDueDate.isBefore(startDate)) {
-                throw new DomainValidationException(
-                    "O primeiro vencimento não pode ser anterior à data de início."
-                );
+        if (term != null) {
+            if (term < 1 || term > 600) {
+                throw new DomainValidationException("Informe de 1 a 600 parcelas.");
             }
-            payload.put("firstDueDate", firstDueDate.toString());
-        }
-
-        Integer termMonths = validator.optionalInteger(payload, "termMonths", "Parcelas");
-        if (termMonths == null && required) {
-            throw new DomainValidationException(
-                "A quantidade de parcelas deve ser maior que zero."
-            );
-        }
-        if (termMonths == null) {
+            payload.put("termMonths", term);
+        } else {
             payload.remove("termMonths");
-        } else {
-            if (termMonths <= 0) {
-                throw new DomainValidationException(
-                    "A quantidade de parcelas deve ser maior que zero."
+        }
+        switch (method) {
+            case INSTALLMENT_KNOWN -> {
+                normalizePositiveDecimal(
+                    payload, "installmentAmount", "Valor da parcela", required
                 );
+                payload.remove("interestRatePercent");
+                payload.remove("interestRatePeriod");
             }
-            payload.put("termMonths", termMonths);
-        }
-
-        BigDecimal planned = validator.optionalDecimal(
-            payload, "plannedInstallment", "Parcela prevista"
-        );
-        if (planned == null) {
-            payload.remove("plannedInstallment");
-        } else {
-            if (planned.signum() < 0) {
-                throw new DomainValidationException("Parcela prevista não pode ser negativa.");
+            case RATE_KNOWN -> {
+                normalizeRate(payload, required);
+                payload.remove("installmentAmount");
             }
-            payload.put("plannedInstallment", planned.toPlainString());
-        }
-    }
-
-    private void normalizeMonthlyTarget(ObjectNode payload, boolean required) {
-        BigDecimal target = required
-            ? validator.requireDecimal(payload, "monthlyTarget", "Meta mensal flexível")
-            : validator.optionalDecimal(payload, "monthlyTarget", "Meta mensal flexível");
-        if (target == null) {
-            payload.remove("monthlyTarget");
-            return;
-        }
-        if (target.signum() <= 0) {
-            throw new DomainValidationException(
-                "Meta mensal flexível deve ser maior que zero."
+            case INTEREST_FREE -> {
+                payload.remove("installmentAmount");
+                payload.remove("interestRatePercent");
+                payload.remove("interestRatePeriod");
+            }
+            default -> throw new DomainValidationException(
+                "A forma de cálculo não é válida para parcelas fixas."
             );
         }
-        payload.put("monthlyTarget", target.toPlainString());
+        payload.remove("monthlyTarget");
+        payload.remove("singlePaymentAmount");
     }
 
-    private ObligationType optionalType(ObjectNode payload) {
-        String value = validator.optionalText(payload, "type");
-        if (value == null) return null;
-        try {
-            return ObligationType.valueOf(value);
-        } catch (IllegalArgumentException exception) {
-            throw new DomainValidationException("Tipo de obrigação inválido.");
+    private void normalizeFlexible(
+        ObjectNode payload,
+        ObligationCalculationMethod method,
+        boolean required
+    ) {
+        payload.remove("firstDueDate");
+        payload.remove("termMonths");
+        payload.remove("installmentAmount");
+        payload.remove("singlePaymentAmount");
+        normalizePositiveDecimal(payload, "monthlyTarget", "Pagamento mensal planejado", required);
+        switch (method) {
+            case RATE_KNOWN -> normalizeRate(payload, required);
+            case INTEREST_FREE, RATE_UNKNOWN -> {
+                payload.remove("interestRatePercent");
+                payload.remove("interestRatePeriod");
+            }
+            default -> throw new DomainValidationException(
+                "A forma de cálculo não é válida para pagamentos livres."
+            );
         }
     }
 
-    private ObligationType requireType(ObjectNode payload) {
-        String value = validator.requireText(payload, "type", "Tipo");
-        try {
-            return ObligationType.valueOf(value);
-        } catch (IllegalArgumentException exception) {
-            throw new DomainValidationException("Tipo de obrigação inválido.");
+    private void normalizeSingle(
+        ObjectNode payload,
+        ObligationCalculationMethod method,
+        LocalDate startDate,
+        boolean required
+    ) {
+        payload.remove("termMonths");
+        payload.remove("installmentAmount");
+        payload.remove("monthlyTarget");
+        payload.remove("interestRatePercent");
+        payload.remove("interestRatePeriod");
+        LocalDate due = normalizeDate(payload, "firstDueDate", "Data do pagamento", required);
+        validateChronology(startDate, due);
+        if (method == ObligationCalculationMethod.TOTAL_KNOWN) {
+            normalizePositiveDecimal(
+                payload, "singlePaymentAmount", "Valor total a pagar", required
+            );
+        } else if (method == ObligationCalculationMethod.INTEREST_FREE) {
+            payload.remove("singlePaymentAmount");
+        } else {
+            throw new DomainValidationException(
+                "A forma de cálculo não é válida para pagamento único."
+            );
         }
     }
 
-    private ObligationMode optionalMode(ObjectNode payload) {
-        String value = validator.optionalText(payload, "mode");
-        if (value == null) return null;
+    private void normalizeRate(ObjectNode payload, boolean required) {
+        BigDecimal rate = required
+            ? validator.requireDecimal(payload, "interestRatePercent", "Taxa de juros")
+            : validator.optionalDecimal(payload, "interestRatePercent", "Taxa de juros");
+        if (rate == null) {
+            payload.remove("interestRatePercent");
+        } else {
+            if (rate.signum() < 0 || rate.compareTo(new BigDecimal("10000")) > 0) {
+                throw new DomainValidationException("A taxa deve estar entre 0 e 10.000%.");
+            }
+            payload.put("interestRatePercent", rate.toPlainString());
+        }
+        InterestRatePeriod period = enumValue(
+            payload, "interestRatePeriod", "Periodicidade da taxa",
+            InterestRatePeriod.class, required
+        );
+        if (period != null) payload.put("interestRatePeriod", period.name());
+    }
+
+    private void normalizeOptionalUuid(ObjectNode payload, String field, String label) {
+        UUID value = validator.optionalUuid(payload, field, label);
+        if (value == null) payload.remove(field); else payload.put(field, value.toString());
+    }
+
+    private void normalizeRequiredText(
+        ObjectNode payload,
+        String field,
+        String label,
+        boolean required
+    ) {
+        String value = required
+            ? validator.requireText(payload, field, label)
+            : validator.optionalText(payload, field);
+        if (value == null) payload.remove(field); else payload.put(field, value);
+    }
+
+    private BigDecimal normalizePositiveDecimal(
+        ObjectNode payload,
+        String field,
+        String label,
+        boolean required
+    ) {
+        BigDecimal value = required
+            ? validator.requireDecimal(payload, field, label)
+            : validator.optionalDecimal(payload, field, label);
+        if (value == null) {
+            payload.remove(field);
+            return null;
+        }
+        if (value.signum() <= 0) {
+            throw new DomainValidationException(label + " deve ser maior que zero.");
+        }
+        payload.put(field, value.toPlainString());
+        return value;
+    }
+
+    private LocalDate normalizeDate(
+        ObjectNode payload,
+        String field,
+        String label,
+        boolean required
+    ) {
+        LocalDate value = required
+            ? validator.requireDate(payload, field, label)
+            : validator.optionalDate(payload, field, label);
+        if (value == null) payload.remove(field); else payload.put(field, value.toString());
+        return value;
+    }
+
+    private <E extends Enum<E>> E enumValue(
+        ObjectNode payload,
+        String field,
+        String label,
+        Class<E> enumType,
+        boolean required
+    ) {
+        String raw = required
+            ? validator.requireText(payload, field, label)
+            : validator.optionalText(payload, field);
+        if (raw == null) {
+            payload.remove(field);
+            return null;
+        }
         try {
-            return ObligationMode.valueOf(value);
+            return Enum.valueOf(enumType, raw);
         } catch (IllegalArgumentException exception) {
-            throw new DomainValidationException("Modo da obrigação inválido.");
+            throw new DomainValidationException(label + " é inválido.");
         }
     }
 
-    private ObligationMode requireMode(ObjectNode payload) {
-        String value = validator.requireText(payload, "mode", "Modo");
-        try {
-            return ObligationMode.valueOf(value);
-        } catch (IllegalArgumentException exception) {
-            throw new DomainValidationException("Modo da obrigação inválido.");
+    private void validateChronology(LocalDate startDate, LocalDate dueDate) {
+        if (startDate != null && dueDate != null && dueDate.isBefore(startDate)) {
+            throw new DomainValidationException(
+                "O vencimento não pode ser anterior à data do contrato."
+            );
         }
     }
+
 }
