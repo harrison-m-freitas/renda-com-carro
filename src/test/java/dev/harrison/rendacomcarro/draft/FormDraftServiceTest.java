@@ -95,17 +95,18 @@ class FormDraftServiceTest extends PostgresIntegrationTest {
     }
 
     @Test
-    void discardChecksVersionAndCompleteIsIdempotent() {
+    void explicitDiscardIgnoresStaleVersionAndIsIdempotent() {
         service.save("draft-service-owner", expenseCommand(null, false, "100,00"));
         service.save("draft-service-owner", expenseCommand(0L, false, "110,00"));
 
-        assertThatThrownBy(() -> service.discard(
+        assertThatNoException().isThrownBy(() -> service.discard(
             "draft-service-owner", FormDraftType.EXPENSE, "current", 0L
-        )).isInstanceOf(FormDraftConflictException.class);
-
-        service.discard("draft-service-owner", FormDraftType.EXPENSE, "current", 1L);
+        ));
         assertThat(service.find("draft-service-owner", FormDraftType.EXPENSE, "current"))
             .isEmpty();
+        assertThatNoException().isThrownBy(() -> service.discard(
+            "draft-service-owner", FormDraftType.EXPENSE, "current", 1L
+        ));
         assertThatNoException().isThrownBy(() -> service.complete(
             "draft-service-owner", FormDraftType.EXPENSE, "current"
         ));
