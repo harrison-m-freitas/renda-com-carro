@@ -3,9 +3,10 @@ package dev.harrison.rendacomcarro.finance.domain;
 import dev.harrison.rendacomcarro.shared.domain.LabeledEnum;
 
 public enum ObligationType implements LabeledEnum {
-    FAMILY_LOAN("Empréstimo familiar"),
     BANK_FINANCING("Financiamento bancário"),
-    OTHER_ACQUISITION("Outro custo de aquisição");
+    FAMILY_LOAN("Empréstimo de familiar ou conhecido"),
+    OTHER_ACQUISITION("Dívida ou custo de aquisição"),
+    OTHER_DEBT("Outro compromisso financeiro");
 
     private final String label;
 

@@ -2,184 +2,547 @@
 <html lang="pt-BR" xmlns:th="http://www.thymeleaf.org"
       th:replace="~{layouts/app :: layout(~{::section}, 'Nova obrigação')}">
 <section>
-  <div class="mb-4">
-    <h1 class="h2 mb-1">Nova obrigação</h1>
-    <p class="text-secondary mb-0">Registre o compromisso financeiro, configure o pagamento e revise o cronograma.</p>
+  <link rel="stylesheet" th:href="@{/css/obligation-form.css}">
+
+  <div class="obligation-page-header mb-4">
+    <div>
+      <nav aria-label="Navegação estrutural" class="small text-secondary mb-2">
+        <a th:href="@{/obligations}">Obrigações</a>
+        <span aria-hidden="true"> / </span>
+        <span aria-current="page">Nova obrigação</span>
+      </nav>
+      <h1 class="h2 mb-1">Nova obrigação financeira</h1>
+      <p class="text-secondary mb-0">
+        Registre uma dívida usando as informações que você realmente possui. O sistema calcula o restante.
+      </p>
+    </div>
+    <a class="btn btn-outline-secondary obligation-page-header__action"
+       th:href="@{/acquisition-plans/new}">
+      Planejar uma compra com várias fontes
+    </a>
   </div>
 
-  <form id="obligation-form" class="guided-form" th:action="@{/obligations}"
-        th:object="${obligationForm}" method="post"
+  <div class="obligation-context" th:if="${acquisitionPlanSummary != null}">
+    <div>
+      <strong th:text="${acquisitionPlanSummary.plan.title}">Plano de compra</strong>
+      <p class="mb-0 text-secondary small">
+        Esta obrigação será somada às outras fontes do plano.
+      </p>
+    </div>
+    <dl class="obligation-context__numbers mb-0">
+      <div>
+        <dt>Compra</dt>
+        <dd th:text="${#numbers.formatCurrency(acquisitionPlanSummary.plan.purchaseAmount)}">R$ 45.000,00</dd>
+      </div>
+      <div>
+        <dt>Ainda não coberto</dt>
+        <dd th:text="${#numbers.formatCurrency(acquisitionPlanSummary.remainingAmount)}">R$ 35.000,00</dd>
+      </div>
+    </dl>
+  </div>
+
+  <form id="obligation-form"
+        class="obligation-form"
+        th:action="@{/obligations}"
+        th:object="${obligationForm}"
+        method="post"
+        novalidate
         data-guided-form
         data-draft-type="OBLIGATION"
-        th:attr="data-draft-context-key=${obligationForm.draftContextKey()}"
-        data-draft-schema-version="1"
-        data-draft-current-step="1"
-        data-form-max-step="4">
-    <input type="hidden" th:field="*{draftKey}" data-draft-ignore>
+        data-draft-schema-version="2"
+        data-form-max-step="4"
+        th:attr="data-draft-context-key=*{draftContextKey()}">
+    <input type="hidden" th:field="*{draftKey}">
+    <input type="hidden" th:field="*{acquisitionPlanId}">
 
-    <div class="alert alert-danger" th:if="${#fields.hasGlobalErrors()}">
-      <div th:each="error : ${#fields.globalErrors()}" th:text="${error}"></div>
+    <div class="obligation-error-summary" role="alert" tabindex="-1"
+         th:if="${#fields.hasAnyErrors()}">
+      <strong>Não foi possível salvar a obrigação.</strong>
+      <p class="mb-2">Revise os campos indicados antes de tentar novamente.</p>
+      <ul class="mb-0">
+        <li th:each="error : ${#fields.detailedErrors()}"
+            th:text="${error.message}">Campo inválido</li>
+      </ul>
     </div>
 
-    <section class="guided-step" data-form-step="1" aria-labelledby="obligation-step-1-title">
-      <div class="guided-step__header d-flex gap-3 align-items-start">
-        <span class="guided-step__number" aria-hidden="true">1</span>
-        <div>
-          <h2 class="h4 mb-1" id="obligation-step-1-title">Identificação</h2>
-          <p class="text-secondary mb-0">Informe quem receberá, qual é o tipo e se existe vínculo com um veículo.</p>
-        </div>
-      </div>
-      <div class="row g-3">
-        <div class="col-md-6">
-          <label class="form-label" for="creditor">Credor <span class="required-mark">*</span></label>
-          <input class="form-control" id="creditor" th:field="*{creditor}"
-                 data-normalize-spaces
-                 placeholder="Ex.: Banco, financeira ou familiar"
-                 aria-describedby="creditor-error" required>
-          <div class="invalid-feedback d-block" id="creditor-error" th:errors="*{creditor}"></div>
-        </div>
-        <div class="col-md-3">
-          <label class="form-label" for="type">Tipo <span class="required-mark">*</span></label>
-          <select class="form-select" id="type" th:field="*{type}"
-                  aria-describedby="type-error" required data-save-on-blur>
-            <option th:each="type : ${types}" th:value="${type}" th:text="${type.label}"></option>
-          </select>
-          <div class="invalid-feedback d-block" id="type-error" th:errors="*{type}"></div>
-        </div>
-        <div class="col-md-3">
-          <label class="form-label" for="vehicleId">Veículo</label>
-          <select class="form-select" id="vehicleId" th:field="*{vehicleId}" data-save-on-blur>
-            <option value="">Sem vínculo com veículo</option>
-            <option th:each="vehicle : ${vehicles}" th:value="${vehicle.id}"
-                    th:text="${vehicle.name + ' · ' + vehicle.plate}"></option>
-          </select>
-        </div>
-      </div>
-    </section>
-
-    <section class="guided-step" data-form-step="2" aria-labelledby="obligation-step-2-title">
-      <div class="guided-step__header d-flex gap-3 align-items-start">
-        <span class="guided-step__number" aria-hidden="true">2</span>
-        <div>
-          <h2 class="h4 mb-1" id="obligation-step-2-title">Valores e forma de pagamento</h2>
-          <p class="text-secondary mb-0">Defina o saldo inicial, a taxa anual e como os pagamentos serão planejados.</p>
-        </div>
-      </div>
-      <div class="row g-3">
-        <div class="col-md-3">
-          <label class="form-label" for="mode">Modo <span class="required-mark">*</span></label>
-          <select class="form-select" id="mode" th:field="*{mode}"
-                  aria-describedby="mode-help mode-error" required>
-            <option th:each="mode : ${modes}" th:value="${mode}" th:text="${mode.label}"></option>
-          </select>
-          <div class="form-text" id="mode-help">Estruturado cria parcelas; flexível usa uma meta mensal.</div>
-          <div class="invalid-feedback d-block" id="mode-error" th:errors="*{mode}"></div>
-        </div>
-        <div class="col-md-3">
-          <label class="form-label" for="principal">Principal <span class="required-mark">*</span></label>
-          <div class="input-group input-unit">
-            <span class="input-group-text">R$</span>
-            <input class="form-control" id="principal" type="text" inputmode="decimal"
-                   placeholder="0,00" th:field="*{principal}"
-                   data-money-input data-max-digits="14"
-                   aria-describedby="principal-error" required>
+    <div class="obligation-form__grid">
+      <div class="obligation-form__main">
+        <section class="obligation-step" data-form-step="1"
+                 aria-labelledby="obligation-step-1-title">
+          <div class="obligation-step__header">
+            <span class="obligation-step__number" aria-hidden="true">1</span>
+            <div>
+              <h2 class="h4 mb-1" id="obligation-step-1-title" tabindex="-1">
+                O que você está registrando?
+              </h2>
+              <p class="text-secondary mb-0">
+                Escolha a situação mais próxima. Os próximos campos serão adaptados automaticamente.
+              </p>
+            </div>
           </div>
-          <div class="invalid-feedback d-block" id="principal-error" th:errors="*{principal}"></div>
-        </div>
-        <div class="col-md-3">
-          <label class="form-label" for="annualRatePercent">Juros anuais</label>
-          <div class="input-group input-unit">
-            <input class="form-control" id="annualRatePercent" type="text" inputmode="decimal"
-                   placeholder="0,00" th:field="*{annualRatePercent}"
-                   data-percentage-input data-max-digits="5" data-max-value="100"
-                   aria-describedby="annualRatePercent-help annualRatePercent-error">
-            <span class="input-group-text">%</span>
-          </div>
-          <div class="form-text" id="annualRatePercent-help">Informe de 0 a 100. Digite 1200 para informar 12,00% ao ano.</div>
-          <div class="invalid-feedback d-block" id="annualRatePercent-error"
-               th:errors="*{annualRatePercent}"></div>
-        </div>
-        <div class="col-md-3">
-          <label class="form-label" for="startDate">Início <span class="required-mark">*</span></label>
-          <input class="form-control" id="startDate" type="date" th:field="*{startDate}"
-                 aria-describedby="startDate-error" required data-save-on-blur>
-          <div class="invalid-feedback d-block" id="startDate-error" th:errors="*{startDate}"></div>
-        </div>
-      </div>
-    </section>
 
-    <section class="guided-step" data-form-step="3" aria-labelledby="obligation-step-3-title">
-      <div class="guided-step__header d-flex gap-3 align-items-start">
-        <span class="guided-step__number" aria-hidden="true">3</span>
-        <div>
-          <h2 class="h4 mb-1" id="obligation-step-3-title">Planejamento do pagamento</h2>
-          <p class="text-secondary mb-0">Preencha o cronograma estruturado ou a meta mensal flexível.</p>
-        </div>
-      </div>
-      <div class="row g-3" data-structured-group>
-        <div class="col-md-4">
-          <label class="form-label" for="firstDueDate">Primeiro vencimento <span class="required-mark">*</span></label>
-          <input class="form-control" id="firstDueDate" type="date" th:field="*{firstDueDate}"
-                 aria-describedby="firstDueDate-error" data-save-on-blur>
-          <div class="invalid-feedback d-block" id="firstDueDate-error" th:errors="*{firstDueDate}"></div>
-        </div>
-        <div class="col-md-4">
-          <label class="form-label" for="termMonths">Parcelas <span class="required-mark">*</span></label>
-          <input class="form-control" id="termMonths" type="number" min="1" step="1"
-                 inputmode="numeric" th:field="*{termMonths}" aria-describedby="termMonths-error">
-          <div class="invalid-feedback d-block" id="termMonths-error" th:errors="*{termMonths}"></div>
-        </div>
-        <div class="col-md-4">
-          <label class="form-label" for="plannedInstallment">Parcela prevista</label>
-          <div class="input-group input-unit">
-            <span class="input-group-text">R$</span>
-            <input class="form-control" id="plannedInstallment" type="text" inputmode="decimal"
-                   placeholder="0,00" th:field="*{plannedInstallment}"
-                   data-money-input data-max-digits="14"
-                   aria-describedby="plannedInstallment-error">
-          </div>
-          <div class="invalid-feedback d-block" id="plannedInstallment-error"
-               th:errors="*{plannedInstallment}"></div>
-        </div>
-      </div>
-      <div class="row g-3" data-flexible-group>
-        <div class="col-md-6">
-          <label class="form-label" for="monthlyTarget">Meta mensal flexível <span class="required-mark">*</span></label>
-          <div class="input-group input-unit">
-            <span class="input-group-text">R$</span>
-            <input class="form-control" id="monthlyTarget" type="text" inputmode="decimal"
-                   placeholder="0,00" th:field="*{monthlyTarget}"
-                   data-money-input data-max-digits="14"
-                   aria-describedby="monthlyTarget-help monthlyTarget-error">
-          </div>
-          <div class="form-text" id="monthlyTarget-help">Valor que pretende amortizar mensalmente, sem cronograma fixo.</div>
-          <div class="invalid-feedback d-block" id="monthlyTarget-error"
-               th:errors="*{monthlyTarget}"></div>
-        </div>
-      </div>
-    </section>
+          <fieldset class="mb-4" aria-describedby="type-error">
+            <legend class="form-label">Tipo de compromisso <span class="required-mark">*</span></legend>
+            <div class="obligation-choice-grid obligation-choice-grid--two">
+              <label class="obligation-choice">
+                <input type="radio" th:field="*{type}" value="BANK_FINANCING" required>
+                <span class="obligation-choice__icon" aria-hidden="true">🏦</span>
+                <span>
+                  <strong>Financiamento bancário</strong>
+                  <small>Parcelas definidas por banco ou financeira.</small>
+                </span>
+                <span class="obligation-choice__check" aria-hidden="true">✓</span>
+              </label>
+              <label class="obligation-choice">
+                <input type="radio" th:field="*{type}" value="FAMILY_LOAN" required>
+                <span class="obligation-choice__icon" aria-hidden="true">🤝</span>
+                <span>
+                  <strong>Empréstimo de uma pessoa</strong>
+                  <small>Dinheiro de familiar, amigo ou terceiro.</small>
+                </span>
+                <span class="obligation-choice__check" aria-hidden="true">✓</span>
+              </label>
+              <label class="obligation-choice">
+                <input type="radio" th:field="*{type}" value="OTHER_ACQUISITION" required>
+                <span class="obligation-choice__icon" aria-hidden="true">🧾</span>
+                <span>
+                  <strong>Dívida ou custo de aquisição</strong>
+                  <small>Valor parcelado ligado a uma compra ou preparação.</small>
+                </span>
+                <span class="obligation-choice__check" aria-hidden="true">✓</span>
+              </label>
+              <label class="obligation-choice">
+                <input type="radio" th:field="*{type}" value="OTHER_DEBT" required>
+                <span class="obligation-choice__icon" aria-hidden="true">📌</span>
+                <span>
+                  <strong>Outro compromisso</strong>
+                  <small>Uma obrigação que não se encaixa nas opções anteriores.</small>
+                </span>
+                <span class="obligation-choice__check" aria-hidden="true">✓</span>
+              </label>
+            </div>
+            <div class="invalid-feedback d-block" id="type-error" th:errors="*{type}"></div>
+          </fieldset>
 
-    <section class="guided-step" data-form-step="4" aria-labelledby="obligation-step-4-title">
-      <div class="guided-step__header d-flex gap-3 align-items-start">
-        <span class="guided-step__number" aria-hidden="true">4</span>
-        <div>
-          <h2 class="h4 mb-1" id="obligation-step-4-title">Revisão e notas</h2>
-          <p class="text-secondary mb-0">Confira o compromisso antes de gerar o cronograma.</p>
-        </div>
-      </div>
-      <div class="guided-summary mb-3">
-        <div class="d-flex justify-content-between gap-3 mb-2"><span>Credor</span><strong data-obligation-summary-creditor>—</strong></div>
-        <div class="d-flex justify-content-between gap-3 mb-2"><span>Principal</span><strong data-obligation-summary-principal>R$ 0,00</strong></div>
-        <div class="d-flex justify-content-between gap-3 mb-2"><span>Juros anuais</span><strong data-obligation-summary-rate>0%</strong></div>
-        <div class="d-flex justify-content-between gap-3"><span>Planejamento</span><strong data-obligation-summary-plan>—</strong></div>
-      </div>
-      <label class="form-label" for="notes">Notas</label>
-      <textarea class="form-control" id="notes" rows="4" th:field="*{notes}"
-                data-trim-outer-whitespace
-                placeholder="Condições combinadas, origem do empréstimo ou observações"></textarea>
-    </section>
+          <div class="row g-3">
+            <div class="col-md-7">
+              <label class="form-label" for="creditor">
+                Para quem você deve? <span class="required-mark">*</span>
+              </label>
+              <input class="form-control"
+                     th:classappend="${#fields.hasErrors('creditor')} ? 'is-invalid'"
+                     id="creditor"
+                     th:field="*{creditor}"
+                     maxlength="160"
+                     autocomplete="organization"
+                     placeholder="Ex.: Banco do Brasil, Financeira X ou minha mãe"
+                     data-normalize-spaces
+                     aria-describedby="creditor-help creditor-error"
+                     th:attr="aria-invalid=${#fields.hasErrors('creditor')}"
+                     required>
+              <div class="form-text" id="creditor-help">
+                Use um nome que permita reconhecer esta dívida depois.
+              </div>
+              <div class="invalid-feedback" id="creditor-error" th:errors="*{creditor}"></div>
+            </div>
+            <div class="col-md-5">
+              <label class="form-label" for="vehicleId">Relacionar a um veículo</label>
+              <select class="form-select" id="vehicleId" th:field="*{vehicleId}"
+                      data-save-on-blur>
+                <option value="">Sem veículo específico</option>
+                <option th:each="vehicle : ${vehicles}"
+                        th:value="${vehicle.id}"
+                        th:text="${vehicle.name + ' · ' + vehicle.plate}"></option>
+              </select>
+              <div class="form-text">Opcional. Facilita calcular o custo real do carro.</div>
+            </div>
+          </div>
+        </section>
 
-    <div class="d-none d-md-flex justify-content-between align-items-center gap-2 mt-3">
+        <section class="obligation-step" data-form-step="2"
+                 aria-labelledby="obligation-step-2-title">
+          <div class="obligation-step__header">
+            <span class="obligation-step__number" aria-hidden="true">2</span>
+            <div>
+              <h2 class="h4 mb-1" id="obligation-step-2-title" tabindex="-1">
+                Valor e forma de pagamento
+              </h2>
+              <p class="text-secondary mb-0">
+                Informe quanto foi recebido e se haverá parcelas, pagamentos livres ou um pagamento único.
+              </p>
+            </div>
+          </div>
+
+          <div class="row g-3 mb-4">
+            <div class="col-md-7">
+              <label class="form-label" for="principalAmount">
+                Valor emprestado ou financiado <span class="required-mark">*</span>
+              </label>
+              <div class="input-group obligation-input-group"
+                   th:classappend="${#fields.hasErrors('principalAmount')} ? 'is-invalid'">
+                <span class="input-group-text">R$</span>
+                <input class="form-control"
+                       th:classappend="${#fields.hasErrors('principalAmount')} ? 'is-invalid'"
+                       id="principalAmount"
+                       th:field="*{principalAmount}"
+                       type="text"
+                       inputmode="decimal"
+                       autocomplete="off"
+                       placeholder="35.000,00"
+                       data-financial-money
+                       aria-describedby="principalAmount-help principalAmount-error"
+                       th:attr="aria-invalid=${#fields.hasErrors('principalAmount')}"
+                       required>
+              </div>
+              <div class="form-text" id="principalAmount-help">
+                Informe somente o valor desta dívida, não o preço total do bem.
+              </div>
+              <div class="invalid-feedback d-block" id="principalAmount-error"
+                   th:errors="*{principalAmount}"></div>
+            </div>
+            <div class="col-md-5">
+              <label class="form-label" for="startDate">
+                Data do contrato ou empréstimo <span class="required-mark">*</span>
+              </label>
+              <input class="form-control"
+                     th:classappend="${#fields.hasErrors('startDate')} ? 'is-invalid'"
+                     id="startDate"
+                     type="date"
+                     th:field="*{startDate}"
+                     data-save-on-blur
+                     aria-describedby="startDate-error"
+                     th:attr="aria-invalid=${#fields.hasErrors('startDate')}"
+                     required>
+              <div class="invalid-feedback" id="startDate-error" th:errors="*{startDate}"></div>
+            </div>
+          </div>
+
+          <fieldset aria-describedby="mode-error">
+            <legend class="form-label">
+              Como será feito o pagamento? <span class="required-mark">*</span>
+            </legend>
+            <div class="obligation-choice-grid obligation-choice-grid--three">
+              <label class="obligation-choice obligation-choice--compact">
+                <input type="radio" th:field="*{mode}" value="FIXED_INSTALLMENTS" required>
+                <span>
+                  <strong>Parcelas fixas</strong>
+                  <small>Quantidade e vencimentos definidos.</small>
+                </span>
+                <span class="obligation-choice__check" aria-hidden="true">✓</span>
+              </label>
+              <label class="obligation-choice obligation-choice--compact">
+                <input type="radio" th:field="*{mode}" value="FLEXIBLE_PAYMENTS" required>
+                <span>
+                  <strong>Pagamentos livres</strong>
+                  <small>O valor pago pode variar a cada mês.</small>
+                </span>
+                <span class="obligation-choice__check" aria-hidden="true">✓</span>
+              </label>
+              <label class="obligation-choice obligation-choice--compact">
+                <input type="radio" th:field="*{mode}" value="SINGLE_PAYMENT" required>
+                <span>
+                  <strong>Pagamento único</strong>
+                  <small>Todo o valor será quitado em uma data.</small>
+                </span>
+                <span class="obligation-choice__check" aria-hidden="true">✓</span>
+              </label>
+            </div>
+            <div class="invalid-feedback d-block" id="mode-error" th:errors="*{mode}"></div>
+          </fieldset>
+        </section>
+
+        <section class="obligation-step" data-form-step="3"
+                 aria-labelledby="obligation-step-3-title">
+          <div class="obligation-step__header">
+            <span class="obligation-step__number" aria-hidden="true">3</span>
+            <div>
+              <h2 class="h4 mb-1" id="obligation-step-3-title" tabindex="-1">
+                O que você sabe sobre o pagamento?
+              </h2>
+              <p class="text-secondary mb-0">
+                Não é necessário conhecer a taxa. Informe os dados do contrato que estão disponíveis.
+              </p>
+            </div>
+          </div>
+
+          <fieldset class="mb-4" aria-describedby="calculationMethod-error">
+            <legend class="form-label">
+              Informações disponíveis <span class="required-mark">*</span>
+            </legend>
+            <div class="obligation-choice-grid obligation-choice-grid--two" data-calculation-choices>
+              <label class="obligation-choice obligation-choice--compact"
+                     data-method-modes="FIXED_INSTALLMENTS">
+                <input type="radio" th:field="*{calculationMethod}"
+                       value="INSTALLMENT_KNOWN" required>
+                <span>
+                  <strong>Conheço o valor da parcela</strong>
+                  <small>O sistema estima a taxa e o custo total.</small>
+                </span>
+                <span class="obligation-choice__check" aria-hidden="true">✓</span>
+              </label>
+              <label class="obligation-choice obligation-choice--compact"
+                     data-method-modes="FIXED_INSTALLMENTS|FLEXIBLE_PAYMENTS">
+                <input type="radio" th:field="*{calculationMethod}"
+                       value="RATE_KNOWN" required>
+                <span>
+                  <strong>Conheço a taxa de juros</strong>
+                  <small>Informe se ela é mensal ou anual.</small>
+                </span>
+                <span class="obligation-choice__check" aria-hidden="true">✓</span>
+              </label>
+              <label class="obligation-choice obligation-choice--compact"
+                     data-method-modes="FIXED_INSTALLMENTS|FLEXIBLE_PAYMENTS|SINGLE_PAYMENT">
+                <input type="radio" th:field="*{calculationMethod}"
+                       value="INTEREST_FREE" required>
+                <span>
+                  <strong>Não há juros</strong>
+                  <small>O total devolvido será igual ao valor recebido.</small>
+                </span>
+                <span class="obligation-choice__check" aria-hidden="true">✓</span>
+              </label>
+              <label class="obligation-choice obligation-choice--compact"
+                     data-method-modes="FLEXIBLE_PAYMENTS">
+                <input type="radio" th:field="*{calculationMethod}"
+                       value="RATE_UNKNOWN" required>
+                <span>
+                  <strong>A taxa ainda é desconhecida</strong>
+                  <small>O planejamento fica provisório até a taxa ser informada.</small>
+                </span>
+                <span class="obligation-choice__check" aria-hidden="true">✓</span>
+              </label>
+              <label class="obligation-choice obligation-choice--compact"
+                     data-method-modes="SINGLE_PAYMENT">
+                <input type="radio" th:field="*{calculationMethod}"
+                       value="TOTAL_KNOWN" required>
+                <span>
+                  <strong>Conheço o valor total</strong>
+                  <small>Informe quanto será pago na data de quitação.</small>
+                </span>
+                <span class="obligation-choice__check" aria-hidden="true">✓</span>
+              </label>
+            </div>
+            <div class="invalid-feedback d-block" id="calculationMethod-error"
+                 th:errors="*{calculationMethod}"></div>
+          </fieldset>
+
+          <div class="row g-3" data-obligation-condition="mode=FIXED_INSTALLMENTS|SINGLE_PAYMENT">
+            <div class="col-md-6">
+              <label class="form-label" for="firstDueDate">
+                Primeiro vencimento ou data do pagamento <span class="required-mark">*</span>
+              </label>
+              <input class="form-control"
+                     th:classappend="${#fields.hasErrors('firstDueDate')} ? 'is-invalid'"
+                     id="firstDueDate"
+                     type="date"
+                     th:field="*{firstDueDate}"
+                     data-conditionally-required
+                     data-save-on-blur
+                     aria-describedby="firstDueDate-help firstDueDate-error"
+                     th:attr="aria-invalid=${#fields.hasErrors('firstDueDate')}">
+              <div class="form-text d-flex justify-content-between gap-2" id="firstDueDate-help">
+                <span>Data da primeira cobrança.</span>
+                <button class="btn btn-link btn-sm p-0" type="button"
+                        data-suggest-first-due-date>Usar aproximadamente 30 dias</button>
+              </div>
+              <div class="invalid-feedback" id="firstDueDate-error"
+                   th:errors="*{firstDueDate}"></div>
+            </div>
+            <div class="col-md-6" data-obligation-condition="mode=FIXED_INSTALLMENTS">
+              <label class="form-label" for="termMonths">
+                Quantidade de parcelas <span class="required-mark">*</span>
+              </label>
+              <input class="form-control"
+                     th:classappend="${#fields.hasErrors('termMonths')} ? 'is-invalid'"
+                     id="termMonths"
+                     type="number"
+                     min="1"
+                     max="600"
+                     step="1"
+                     inputmode="numeric"
+                     th:field="*{termMonths}"
+                     data-conditionally-required
+                     aria-describedby="termMonths-help termMonths-error"
+                     th:attr="aria-invalid=${#fields.hasErrors('termMonths')}">
+              <div class="form-text" id="termMonths-help">Ex.: 36 parcelas.</div>
+              <div class="invalid-feedback" id="termMonths-error" th:errors="*{termMonths}"></div>
+            </div>
+          </div>
+
+          <div class="row g-3 mt-0"
+               data-obligation-condition="mode=FIXED_INSTALLMENTS calculationMethod=INSTALLMENT_KNOWN">
+            <div class="col-md-6">
+              <label class="form-label" for="installmentAmount">
+                Valor de cada parcela <span class="required-mark">*</span>
+              </label>
+              <div class="input-group obligation-input-group">
+                <span class="input-group-text">R$</span>
+                <input class="form-control"
+                       th:classappend="${#fields.hasErrors('installmentAmount')} ? 'is-invalid'"
+                       id="installmentAmount"
+                       type="text"
+                       inputmode="decimal"
+                       th:field="*{installmentAmount}"
+                       data-financial-money
+                       data-conditionally-required
+                       placeholder="1.386,00"
+                       aria-describedby="installmentAmount-help installmentAmount-error"
+                       th:attr="aria-invalid=${#fields.hasErrors('installmentAmount')}">
+              </div>
+              <div class="form-text" id="installmentAmount-help">
+                A taxa será estimada a partir do valor, prazo e parcela.
+              </div>
+              <div class="invalid-feedback d-block" id="installmentAmount-error"
+                   th:errors="*{installmentAmount}"></div>
+            </div>
+          </div>
+
+          <div class="row g-3 mt-0"
+               data-obligation-condition="mode=FIXED_INSTALLMENTS|FLEXIBLE_PAYMENTS calculationMethod=RATE_KNOWN">
+            <div class="col-md-7">
+              <label class="form-label" for="interestRatePercent">
+                Taxa de juros <span class="required-mark">*</span>
+              </label>
+              <div class="input-group obligation-input-group">
+                <input class="form-control"
+                       th:classappend="${#fields.hasErrors('interestRatePercent')} ? 'is-invalid'"
+                       id="interestRatePercent"
+                       type="text"
+                       inputmode="decimal"
+                       th:field="*{interestRatePercent}"
+                       data-financial-percent
+                       data-conditionally-required
+                       placeholder="2,06"
+                       aria-describedby="interestRatePercent-help interestRatePercent-error"
+                       th:attr="aria-invalid=${#fields.hasErrors('interestRatePercent')}">
+                <span class="input-group-text">%</span>
+                <label class="visually-hidden" for="interestRatePeriod">Periodicidade da taxa</label>
+                <select class="form-select obligation-rate-period"
+                        th:classappend="${#fields.hasErrors('interestRatePeriod')} ? 'is-invalid'"
+                        id="interestRatePeriod"
+                        th:field="*{interestRatePeriod}"
+                        data-conditionally-required
+                        aria-describedby="interestRatePeriod-error"
+                        th:attr="aria-invalid=${#fields.hasErrors('interestRatePeriod')}">
+                  <option th:each="period : ${ratePeriods}"
+                          th:value="${period}"
+                          th:text="${period.label}"></option>
+                </select>
+              </div>
+              <div class="form-text" id="interestRatePercent-help">
+                Digite 2,06 para informar 2,06%. Não use a máscara de maquininha.
+              </div>
+              <div class="invalid-feedback d-block" id="interestRatePercent-error"
+                   th:errors="*{interestRatePercent}"></div>
+              <div class="invalid-feedback d-block" id="interestRatePeriod-error"
+                   th:errors="*{interestRatePeriod}"></div>
+            </div>
+          </div>
+
+          <div class="row g-3 mt-0" data-obligation-condition="mode=FLEXIBLE_PAYMENTS">
+            <div class="col-md-7">
+              <label class="form-label" for="monthlyTarget">
+                Quanto pretende pagar por mês? <span class="required-mark">*</span>
+              </label>
+              <div class="input-group obligation-input-group">
+                <span class="input-group-text">R$</span>
+                <input class="form-control"
+                       th:classappend="${#fields.hasErrors('monthlyTarget')} ? 'is-invalid'"
+                       id="monthlyTarget"
+                       type="text"
+                       inputmode="decimal"
+                       th:field="*{monthlyTarget}"
+                       data-financial-money
+                       data-conditionally-required
+                       placeholder="500,00"
+                       aria-describedby="monthlyTarget-help monthlyTarget-error"
+                       th:attr="aria-invalid=${#fields.hasErrors('monthlyTarget')}">
+              </div>
+              <div class="form-text" id="monthlyTarget-help">
+                É uma referência de planejamento. Os pagamentos reais poderão variar.
+              </div>
+              <div class="invalid-feedback d-block" id="monthlyTarget-error"
+                   th:errors="*{monthlyTarget}"></div>
+            </div>
+          </div>
+
+          <div class="row g-3 mt-0"
+               data-obligation-condition="mode=SINGLE_PAYMENT calculationMethod=TOTAL_KNOWN">
+            <div class="col-md-7">
+              <label class="form-label" for="singlePaymentAmount">
+                Valor total que será pago <span class="required-mark">*</span>
+              </label>
+              <div class="input-group obligation-input-group">
+                <span class="input-group-text">R$</span>
+                <input class="form-control"
+                       th:classappend="${#fields.hasErrors('singlePaymentAmount')} ? 'is-invalid'"
+                       id="singlePaymentAmount"
+                       type="text"
+                       inputmode="decimal"
+                       th:field="*{singlePaymentAmount}"
+                       data-financial-money
+                       data-conditionally-required
+                       placeholder="11.200,00"
+                       aria-describedby="singlePaymentAmount-help singlePaymentAmount-error"
+                       th:attr="aria-invalid=${#fields.hasErrors('singlePaymentAmount')}">
+              </div>
+              <div class="form-text" id="singlePaymentAmount-help">
+                A diferença para o valor recebido será tratada como custo financeiro.
+              </div>
+              <div class="invalid-feedback d-block" id="singlePaymentAmount-error"
+                   th:errors="*{singlePaymentAmount}"></div>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <aside class="obligation-review" data-form-step="4"
+             aria-labelledby="obligation-step-4-title">
+        <div class="obligation-review__sticky">
+          <div class="obligation-step__header obligation-step__header--review">
+            <span class="obligation-step__number" aria-hidden="true">4</span>
+            <div>
+              <h2 class="h4 mb-1" id="obligation-step-4-title" tabindex="-1">
+                Revise antes de salvar
+              </h2>
+              <p class="text-secondary mb-0 small">
+                Valores calculados são uma estimativa; o servidor refaz todos os cálculos ao salvar.
+              </p>
+            </div>
+          </div>
+
+          <dl class="obligation-summary" aria-live="polite" aria-atomic="false">
+            <div><dt>Credor</dt><dd data-summary-creditor>Ainda não informado</dd></div>
+            <div><dt>Valor recebido</dt><dd data-summary-principal>—</dd></div>
+            <div><dt>Pagamento</dt><dd data-summary-payment>Complete os dados</dd></div>
+            <div class="obligation-summary__highlight"><dt>Total estimado</dt><dd data-summary-total>—</dd></div>
+            <div><dt>Custo financeiro</dt><dd data-summary-cost>—</dd></div>
+            <div><dt>Taxa estimada</dt><dd data-summary-rate>—</dd></div>
+            <div><dt>Período</dt><dd data-summary-dates>—</dd></div>
+          </dl>
+
+          <div class="obligation-summary-warning" data-summary-warning data-tone="neutral"></div>
+
+          <div class="mt-4">
+            <label class="form-label" for="notes">Observações</label>
+            <textarea class="form-control" id="notes" rows="4" maxlength="4000"
+                      th:field="*{notes}"
+                      data-trim-outer-whitespace
+                      placeholder="Condições combinadas, tarifas, seguro, origem do valor ou outras informações"></textarea>
+          </div>
+
+          <div class="obligation-example mt-4">
+            <strong>Exemplo de composição</strong>
+            <p class="mb-0 small text-secondary">
+              Uma compra de R$ 45.000 pode ter duas obrigações: R$ 10.000 emprestados
+              por um familiar e R$ 35.000 financiados pelo banco. Use um plano de compra
+              para visualizar as duas fontes juntas.
+            </p>
+          </div>
+        </div>
+      </aside>
+    </div>
+
+    <div class="obligation-form__actions d-none d-md-flex">
       <span th:replace="~{fragments/guided-form :: draft-status}"></span>
       <div class="d-flex gap-2">
         <a class="btn btn-outline-secondary" th:href="@{/obligations}">Cancelar</a>
@@ -187,7 +550,7 @@
       </div>
     </div>
 
-    <div th:replace="~{fragments/guided-form :: mobile-actions('Revisar e salvar')}"></div>
+    <div th:replace="~{fragments/guided-form :: mobile-actions('Salvar obrigação')}"></div>
     <div th:replace="~{fragments/guided-form :: recovery-modal('obligation')}"></div>
     <div th:replace="~{fragments/guided-form :: conflict-modal('obligation')}"></div>
   </form>

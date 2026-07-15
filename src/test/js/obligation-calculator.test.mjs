@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {
   buildObligationPreview,
   inferMonthlyRate,
+  suggestFirstDueDate,
 } from '../../main/resources/static/js/obligation-calculator.js';
 
 test('browser preview infers the bank rate from 36 installments of 1386', () => {
@@ -70,4 +71,10 @@ test('flexible preview warns when target is below first-month interest', () => {
 
 test('rate solver returns zero at the interest-free installment', () => {
   assert.equal(inferMonthlyRate(12000, 1000, 12), 0);
+});
+
+
+test('first due date suggestion clamps month-end dates instead of skipping a month', () => {
+  assert.equal(suggestFirstDueDate('2026-01-31'), '2026-02-28');
+  assert.equal(suggestFirstDueDate('2028-01-31'), '2028-02-29');
 });

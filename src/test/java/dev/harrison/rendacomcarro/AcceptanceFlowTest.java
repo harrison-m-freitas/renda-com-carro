@@ -7,6 +7,8 @@ import dev.harrison.rendacomcarro.expense.domain.AllocationMethod;
 import dev.harrison.rendacomcarro.expense.domain.ExpenseClassification;
 import dev.harrison.rendacomcarro.expense.infrastructure.ExpenseCategoryRepository;
 import dev.harrison.rendacomcarro.finance.application.FinancialObligationService;
+import dev.harrison.rendacomcarro.finance.domain.InterestRatePeriod;
+import dev.harrison.rendacomcarro.finance.domain.ObligationCalculationMethod;
 import dev.harrison.rendacomcarro.finance.domain.ObligationMode;
 import dev.harrison.rendacomcarro.finance.domain.ObligationType;
 import dev.harrison.rendacomcarro.fuel.application.FuelingService;
@@ -181,12 +183,16 @@ class AcceptanceFlowTest extends PostgresIntegrationTest {
 
         var debt = obligations.create(new FinancialObligationService.CreateCommand(
             vehicle.getId(),
+            null,
             ObligationType.FAMILY_LOAN,
-            ObligationMode.FLEXIBLE,
+            ObligationMode.FLEXIBLE_PAYMENTS,
+            ObligationCalculationMethod.INTEREST_FREE,
             "Família",
             new BigDecimal("30000.00"),
             BigDecimal.ZERO,
+            InterestRatePeriod.MONTHLY,
             OPERATION_DATE,
+            null,
             null,
             null,
             null,

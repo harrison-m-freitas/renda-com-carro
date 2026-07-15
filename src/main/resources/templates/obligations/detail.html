@@ -1,1 +1,98 @@
-<!doctype html><html lang="pt-BR" xmlns:th="http://www.thymeleaf.org" th:replace="~{layouts/app :: layout(~{::section}, 'Obrigação')}"><section><div class="d-flex justify-content-between mb-4"><div><h1 class="h2" th:text="${obligation.creditor}"></h1><div th:text="${obligation.mode.label}"></div></div><a class="btn btn-primary" th:href="@{/obligations/{id}/payments/new(id=${obligation.id})}">Registrar pagamento</a></div><div class="row g-3 mb-4"><div class="col-md-6"><div class="card card-body h-100"><div class="text-secondary">Saldo atual</div><div class="display-6" th:text="${'R$ '+obligation.currentBalance}"></div></div></div><div class="col-md-3"><div class="card card-body h-100"><div class="text-secondary">Tipo</div><div class="h5 mb-0" th:text="${obligation.type.label}"></div></div></div><div class="col-md-3"><div class="card card-body h-100"><div class="text-secondary">Status</div><div class="h5 mb-0" th:text="${obligation.status.label}"></div></div></div></div><div class="card mb-4"><div class="card-header">Cronograma</div><div class="table-responsive"><table class="table mb-0"><tr th:each="i:${schedule}"><td th:text="${#temporals.format(i.dueDate,'dd/MM/yyyy')}"></td><td th:text="${'R$ '+i.expectedAmount}"></td><td th:text="${i.status.label}"></td></tr></table></div></div><div class="card"><div class="card-header">Pagamentos</div><div class="table-responsive"><table class="table mb-0"><tr th:each="p:${payments}"><td th:text="${p.id}"></td><td th:text="${'R$ '+p.amount}"></td></tr></table></div></div></section></html>
+<!doctype html>
+<html lang="pt-BR" xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{layouts/app :: layout(~{::section}, 'Obrigação')}">
+<section>
+  <div class="d-flex flex-column flex-md-row justify-content-between gap-3 mb-4">
+    <div>
+      <nav aria-label="Navegação estrutural" class="small text-secondary mb-2">
+        <a th:href="@{/obligations}">Obrigações</a>
+        <span aria-hidden="true"> / </span>
+        <span aria-current="page" th:text="${obligation.creditor}">Banco</span>
+      </nav>
+      <h1 class="h2 mb-1" th:text="${obligation.creditor}">Banco</h1>
+      <p class="text-secondary mb-0">
+        <span th:text="${obligation.type.label}">Financiamento</span>
+        <span aria-hidden="true"> · </span>
+        <span th:text="${obligation.mode.label}">Parcelas fixas</span>
+      </p>
+    </div>
+    <div class="d-flex gap-2 align-self-md-start">
+      <a class="btn btn-outline-secondary" th:if="${obligation.acquisitionPlan != null}"
+         th:href="@{/acquisition-plans/{id}(id=${obligation.acquisitionPlan.id})}">Ver plano de compra</a>
+      <a class="btn btn-primary"
+         th:href="@{/obligations/{id}/payments/new(id=${obligation.id})}">Registrar pagamento</a>
+    </div>
+  </div>
+
+  <div class="row g-3 mb-4">
+    <div class="col-sm-6 col-xl-3"><div class="card h-100"><div class="card-body">
+      <div class="text-secondary small">Saldo atual</div>
+      <div class="h2 mb-0" th:text="${#numbers.formatCurrency(obligation.currentBalance)}">R$ 35.000,00</div>
+    </div></div></div>
+    <div class="col-sm-6 col-xl-3"><div class="card h-100"><div class="card-body">
+      <div class="text-secondary small">Valor recebido</div>
+      <div class="h2 mb-0" th:text="${#numbers.formatCurrency(obligation.principalAmount)}">R$ 35.000,00</div>
+    </div></div></div>
+    <div class="col-sm-6 col-xl-3"><div class="card h-100"><div class="card-body">
+      <div class="text-secondary small">Total planejado</div>
+      <div class="h2 mb-0" th:text="${obligation.plannedTotalAmount == null ? 'Ainda não calculado' : #numbers.formatCurrency(obligation.plannedTotalAmount)}">R$ 49.896,00</div>
+    </div></div></div>
+    <div class="col-sm-6 col-xl-3"><div class="card h-100"><div class="card-body">
+      <div class="text-secondary small">Custo financeiro</div>
+      <div class="h2 mb-0" th:text="${obligation.plannedInterestAmount == null ? 'Ainda não calculado' : #numbers.formatCurrency(obligation.plannedInterestAmount)}">R$ 14.896,00</div>
+    </div></div></div>
+  </div>
+
+  <div class="card mb-4">
+    <div class="card-header"><h2 class="card-title mb-0">Condições registradas</h2></div>
+    <div class="card-body">
+      <dl class="row mb-0">
+        <dt class="col-sm-4 col-lg-3 text-secondary">Forma de cálculo</dt>
+        <dd class="col-sm-8 col-lg-9" th:text="${obligation.calculationMethod.label}">Parcela conhecida</dd>
+        <dt class="col-sm-4 col-lg-3 text-secondary">Parcela</dt>
+        <dd class="col-sm-8 col-lg-9" th:text="${obligation.installmentAmount == null ? 'Não se aplica' : #numbers.formatCurrency(obligation.installmentAmount)}">R$ 1.386,00</dd>
+        <dt class="col-sm-4 col-lg-3 text-secondary">Taxa mensal estimada</dt>
+        <dd class="col-sm-8 col-lg-9" th:text="${obligation.monthlyInterestRate == null ? 'Não informada' : #numbers.formatDecimal(obligation.monthlyInterestRate * 100, 1, 4) + '% ao mês'}">2,0581%</dd>
+        <dt class="col-sm-4 col-lg-3 text-secondary">Taxa anual efetiva</dt>
+        <dd class="col-sm-8 col-lg-9" th:text="${obligation.annualEffectiveInterestRate == null ? 'Não informada' : #numbers.formatDecimal(obligation.annualEffectiveInterestRate * 100, 1, 4) + '% ao ano'}">27,694%</dd>
+        <dt class="col-sm-4 col-lg-3 text-secondary">Data do contrato</dt>
+        <dd class="col-sm-8 col-lg-9" th:text="${#temporals.format(obligation.startDate, 'dd/MM/yyyy')}">14/07/2026</dd>
+      </dl>
+    </div>
+  </div>
+
+  <div class="card mb-4" th:if="${!schedule.isEmpty()}">
+    <div class="card-header"><h2 class="card-title mb-0">Cronograma planejado</h2></div>
+    <div class="table-responsive">
+      <table class="table table-vcenter card-table">
+        <thead><tr><th>#</th><th>Vencimento</th><th>Principal</th><th>Juros</th><th>Total</th><th>Status</th></tr></thead>
+        <tbody><tr th:each="installment : ${schedule}">
+          <td th:text="${installment.sequenceNumber}">1</td>
+          <td th:text="${#temporals.format(installment.dueDate, 'dd/MM/yyyy')}">10/08/2026</td>
+          <td th:text="${#numbers.formatCurrency(installment.principalAmount)}">R$ 665,00</td>
+          <td th:text="${#numbers.formatCurrency(installment.interestAmount)}">R$ 721,00</td>
+          <td><strong th:text="${#numbers.formatCurrency(installment.expectedAmount)}">R$ 1.386,00</strong></td>
+          <td th:text="${installment.status.label}">Pendente</td>
+        </tr></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header"><h2 class="card-title mb-0">Pagamentos registrados</h2></div>
+    <div class="table-responsive" th:if="${!payments.isEmpty()}">
+      <table class="table table-vcenter card-table">
+        <thead><tr><th>Data</th><th>Principal</th><th>Juros</th><th>Extra</th><th>Total</th></tr></thead>
+        <tbody><tr th:each="payment : ${payments}">
+          <td th:text="${#temporals.format(payment.paymentDate, 'dd/MM/yyyy')}">10/08/2026</td>
+          <td th:text="${#numbers.formatCurrency(payment.principalPaid)}">R$ 665,00</td>
+          <td th:text="${#numbers.formatCurrency(payment.interestPaid)}">R$ 721,00</td>
+          <td th:text="${#numbers.formatCurrency(payment.extraAmortization)}">R$ 0,00</td>
+          <td><strong th:text="${#numbers.formatCurrency(payment.amount)}">R$ 1.386,00</strong></td>
+        </tr></tbody>
+      </table>
+    </div>
+    <div class="card-body text-center text-secondary" th:if="${payments.isEmpty()}">Nenhum pagamento registrado.</div>
+  </div>
+</section>
+</html>

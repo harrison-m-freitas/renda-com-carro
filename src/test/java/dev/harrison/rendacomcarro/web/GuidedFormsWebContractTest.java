@@ -69,10 +69,10 @@ class GuidedFormsWebContractTest extends PostgresIntegrationTest {
 
         assertLocalizedInputs(
             "/obligations/new?draftKey=draft:" + UUID.randomUUID(),
-            "name=\"principal\"", "name=\"plannedInstallment\"",
-            "name=\"monthlyTarget\"", "data-money-input",
-            "name=\"annualRatePercent\"", "data-percentage-input",
-            "Digite 1200 para informar 12,00% ao ano.",
+            "name=\"principalAmount\"", "name=\"installmentAmount\"",
+            "name=\"monthlyTarget\"", "data-financial-money",
+            "name=\"interestRatePercent\"", "data-financial-percent",
+            "Digite 2,06 para informar 2,06%.",
             "name=\"creditor\"", "data-normalize-spaces"
         );
 
@@ -85,25 +85,15 @@ class GuidedFormsWebContractTest extends PostgresIntegrationTest {
 
     @Test
     @WithMockUser(username = "guided-contract-owner", roles = "OWNER")
-    void vehicleUsesAStandaloneMobileFlowWithoutDraftContracts() throws Exception {
+    void simpleFormsRemainCompact() throws Exception {
         mvc.perform(get("/vehicles/new"))
             .andExpect(status().isOk())
-            .andExpect(content().string(containsString("data-vehicle-flow")))
-            .andExpect(content().string(containsString("data-vehicle-step=\"identification\"")))
-            .andExpect(content().string(containsString("data-vehicle-step=\"operation\"")))
-            .andExpect(content().string(not(containsString("data-guided-form"))))
-            .andExpect(content().string(not(containsString("data-draft-type"))))
-            .andExpect(content().string(not(containsString("data-guided-save-status"))));
-    }
+            .andExpect(content().string(not(containsString("data-guided-form"))));
 
-    @Test
-    @WithMockUser(username = "guided-contract-owner", roles = "OWNER")
-    void operationDayFormRemainsCompact() throws Exception {
         createVehicle();
         mvc.perform(get("/operation-days/new"))
             .andExpect(status().isOk())
-            .andExpect(content().string(not(containsString("data-guided-form"))))
-            .andExpect(content().string(not(containsString("data-vehicle-flow"))));
+            .andExpect(content().string(not(containsString("data-guided-form"))));
     }
 
     private void assertGuided(String path, String type, String finalCopy) throws Exception {

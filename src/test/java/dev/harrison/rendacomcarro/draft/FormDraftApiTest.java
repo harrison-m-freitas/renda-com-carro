@@ -183,7 +183,7 @@ class FormDraftApiTest extends PostgresIntegrationTest {
         return new SaveDraftCommand(
             FormDraftType.OBLIGATION,
             key,
-            1,
+            2,
             1,
             null,
             mapper.createObjectNode()

@@ -5,8 +5,6 @@ import dev.harrison.rendacomcarro.draft.domain.FormDraftType;
 import dev.harrison.rendacomcarro.finance.domain.FinancialObligation;
 import dev.harrison.rendacomcarro.finance.domain.ObligationMode;
 import dev.harrison.rendacomcarro.finance.web.ObligationForm;
-import java.math.BigDecimal;
-import java.time.LocalDate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -25,50 +23,29 @@ public class ObligationFormSubmissionService {
 
     @Transactional
     public FinancialObligation submit(String username, ObligationForm form) {
-        validateModeSpecificFields(form);
-
-        boolean structured = form.getMode() == ObligationMode.STRUCTURED;
-        LocalDate firstDueDate = structured ? form.getFirstDueDate() : null;
-        Integer termMonths = structured ? form.getTermMonths() : null;
-        BigDecimal plannedInstallment = structured ? form.getPlannedInstallment() : null;
-        BigDecimal monthlyTarget = structured ? null : form.getMonthlyTarget();
-
         FinancialObligation obligation = obligations.create(
             new FinancialObligationService.CreateCommand(
                 form.getVehicleId(),
+                form.getAcquisitionPlanId(),
                 form.getType(),
                 form.getMode(),
+                form.getCalculationMethod(),
                 form.getCreditor(),
-                form.getPrincipal(),
-                form.annualRateRatio(),
+                form.getPrincipalAmount(),
+                form.interestRateRatio(),
+                form.getInterestRatePeriod(),
                 form.getStartDate(),
-                firstDueDate,
-                termMonths,
-                plannedInstallment,
-                monthlyTarget,
+                form.getFirstDueDate(),
+                form.getTermMonths(),
+                form.getInstallmentAmount(),
+                form.getSinglePaymentAmount(),
+                form.getMode() == ObligationMode.FLEXIBLE_PAYMENTS
+                    ? form.getMonthlyTarget()
+                    : null,
                 form.getNotes()
             )
         );
-        drafts.complete(
-            username,
-            FormDraftType.OBLIGATION,
-            form.draftContextKey()
-        );
+        drafts.complete(username, FormDraftType.OBLIGATION, form.draftContextKey());
         return obligation;
-    }
-
-    private static void validateModeSpecificFields(ObligationForm form) {
-        if (form.getMode() == ObligationMode.STRUCTURED) {
-            if (form.getFirstDueDate() == null
-                || form.getTermMonths() == null
-                || form.getTermMonths() <= 0) {
-                throw new IllegalArgumentException("Cronograma estruturado incompleto");
-            }
-        } else if (form.getMonthlyTarget() == null
-            || form.getMonthlyTarget().signum() <= 0) {
-            throw new IllegalArgumentException(
-                "Meta mensal flexível deve ser maior que zero"
-            );
-        }
     }
 }
