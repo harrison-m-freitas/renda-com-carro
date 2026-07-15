@@ -49,11 +49,7 @@ public class ObligationFormSubmissionService {
                 form.getNotes()
             )
         );
-        drafts.complete(
-            username,
-            FormDraftType.OBLIGATION,
-            form.draftContextKey()
-        );
+        drafts.completeAllOfType(username, FormDraftType.OBLIGATION);
         return obligation;
     }
 
