@@ -49,8 +49,7 @@ class GoalEditEntryPointWebTest extends PostgresIntegrationTest {
             new BigDecimal("4000.00"),
             WorkloadPeriodicity.MONTHLY,
             60,
-            Set.of(plannedDate),
-            Set.of(vehicle.getId())
+            Set.of(plannedDate)
         );
 
         mvc.perform(get("/goals"))
