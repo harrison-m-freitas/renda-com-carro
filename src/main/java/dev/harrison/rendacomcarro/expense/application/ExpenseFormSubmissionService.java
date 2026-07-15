@@ -48,11 +48,16 @@ public class ExpenseFormSubmissionService {
             username,
             FormDraftType.EXPENSE,
             List.of(
-                nullToEmpty(form.getDraftContextKey()),
+                currentDraftKey(form),
                 nullToEmpty(form.getPreviousDraftContextKey())
             )
         );
         return created;
+    }
+
+    private String currentDraftKey(ExpenseForm form) {
+        String value = form.getDraftContextKey();
+        return value == null || value.isBlank() ? "current" : value;
     }
 
     private String nullToEmpty(String value) {
