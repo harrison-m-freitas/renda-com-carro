@@ -8,7 +8,6 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.redirectedUrl;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.redirectedUrlPattern;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.xpath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -121,6 +120,7 @@ class ObligationWebTest extends PostgresIntegrationTest {
             .andExpect(content().string(containsString("data-draft-recovery-mode=\"auto\"")))
             .andExpect(content().string(containsString("data-draft-context-key=\"" + ownKey + "\"")));
     }
+
     @Test
     @WithMockUser(username = "obligation-web-owner", roles = "OWNER")
     void purchasePlanContextSurvivesNewDraftDecisionAndSuccessfulSubmission() throws Exception {
@@ -135,8 +135,8 @@ class ObligationWebTest extends PostgresIntegrationTest {
 
         mvc.perform(get("/obligations/new").param("acquisitionPlanId", plan.getId().toString()))
             .andExpect(status().isOk())
-            .andExpect(xpath("//input[@name='acquisitionPlanId' and @value='%s']"
-                .formatted(plan.getId())).exists())
+            .andExpect(content().string(containsString("name=\"acquisitionPlanId\"")))
+            .andExpect(content().string(containsString("value=\"" + plan.getId() + "\"")))
             .andExpect(content().string(containsString("Esta obrigação será somada às outras fontes do plano")));
 
         String draftKey = "draft:" + UUID.randomUUID();
@@ -156,8 +156,8 @@ class ObligationWebTest extends PostgresIntegrationTest {
         mvc.perform(get("/obligations/new").param("acquisitionPlanId", plan.getId().toString()))
             .andExpect(status().isOk())
             .andExpect(content().string(containsString("Você já possui uma obrigação em andamento")))
-            .andExpect(xpath("//input[@name='acquisitionPlanId' and @value='%s']"
-                .formatted(plan.getId())).exists());
+            .andExpect(content().string(containsString("name=\"acquisitionPlanId\"")))
+            .andExpect(content().string(containsString("value=\"" + plan.getId() + "\"")));
 
         mvc.perform(post("/obligations/draft/discard")
                 .with(csrf())
@@ -258,5 +258,4 @@ class ObligationWebTest extends PostgresIntegrationTest {
             null
         ));
     }
-
 }
