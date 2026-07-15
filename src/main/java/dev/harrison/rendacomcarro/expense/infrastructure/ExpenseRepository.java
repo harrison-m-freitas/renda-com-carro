@@ -3,7 +3,6 @@ package dev.harrison.rendacomcarro.expense.infrastructure;
 import dev.harrison.rendacomcarro.expense.domain.Expense;
 import java.time.LocalDate;
 import java.util.List;
-import java.util.Set;
 import java.util.UUID;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -40,7 +39,7 @@ public interface ExpenseRepository extends JpaRepository<Expense, UUID> {
         left join e.vehicle v
         join e.category c
         where e.status = 'ACTIVE'
-          and (v is null or v.id in :vehicleIds)
+          and (v is null or v.id = :vehicleId)
           and (
               e.competenceDate between :monthStart and :monthEnd
               or (e.competenceDate < :monthStart and e.paidDate is null)
@@ -50,6 +49,6 @@ public interface ExpenseRepository extends JpaRepository<Expense, UUID> {
     List<ExpenseSuggestionProjection> findSuggestionCandidates(
         @Param("monthStart") LocalDate monthStart,
         @Param("monthEnd") LocalDate monthEnd,
-        @Param("vehicleIds") Set<UUID> vehicleIds
+        @Param("vehicleId") UUID vehicleId
     );
 }

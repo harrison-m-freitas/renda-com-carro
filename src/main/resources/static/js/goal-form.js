@@ -1,7 +1,6 @@
 import { initializeLocalizedInputs } from './localized-inputs.js';
 import { parseLocalizedDecimal } from './localized-input-formatters.js';
 import { initializeGoalMonthPicker, formatGoalMonth } from './goal-month-picker.js';
-import { initializeGoalVehiclePicker, selectedVehicleLabels } from './goal-vehicle-picker.js';
 import { initializeGoalCalendarPicker } from './goal-calendar-picker.js';
 import { initializeGoalWorkloadPlanner } from './goal-workload-planner.js';
 import { initializeGoalFinancialPlanner } from './goal-financial-planner.js';
@@ -15,7 +14,6 @@ if (form) {
   const month = form.querySelector('[name="month"]');
   const operationalGoal = form.querySelector('[name="operationalGoal"]');
   const plannedDates = form.querySelector('[name="plannedDates"]');
-  const vehicleFields = Array.from(form.querySelectorAll('[name="vehicleIds"]'));
 
   const errorSummary = form.querySelector('[data-form-error-summary]');
 
@@ -28,7 +26,6 @@ if (form) {
   errorSummary?.focus();
 
   const monthPicker = initializeGoalMonthPicker(form, document);
-  const vehiclePicker = initializeGoalVehiclePicker(form, document);
   const calendar = initializeGoalCalendarPicker(form, document);
   const workload = initializeGoalWorkloadPlanner(form, document);
   const financial = initializeGoalFinancialPlanner(form, {
@@ -53,9 +50,7 @@ if (form) {
   }).format(Number(value) || 0);
 
   const refreshSummary = () => {
-    const labels = selectedVehicleLabels(vehicleFields);
     setText('[data-goal-summary-month]', formatGoalMonth(month?.value) || '—');
-    setText('[data-goal-summary-vehicles]', labels.length ? labels.join(', ') : 'Nenhum veículo');
     setText(
       '[data-goal-summary-operational]',
       formatMoney(parseLocalizedDecimal(operationalGoal?.value) ?? 0),
@@ -75,7 +70,6 @@ if (form) {
   month?.addEventListener('change', refreshContext);
   plannedDates?.addEventListener('input', refreshSummary);
   operationalGoal?.addEventListener('input', refreshSummary);
-  vehicleFields.forEach((field) => field.addEventListener('change', refreshSummary));
 
   document.addEventListener('guided-form:before-save', (event) => {
     if (event.detail.form !== form) return;
@@ -86,7 +80,6 @@ if (form) {
   document.addEventListener('guided-form:restored', (event) => {
     if (event.detail.form !== form) return;
     monthPicker.refresh();
-    vehiclePicker.refresh();
     calendar.refresh();
     financial.refresh();
     refreshContext();

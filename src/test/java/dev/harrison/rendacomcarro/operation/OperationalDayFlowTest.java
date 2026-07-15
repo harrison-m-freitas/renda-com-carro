@@ -85,7 +85,7 @@ class OperationalDayFlowTest extends PostgresIntegrationTest {
         var vehicle = vehicleService.create(new VehicleService.CreateVehicleCommand(
             "Carro do dia", "Renault", "Logan", 2018, plate, FuelType.FLEX,
             new BigDecimal(odometer), new BigDecimal("30000.00")));
-        vehicleService.activateAsPrimary(vehicle.getId());
+        vehicleService.activate(vehicle.getId());
         return vehicle;
     }
 }

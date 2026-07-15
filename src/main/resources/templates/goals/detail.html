@@ -6,9 +6,9 @@
     <div>
       <h1 class="h2 mb-1" th:text="${'Meta de ' + monthLabel}">Meta de Julho de 2026</h1>
       <p class="text-secondary mb-0">Planejamento financeiro, jornada informada e ritmo necessário.</p>
-      <div class="d-flex flex-wrap gap-2 mt-2">
-        <span class="badge text-bg-light" th:each="vehicle : ${goal.vehicles}"
-              th:text="${vehicle.name}"></span>
+      <div class="d-flex flex-wrap align-items-center gap-2 mt-2">
+        <span class="badge text-bg-light" th:text="${goal.vehicle.name}"></span>
+        <span class="small text-secondary" th:text="${goal.vehicle.plate}"></span>
       </div>
     </div>
     <a class="btn btn-primary align-self-sm-start"

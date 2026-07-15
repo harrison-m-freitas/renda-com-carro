@@ -59,7 +59,7 @@ public class MonthlyOdometerClosingController {
         }
         if (vehicleId == null) {
             try {
-                vehicleId = vehicles.getPrimaryVehicle().getId();
+                vehicleId = vehicles.getActiveVehicle().getId();
             } catch (IllegalStateException ignored) {
                 // O usuário poderá selecionar qualquer veículo ativo.
             }
@@ -71,7 +71,7 @@ public class MonthlyOdometerClosingController {
         form.setVehicleId(vehicleId);
         form.setMonth(month);
         model.addAttribute("closingForm", form);
-        model.addAttribute("vehicles", vehicles.listAll());
+        model.addAttribute("vehicles", vehicles.listActive());
 
         if (vehicleId != null && month != null) {
             populatePreview(model, form, vehicleId, month, !form.isManualAdjustment());
@@ -113,7 +113,7 @@ public class MonthlyOdometerClosingController {
     }
 
     private String showInvalidForm(MonthlyOdometerClosingForm form, Model model) {
-        model.addAttribute("vehicles", vehicles.listAll());
+        model.addAttribute("vehicles", vehicles.listActive());
         if (form.getVehicleId() != null && form.getMonth() != null) {
             populatePreview(model, form, form.getVehicleId(), form.getMonth(), false);
         }

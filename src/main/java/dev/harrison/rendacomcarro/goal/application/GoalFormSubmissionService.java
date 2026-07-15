@@ -20,24 +20,14 @@ public class GoalFormSubmissionService {
 
     @Transactional
     public MonthlyGoal submit(String username, GoalForm form) {
-        MonthlyGoal goal = form.getVehicleIds().isEmpty()
-            ? goals.create(
-                form.getMonth(),
-                form.getPersonalNetGoal(),
-                form.getOperationalGoal(),
-                form.getWorkloadPeriodicity(),
-                form.enteredDurationMinutes(),
-                form.parsedPlannedDates()
-            )
-            : goals.create(
-                form.getMonth(),
-                form.getPersonalNetGoal(),
-                form.getOperationalGoal(),
-                form.getWorkloadPeriodicity(),
-                form.enteredDurationMinutes(),
-                form.parsedPlannedDates(),
-                form.getVehicleIds()
-            );
+        MonthlyGoal goal = goals.create(
+            form.getMonth(),
+            form.getPersonalNetGoal(),
+            form.getOperationalGoal(),
+            form.getWorkloadPeriodicity(),
+            form.enteredDurationMinutes(),
+            form.parsedPlannedDates()
+        );
         drafts.complete(username, FormDraftType.MONTHLY_GOAL, form.draftContextKey());
         return goal;
     }
@@ -45,26 +35,15 @@ public class GoalFormSubmissionService {
     @Transactional
     public MonthlyGoal update(String username, UUID id, GoalForm form) {
         String originalContextKey = "month:" + goals.get(id).getMonth();
-        MonthlyGoal goal = form.getVehicleIds().isEmpty()
-            ? goals.update(
-                id,
-                form.getMonth(),
-                form.getPersonalNetGoal(),
-                form.getOperationalGoal(),
-                form.getWorkloadPeriodicity(),
-                form.enteredDurationMinutes(),
-                form.parsedPlannedDates()
-            )
-            : goals.update(
-                id,
-                form.getMonth(),
-                form.getPersonalNetGoal(),
-                form.getOperationalGoal(),
-                form.getWorkloadPeriodicity(),
-                form.enteredDurationMinutes(),
-                form.parsedPlannedDates(),
-                form.getVehicleIds()
-            );
+        MonthlyGoal goal = goals.update(
+            id,
+            form.getMonth(),
+            form.getPersonalNetGoal(),
+            form.getOperationalGoal(),
+            form.getWorkloadPeriodicity(),
+            form.enteredDurationMinutes(),
+            form.parsedPlannedDates()
+        );
         drafts.complete(username, FormDraftType.MONTHLY_GOAL, originalContextKey);
         if (!originalContextKey.equals(form.draftContextKey())) {
             drafts.complete(username, FormDraftType.MONTHLY_GOAL, form.draftContextKey());

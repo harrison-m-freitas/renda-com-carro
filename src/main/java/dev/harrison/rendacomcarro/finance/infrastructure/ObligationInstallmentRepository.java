@@ -4,7 +4,6 @@ import dev.harrison.rendacomcarro.finance.domain.InstallmentStatus;
 import dev.harrison.rendacomcarro.finance.domain.ObligationInstallment;
 import java.time.LocalDate;
 import java.util.List;
-import java.util.Set;
 import java.util.UUID;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -34,7 +33,7 @@ public interface ObligationInstallmentRepository
         join i.obligation o
         join o.vehicle v
         where o.status = dev.harrison.rendacomcarro.finance.domain.ObligationStatus.ACTIVE
-          and v.id in :vehicleIds
+          and v.id = :vehicleId
           and i.dueDate <= :monthEnd
           and i.status not in (
               dev.harrison.rendacomcarro.finance.domain.InstallmentStatus.PAID,
@@ -43,7 +42,7 @@ public interface ObligationInstallmentRepository
         order by i.dueDate asc, i.sequenceNumber asc
         """)
     List<InstallmentSuggestionProjection> findSuggestionCandidates(
-        @Param("vehicleIds") Set<UUID> vehicleIds,
+        @Param("vehicleId") UUID vehicleId,
         @Param("monthEnd") LocalDate monthEnd
     );
 }

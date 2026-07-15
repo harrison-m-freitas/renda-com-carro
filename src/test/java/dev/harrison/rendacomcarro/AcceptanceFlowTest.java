@@ -91,7 +91,7 @@ class AcceptanceFlowTest extends PostgresIntegrationTest {
             new BigDecimal("50000.0"),
             new BigDecimal("45000.00")
         ));
-        vehicles.activateAsPrimary(vehicle.getId());
+        vehicles.activate(vehicle.getId());
 
         goals.create(
             YearMonth.from(OPERATION_DATE),

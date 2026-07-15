@@ -46,17 +46,16 @@ class GoalWebTest extends PostgresIntegrationTest {
     @Autowired GoalService goals;
     @Autowired VehicleService vehicles;
 
-    private Vehicle primaryVehicle;
+    private Vehicle activeVehicle;
 
     @BeforeEach
-    void createPrimaryVehicle() {
+    void createActiveVehicle() {
         String plate = "G" + UUID.randomUUID().toString().replace("-", "")
             .substring(0, 6).toUpperCase();
-        primaryVehicle = vehicles.create(new VehicleService.CreateVehicleCommand(
+        activeVehicle = vehicles.create(new VehicleService.CreateVehicleCommand(
             "Veículo da meta web", "Toyota", "Etios", 2018, plate, FuelType.FLEX,
             new BigDecimal("10000.0"), new BigDecimal("35000.00")
         ));
-        vehicles.activateAsPrimary(primaryVehicle.getId());
     }
 
     @Test
@@ -67,15 +66,13 @@ class GoalWebTest extends PostgresIntegrationTest {
             .andExpect(content().string(containsString("data-guided-form")))
             .andExpect(content().string(containsString("data-draft-type=\"MONTHLY_GOAL\"")))
             .andExpect(content().string(containsString("data-draft-context-key=\"month:2027-03\"")))
-            .andExpect(content().string(containsString("data-draft-schema-version=\"3\"")))
-            .andExpect(content().string(containsString("name=\"vehicleIds\"")))
+            .andExpect(content().string(containsString("data-draft-schema-version=\"4\"")))
             .andExpect(content().string(containsString("data-goal-month-picker")))
             .andExpect(content().string(containsString("aria-haspopup=\"dialog\"")))
-            .andExpect(content().string(containsString("data-goal-vehicle-picker")))
             .andExpect(content().string(containsString("data-goal-calendar")))
             .andExpect(content().string(containsString("data-goal-financial-breakdown")))
             .andExpect(content().string(containsString("data-goal-rate-operational-day")))
-            .andExpect(content().string(containsString(primaryVehicle.getName())))
+            .andExpect(content().string(containsString(activeVehicle.getName())))
             .andExpect(content().string(containsString("name=\"workloadPeriodicity\"")))
             .andExpect(content().string(containsString("id=\"workload-DAILY\"")))
             .andExpect(content().string(containsString("for=\"workload-DAILY\"")))
@@ -111,8 +108,7 @@ class GoalWebTest extends PostgresIntegrationTest {
                 LocalDate.of(2027, 5, 5),
                 LocalDate.of(2027, 5, 6),
                 LocalDate.of(2027, 5, 7)
-            ),
-            Set.of(primaryVehicle.getId())
+            )
         );
 
         mvc.perform(get("/goals/{id}/edit", goal.getId()))
@@ -131,7 +127,6 @@ class GoalWebTest extends PostgresIntegrationTest {
         mvc.perform(post("/goals/{id}", goal.getId())
                 .with(csrf())
                 .param("month", month.toString())
-                .param("vehicleIds", primaryVehicle.getId().toString())
                 .param("personalNetGoal", "2.600,00")
                 .param("operationalGoal", "4.100,00")
                 .param("workloadPeriodicity", "DAILY")
@@ -156,7 +151,6 @@ class GoalWebTest extends PostgresIntegrationTest {
         mvc.perform(post("/goals")
                 .with(csrf())
                 .param("month", "2027-04")
-                .param("vehicleIds", primaryVehicle.getId().toString())
                 .param("personalNetGoal", "2.500,00")
                 .param("operationalGoal", "4.000,00")
                 .param("workloadPeriodicity", "WEEKLY")
@@ -175,7 +169,6 @@ class GoalWebTest extends PostgresIntegrationTest {
         mvc.perform(post("/goals")
                 .with(csrf())
                 .param("month", month.toString())
-                .param("vehicleIds", primaryVehicle.getId().toString())
                 .param("personalNetGoal", "2.500,00")
                 .param("operationalGoal", "4.000,00")
                 .param("workloadPeriodicity", "WEEKLY")
@@ -206,7 +199,6 @@ class GoalWebTest extends PostgresIntegrationTest {
         mvc.perform(post("/goals")
                 .with(csrf())
                 .param("month", "2027-08")
-                .param("vehicleIds", primaryVehicle.getId().toString())
                 .param("personalNetGoal", "2500")
                 .param("operationalGoal", "4000")
                 .param("workloadPeriodicity", "MONTHLY")

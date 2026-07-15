@@ -29,9 +29,13 @@ test("operational suggestion adds personal goal after professional costs", () =>
   assert.equal(calculateOperationalSuggestion(2100, 2730), 4830);
 });
 
-test("suggestion URL repeats selected vehicle ids without losing the month", () => {
+test("suggestion URL uses the stored goal vehicle while editing", () => {
   assert.equal(
-    buildOperationalSuggestionUrl("2026-07", ["b", "a"]),
-    "/goals/operational-suggestion?month=2026-07&vehicleIds=b&vehicleIds=a",
+    buildOperationalSuggestionUrl("2026-07", "goal-123"),
+    "/goals/operational-suggestion?month=2026-07&goalId=goal-123",
+  );
+  assert.equal(
+    buildOperationalSuggestionUrl("2026-07"),
+    "/goals/operational-suggestion?month=2026-07",
   );
 });

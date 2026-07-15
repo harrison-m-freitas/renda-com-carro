@@ -17,7 +17,6 @@ import java.time.LocalDate;
 import java.time.YearMonth;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Stream;
 import org.springframework.stereotype.Service;
@@ -49,9 +48,9 @@ public class OperationalGoalSuggestionService {
     }
 
     @Transactional(readOnly = true)
-    public OperationalGoalSuggestion suggest(YearMonth month, Set<UUID> vehicleIds) {
-        if (month == null || vehicleIds == null || vehicleIds.isEmpty()) {
-            throw new IllegalArgumentException("Mês e veículos são obrigatórios");
+    public OperationalGoalSuggestion suggest(YearMonth month, UUID vehicleId) {
+        if (month == null || vehicleId == null) {
+            throw new IllegalArgumentException("Mês e veículo são obrigatórios");
         }
 
         LocalDate monthStart = month.atDay(1);
@@ -59,8 +58,8 @@ public class OperationalGoalSuggestionService {
         List<OperationalGoalSuggestionItem> items = new ArrayList<>();
         List<OperationalGoalSuggestionItem> ignoredItems = new ArrayList<>();
         List<MonthlyOdometerClosing> mileageClosings = closings
-            .findAllByVehicleIdInAndReferenceMonthLessThanEqualOrderByVehicleIdAscReferenceMonthDesc(
-                vehicleIds,
+            .findAllByVehicleIdAndReferenceMonthLessThanEqualOrderByReferenceMonthDesc(
+                vehicleId,
                 monthStart
             );
 
@@ -71,7 +70,7 @@ public class OperationalGoalSuggestionService {
         for (ExpenseSuggestionProjection expense : expenses.findSuggestionCandidates(
             monthStart,
             monthEnd,
-            vehicleIds
+            vehicleId
         )) {
             if (expense.getClassification()
                 == dev.harrison.rendacomcarro.expense.domain.ExpenseClassification.PERSONAL) {
@@ -130,7 +129,7 @@ public class OperationalGoalSuggestionService {
         BigDecimal currentObligations = BigDecimal.ZERO;
         BigDecimal overdueObligations = BigDecimal.ZERO;
         for (InstallmentSuggestionProjection installment : installments
-            .findSuggestionCandidates(vehicleIds, monthEnd)) {
+            .findSuggestionCandidates(vehicleId, monthEnd)) {
             BigDecimal remaining = DecimalPolicy.money(
                 installment.getExpectedAmount().subtract(installment.getPaidAmount())
                     .max(BigDecimal.ZERO)
@@ -158,7 +157,7 @@ public class OperationalGoalSuggestionService {
             ));
         }
 
-        for (FinancialObligation obligation : obligations.findActiveFlexibleTargets(vehicleIds)) {
+        for (FinancialObligation obligation : obligations.findActiveFlexibleTargets(vehicleId)) {
             BigDecimal target = DecimalPolicy.money(
                 obligation.getMonthlyTarget().min(obligation.getCurrentBalance())
             );
@@ -199,7 +198,7 @@ public class OperationalGoalSuggestionService {
         return new OperationalGoalSuggestion(
             month,
             monthLabels.format(month),
-            vehicleIds,
+            vehicleId,
             currentExpenses,
             overdueExpenses,
             currentObligations,

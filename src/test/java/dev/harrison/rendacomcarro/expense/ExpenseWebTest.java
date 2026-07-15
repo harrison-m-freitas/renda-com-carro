@@ -113,7 +113,7 @@ class ExpenseWebTest extends PostgresIntegrationTest {
         var archived = createVehicle();
         vehicles.archive(archived.getId());
         var primary = createVehicle();
-        vehicles.activateAsPrimary(primary.getId());
+        vehicles.activate(primary.getId());
         LocalDate expectedDate = timeZones.today("expense-owner");
 
         mvc.perform(get("/expenses/new"))

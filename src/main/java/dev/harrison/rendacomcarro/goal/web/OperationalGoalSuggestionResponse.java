@@ -6,13 +6,12 @@ import dev.harrison.rendacomcarro.goal.application.OperationalGoalSuggestionItem
 import dev.harrison.rendacomcarro.goal.application.SuggestionItemType;
 import java.math.BigDecimal;
 import java.util.List;
-import java.util.Set;
 import java.util.UUID;
 
 public record OperationalGoalSuggestionResponse(
     String month,
     String monthLabel,
-    Set<UUID> vehicleIds,
+    UUID vehicleId,
     @JsonFormat(shape = JsonFormat.Shape.STRING) BigDecimal currentExpenses,
     @JsonFormat(shape = JsonFormat.Shape.STRING) BigDecimal overdueProfessionalExpenses,
     @JsonFormat(shape = JsonFormat.Shape.STRING) BigDecimal currentVehicleObligations,
@@ -34,14 +33,8 @@ public record OperationalGoalSuggestionResponse(
     ) {
         static Item from(OperationalGoalSuggestionItem item) {
             return new Item(
-                item.type(),
-                item.sourceId(),
-                item.vehicleId(),
-                item.vehicleLabel(),
-                item.label(),
-                item.amount(),
-                item.overdue(),
-                item.explanation()
+                item.type(), item.sourceId(), item.vehicleId(), item.vehicleLabel(), item.label(),
+                item.amount(), item.overdue(), item.explanation()
             );
         }
     }
@@ -50,7 +43,7 @@ public record OperationalGoalSuggestionResponse(
         return new OperationalGoalSuggestionResponse(
             suggestion.month().toString(),
             suggestion.monthLabel(),
-            suggestion.vehicleIds(),
+            suggestion.vehicleId(),
             suggestion.currentExpenses(),
             suggestion.overdueProfessionalExpenses(),
             suggestion.currentVehicleObligations(),

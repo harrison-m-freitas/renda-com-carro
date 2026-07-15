@@ -5,7 +5,7 @@
   <div class="mb-4">
     <h1 class="h2 mb-1"
         th:text="${editing} ? 'Editar meta mensal' : 'Nova meta mensal'">Nova meta mensal</h1>
-    <p class="text-secondary mb-0">Planeje quanto precisa gerar, em quais veículos e em quais dias trabalhará.</p>
+    <p class="text-secondary mb-0">Planeje quanto precisa gerar e em quais dias trabalhará com o veículo da meta.</p>
   </div>
 
   <form id="goal-form" class="guided-form goal-form"
@@ -13,8 +13,8 @@
         th:object="${goalForm}" method="post"
         data-guided-form
         data-draft-type="MONTHLY_GOAL"
-        th:attr="data-draft-context-key=${goalForm.draftContextKey()}"
-        data-draft-schema-version="3"
+        th:attr="data-draft-context-key=${goalForm.draftContextKey()},data-goal-id=${editing ? goal.id : null}"
+        data-draft-schema-version="4"
         data-draft-current-step="1"
         data-form-max-step="3">
 
@@ -31,7 +31,7 @@
         <span class="guided-step__number" aria-hidden="true">1</span>
         <div>
           <h2 class="h4 mb-1" id="goal-step-1-title">Objetivo financeiro</h2>
-          <p class="text-secondary mb-0">Escolha o mês, os veículos e confira a sugestão baseada nos custos profissionais.</p>
+          <p class="text-secondary mb-0">Escolha o mês e confira a sugestão baseada nos custos do veículo da meta.</p>
         </div>
       </div>
 
@@ -65,33 +65,26 @@
         </div>
 
         <div class="col-lg-8">
-          <fieldset class="goal-picker" data-goal-vehicle-picker>
-            <legend class="form-label">Veículos considerados <span class="required-mark">*</span></legend>
-            <button class="form-control goal-picker__trigger" type="button" hidden
-                    data-goal-vehicle-trigger aria-haspopup="dialog" aria-expanded="false"
-                    aria-controls="goal-vehicle-dialog">
-              <span data-goal-vehicle-label>Selecione pelo menos um veículo</span>
-              <span aria-hidden="true">▾</span>
-            </button>
-            <div class="goal-picker__chips mt-2" data-goal-vehicle-chips></div>
-            <div class="goal-picker__popover goal-picker__vehicle-options"
-                 id="goal-vehicle-dialog" role="dialog"
-                 aria-label="Selecionar veículos" data-goal-vehicle-dialog>
-              <div class="form-check goal-picker__vehicle-option" th:each="vehicle : ${vehicles}">
-                <input class="form-check-input" type="checkbox" th:field="*{vehicleIds}"
-                       th:value="${vehicle.id}" th:id="${'goal-vehicle-' + vehicle.id}"
-                       th:attr="data-vehicle-label=${vehicle.name}" data-draft-array>
-                <label class="form-check-label w-100" th:for="${'goal-vehicle-' + vehicle.id}">
-                  <span class="fw-semibold" th:text="${vehicle.name}"></span>
-                  <span class="badge text-bg-primary ms-1" th:if="${vehicle.primaryVehicle}">Principal</span>
-                  <span class="d-block small text-secondary"
-                        th:text="${vehicle.make + ' ' + vehicle.model + ' · ' + vehicle.plate}"></span>
-                </label>
+          <div class="card card-body h-100" data-goal-vehicle-summary>
+            <div class="d-flex justify-content-between gap-3 align-items-start">
+              <div>
+                <div class="text-secondary small">Veículo da meta</div>
+                <div class="fw-semibold" th:if="${vehicle != null}" th:text="${vehicle.name}">Veículo ativo</div>
+                <div class="small text-secondary" th:if="${vehicle != null}"
+                     th:text="${vehicle.make + ' ' + vehicle.model + ' · ' + vehicle.plate}"></div>
+                <div class="text-danger fw-semibold" th:if="${vehicle == null}">Nenhum veículo ativo</div>
+                <div class="small text-secondary" th:if="${vehicle == null}">
+                  Cadastre ou ative um veículo antes de salvar esta meta.
+                </div>
               </div>
+              <span class="badge text-bg-success" th:if="${vehicle != null and vehicle.status.name() == 'ACTIVE'}">Em operação</span>
+              <span class="badge text-bg-secondary" th:if="${vehicle != null and vehicle.status.name() != 'ACTIVE'}"
+                    th:text="${vehicle.status.label}"></span>
             </div>
-            <div class="form-text" id="vehicleIds-help">Gastos sem veículo específico entram uma única vez; gastos vinculados usam somente os veículos escolhidos.</div>
-            <div class="invalid-feedback d-block" id="vehicleIds-error" th:errors="*{vehicleIds}"></div>
-          </fieldset>
+            <a class="btn btn-sm btn-outline-secondary align-self-start mt-3" th:if="${vehicle == null}"
+               th:href="@{/vehicles}">Gerenciar veículos</a>
+            <div class="form-text mt-2" th:if="${editing}">O veículo é preservado para manter o histórico desta meta.</div>
+          </div>
         </div>
 
         <div class="col-md-6">
@@ -125,7 +118,7 @@
         <div class="d-flex flex-column flex-md-row justify-content-between gap-3 align-items-md-start">
           <div>
             <h3 class="h5 mb-1" id="goal-financial-title">Sugestão financeira transparente</h3>
-            <p class="text-secondary mb-0">Meta pessoal somada aos gastos profissionais e às obrigações dos veículos selecionados.</p>
+            <p class="text-secondary mb-0">Meta pessoal somada aos gastos profissionais e às obrigações do veículo da meta.</p>
           </div>
           <div class="text-md-end">
             <div class="text-secondary small">Meta operacional sugerida</div>
@@ -245,13 +238,13 @@
         <span class="guided-step__number" aria-hidden="true">3</span>
         <div>
           <h2 class="h4 mb-1" id="goal-step-3-title">Resultado do planejamento</h2>
-          <p class="text-secondary mb-0">Confira o mês, os veículos, a jornada e o ritmo necessário.</p>
+          <p class="text-secondary mb-0">Confira o mês, o veículo, a jornada e o ritmo necessário.</p>
         </div>
       </div>
 
       <div class="goal-review mb-3">
         <div><span>Mês</span><strong data-goal-summary-month>—</strong></div>
-        <div><span>Veículos</span><strong data-goal-summary-vehicles>—</strong></div>
+        <div><span>Veículo</span><strong data-goal-summary-vehicle th:text="${vehicle != null ? vehicle.name : 'Nenhum veículo ativo'}">—</strong></div>
         <div><span>Meta operacional</span><strong data-goal-summary-operational>R$ 0,00</strong></div>
         <div><span>Jornada planejada</span><strong data-goal-summary-workload>—</strong></div>
         <div><span>Dias planejados</span><strong data-goal-summary-days>0</strong></div>

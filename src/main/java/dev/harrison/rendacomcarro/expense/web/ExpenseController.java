@@ -82,7 +82,7 @@ public class ExpenseController {
             form.setExpenseDate(today);
             form.setPaidDate(today);
             form.setCompetenceMonth(YearMonth.from(today));
-            vehicles.findPrimaryVehicle().ifPresent(vehicle -> form.setVehicleId(vehicle.getId()));
+            vehicles.findActiveVehicle().ifPresent(vehicle -> form.setVehicleId(vehicle.getId()));
             model.addAttribute("expenseForm", form);
         }
         populateReferences(model);

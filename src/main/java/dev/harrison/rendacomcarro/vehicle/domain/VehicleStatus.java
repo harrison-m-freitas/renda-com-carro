@@ -4,6 +4,7 @@ import dev.harrison.rendacomcarro.shared.domain.LabeledEnum;
 
 public enum VehicleStatus implements LabeledEnum {
     ACTIVE("Ativo"),
+    INACTIVE("Inativo"),
     ARCHIVED("Arquivado");
 
     private final String label;
