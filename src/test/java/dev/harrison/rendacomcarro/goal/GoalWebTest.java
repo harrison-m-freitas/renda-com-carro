@@ -38,7 +38,7 @@ import org.springframework.transaction.annotation.Transactional;
 @AutoConfigureMockMvc
 @TestPropertySource(properties = {
     "APP_ADMIN_USERNAME=goal-web-owner",
-    "APP_ADMIN_PASSWORD=goal-web-owner-password"
+    "APP_ADMIN_PASSWORD=goal-web-password"
 })
 @Transactional
 class GoalWebTest extends PostgresIntegrationTest {
@@ -67,8 +67,14 @@ class GoalWebTest extends PostgresIntegrationTest {
             .andExpect(content().string(containsString("data-guided-form")))
             .andExpect(content().string(containsString("data-draft-type=\"MONTHLY_GOAL\"")))
             .andExpect(content().string(containsString("data-draft-context-key=\"month:2027-03\"")))
-            .andExpect(content().string(containsString("data-draft-schema-version=\"2\"")))
+            .andExpect(content().string(containsString("data-draft-schema-version=\"3\"")))
             .andExpect(content().string(containsString("name=\"vehicleIds\"")))
+            .andExpect(content().string(containsString("data-goal-month-picker")))
+            .andExpect(content().string(containsString("aria-haspopup=\"dialog\"")))
+            .andExpect(content().string(containsString("data-goal-vehicle-picker")))
+            .andExpect(content().string(containsString("data-goal-calendar")))
+            .andExpect(content().string(containsString("data-goal-financial-breakdown")))
+            .andExpect(content().string(containsString("data-goal-rate-operational-day")))
             .andExpect(content().string(containsString(primaryVehicle.getName())))
             .andExpect(content().string(containsString("name=\"workloadPeriodicity\"")))
             .andExpect(content().string(containsString("id=\"workload-DAILY\"")))

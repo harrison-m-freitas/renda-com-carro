@@ -110,7 +110,7 @@ class OperationalGoalSuggestionServiceTest {
         when(installments.findSuggestionCandidates(
             Set.of(selectedVehicleId), LocalDate.of(2026, 7, 31)
         )).thenReturn(installmentCandidates);
-        FinancialObligation flexible = flexibleObligation();
+        FinancialObligation flexible = flexibleObligation("500.00", "500.00");
         when(obligations.findActiveFlexibleTargets(Set.of(selectedVehicleId)))
             .thenReturn(List.of(flexible));
     }
@@ -137,6 +137,24 @@ class OperationalGoalSuggestionServiceTest {
                 flexibleObligationId
             )
             .doesNotContain(personalExpenseId, mileageExpenseId);
+    }
+
+
+    @Test
+    void capsFlexibleMonthlyTargetAtTheRemainingBalance() {
+        FinancialObligation capped = flexibleObligation("700.00", "300.00");
+        when(obligations.findActiveFlexibleTargets(Set.of(selectedVehicleId)))
+            .thenReturn(List.of(capped));
+
+        OperationalGoalSuggestion result = service.suggest(
+            YearMonth.of(2026, 7), Set.of(selectedVehicleId)
+        );
+
+        assertThat(result.currentVehicleObligations()).isEqualByComparingTo("1000.00");
+        assertThat(result.items())
+            .filteredOn(item -> item.sourceId().equals(flexibleObligationId))
+            .extracting(OperationalGoalSuggestionItem::amount)
+            .containsExactly(new BigDecimal("300.00"));
     }
 
     @Test
@@ -202,7 +220,7 @@ class OperationalGoalSuggestionServiceTest {
         return projection;
     }
 
-    private FinancialObligation flexibleObligation() {
+    private FinancialObligation flexibleObligation(String target, String balance) {
         FinancialObligation obligation = mock(FinancialObligation.class);
         Vehicle vehicle = mock(Vehicle.class);
         when(vehicle.getId()).thenReturn(selectedVehicleId);
@@ -210,7 +228,8 @@ class OperationalGoalSuggestionServiceTest {
         when(obligation.getId()).thenReturn(flexibleObligationId);
         when(obligation.getVehicle()).thenReturn(vehicle);
         when(obligation.getCreditor()).thenReturn("Família");
-        when(obligation.getMonthlyTarget()).thenReturn(new BigDecimal("500.00"));
+        when(obligation.getMonthlyTarget()).thenReturn(new BigDecimal(target));
+        when(obligation.getCurrentBalance()).thenReturn(new BigDecimal(balance));
         return obligation;
     }
 }

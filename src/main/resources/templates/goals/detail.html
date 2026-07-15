@@ -4,8 +4,12 @@
 <section>
   <div class="d-flex flex-column flex-sm-row align-items-sm-start justify-content-between gap-3 mb-4">
     <div>
-      <h1 class="h2 mb-1" th:text="${'Meta de ' + goal.month}"></h1>
+      <h1 class="h2 mb-1" th:text="${'Meta de ' + monthLabel}">Meta de Julho de 2026</h1>
       <p class="text-secondary mb-0">Planejamento financeiro, jornada informada e ritmo necessário.</p>
+      <div class="d-flex flex-wrap gap-2 mt-2">
+        <span class="badge text-bg-light" th:each="vehicle : ${goal.vehicles}"
+              th:text="${vehicle.name}"></span>
+      </div>
     </div>
     <a class="btn btn-primary align-self-sm-start"
        th:href="@{/goals/{id}/edit(id=${goal.id})}">Editar meta</a>
@@ -14,34 +18,68 @@
   <div class="row g-3 mb-4">
     <div class="col-md-3">
       <div class="card card-body h-100">
-        <div class="text-secondary">Meta pessoal</div>
-        <div class="h3" th:text="${'R$ ' + goal.personalNetGoal}"></div>
+        <div class="text-secondary">Meta líquida pessoal</div>
+        <div class="h3 mb-0" th:text="${'R$ ' + #numbers.formatDecimal(goal.personalNetGoal, 1, 2)}"></div>
       </div>
     </div>
     <div class="col-md-3">
       <div class="card card-body h-100">
         <div class="text-secondary">Meta operacional</div>
-        <div class="h3" th:text="${'R$ ' + goal.operationalGoal}"></div>
+        <div class="h3 mb-0" th:text="${'R$ ' + #numbers.formatDecimal(goal.operationalGoal, 1, 2)}"></div>
       </div>
     </div>
     <div class="col-md-3">
       <div class="card card-body h-100">
-        <div class="text-secondary">Dias disponíveis</div>
-        <div class="h3" th:text="${projection.eligibleRemainingDays}"></div>
+        <div class="text-secondary">Dias planejados</div>
+        <div class="h3 mb-0" th:text="${#lists.size(plannedDays)}"></div>
       </div>
     </div>
     <div class="col-md-3">
       <div class="card card-body h-100">
-        <div class="text-secondary">Necessário por dia</div>
-        <div class="h3" th:text="${'R$ ' + projection.requiredPerDay}"></div>
+        <div class="text-secondary">Jornada total</div>
+        <div class="h3 mb-0">
+          <span th:text="${goal.calculatedHours + ' h'}"></span>
+          <span th:if="${goal.calculatedRemainderMinutes > 0}"
+                th:text="${' ' + goal.calculatedRemainderMinutes + ' min'}"></span>
+        </div>
       </div>
     </div>
   </div>
 
   <div class="card mb-4">
-    <div class="card-header">
-      <h2 class="card-title mb-0">Jornada planejada</h2>
+    <div class="card-header"><h2 class="card-title mb-0">Ritmo necessário</h2></div>
+    <div class="card-body">
+      <div class="row g-3">
+        <div class="col-sm-6 col-lg-3">
+          <div class="goal-rate-card">
+            <span>Operacional por dia</span>
+            <strong th:text="${'R$ ' + #numbers.formatDecimal(operationalPerDay, 1, 2)}"></strong>
+          </div>
+        </div>
+        <div class="col-sm-6 col-lg-3">
+          <div class="goal-rate-card">
+            <span>Operacional por hora</span>
+            <strong th:text="${'R$ ' + #numbers.formatDecimal(operationalPerHour, 1, 2)}"></strong>
+          </div>
+        </div>
+        <div class="col-sm-6 col-lg-3">
+          <div class="goal-rate-card">
+            <span>Líquido pessoal por dia</span>
+            <strong th:text="${'R$ ' + #numbers.formatDecimal(personalPerDay, 1, 2)}"></strong>
+          </div>
+        </div>
+        <div class="col-sm-6 col-lg-3">
+          <div class="goal-rate-card">
+            <span>Líquido pessoal por hora</span>
+            <strong th:text="${'R$ ' + #numbers.formatDecimal(personalPerHour, 1, 2)}"></strong>
+          </div>
+        </div>
+      </div>
     </div>
+  </div>
+
+  <div class="card mb-4">
+    <div class="card-header"><h2 class="card-title mb-0">Jornada planejada</h2></div>
     <div class="card-body">
       <div class="row g-3">
         <div class="col-md-6">
@@ -60,41 +98,19 @@
             <span th:if="${goal.calculatedRemainderMinutes > 0}"
                   th:text="${' ' + goal.calculatedRemainderMinutes + ' min'}"></span>
           </div>
-          <div class="text-secondary"
-               th:text="${plannedDays.size() + (plannedDays.size() == 1 ? ' dia planejado' : ' dias planejados')}"></div>
+          <div class="text-secondary">Distribuído pelos dias selecionados.</div>
         </div>
       </div>
     </div>
   </div>
 
   <div class="card">
-    <div class="card-header">
-      <h2 class="card-title mb-0">Distribuição por dia</h2>
-    </div>
+    <div class="card-header"><h2 class="card-title mb-0">Dias selecionados</h2></div>
     <div class="card-body">
-      <div class="table-responsive" th:if="${!plannedDays.isEmpty()}">
-        <table class="table table-vcenter mb-0">
-          <thead>
-          <tr>
-            <th>Data</th>
-            <th class="text-end">Jornada</th>
-          </tr>
-          </thead>
-          <tbody>
-          <tr th:each="day : ${plannedDays}">
-            <td th:text="${#temporals.format(day.workDate, 'dd/MM/yyyy')}"></td>
-            <td class="text-end">
-              <span th:if="${day.allocatedHours > 0}"
-                    th:text="${day.allocatedHours + ' h'}"></span>
-              <span th:if="${day.allocatedRemainderMinutes > 0}"
-                    th:text="${(day.allocatedHours > 0 ? ' ' : '') + day.allocatedRemainderMinutes + ' min'}"></span>
-              <span th:if="${day.allocatedDurationMinutes == 0}">0 min</span>
-            </td>
-          </tr>
-          </tbody>
-        </table>
+      <div class="d-flex flex-wrap gap-2">
+        <span class="badge text-bg-light" th:each="day : ${plannedDays}"
+              th:text="${#temporals.format(day.workDate, 'dd/MM') + ' · ' + day.allocatedDurationMinutes + ' min'}"></span>
       </div>
-      <div class="text-secondary" th:if="${plannedDays.isEmpty()}">Nenhum dia planejado.</div>
     </div>
   </div>
 </section>

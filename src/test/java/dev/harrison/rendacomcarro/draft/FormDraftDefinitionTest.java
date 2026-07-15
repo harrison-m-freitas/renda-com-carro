@@ -86,7 +86,7 @@ class FormDraftDefinitionTest {
     }
 
     @Test
-    void goalDraftSchemaTwoPreservesWeeklySourceWithoutRequiringDatesDuringAutosave() {
+    void goalDraftSchemaThreePreservesWeeklySourceWithoutRequiringDatesDuringAutosave() {
         ObjectNode payload = mapper.createObjectNode()
             .put("month", "2026-07")
             .put("personalNetGoal", "2000,00")
@@ -97,7 +97,7 @@ class FormDraftDefinitionTest {
 
         ObjectNode normalized = goal.normalizeAndValidate(payload, 2, false);
 
-        assertThat(goal.schemaVersion()).isEqualTo(2);
+        assertThat(goal.schemaVersion()).isEqualTo(3);
         assertThat(normalized.path("workloadPeriodicity").asText()).isEqualTo("WEEKLY");
         assertThat(normalized.path("workloadHours").asLong()).isEqualTo(40);
         assertThat(normalized.path("workloadMinutes").asInt()).isZero();
@@ -106,6 +106,44 @@ class FormDraftDefinitionTest {
         assertThatThrownBy(() -> goal.normalizeAndValidate(payload.deepCopy(), 2, true))
             .isInstanceOf(DomainValidationException.class)
             .hasMessageContaining("Dias planejados");
+    }
+
+
+    @Test
+    void monthlyGoalDraftNormalizesVehicleIdArray() {
+        UUID idA = UUID.fromString("00000000-0000-0000-0000-000000000001");
+        UUID idB = UUID.fromString("00000000-0000-0000-0000-000000000002");
+        ObjectNode payload = mapper.createObjectNode()
+            .put("month", "2026-07")
+            .put("personalNetGoal", "2000,00")
+            .put("operationalGoal", "3000,00")
+            .put("workloadPeriodicity", "MONTHLY")
+            .put("workloadHours", "160")
+            .put("workloadMinutes", "0")
+            .put("plannedDates", "2026-07-01");
+        payload.putArray("vehicleIds")
+            .add(idB.toString())
+            .add(idA.toString())
+            .add(idA.toString());
+
+        ObjectNode normalized = goal.normalizeAndValidate(payload, 3, true);
+
+        assertThat(goal.schemaVersion()).isEqualTo(3);
+        assertThat(normalized.withArray("vehicleIds"))
+            .extracting(node -> node.asText())
+            .containsExactly(idA.toString(), idB.toString());
+    }
+
+    @Test
+    void monthlyGoalDraftRequiresVehicleIdsAtFirstValidatedStep() {
+        ObjectNode payload = mapper.createObjectNode()
+            .put("month", "2026-07")
+            .put("personalNetGoal", "2000,00")
+            .put("operationalGoal", "3000,00");
+
+        assertThatThrownBy(() -> goal.normalizeAndValidate(payload, 1, true))
+            .isInstanceOf(DomainValidationException.class)
+            .hasMessageContaining("Veículos");
     }
 
     @Test

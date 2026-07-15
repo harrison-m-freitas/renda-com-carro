@@ -198,6 +198,46 @@ for (const draftType of GUIDED_DRAFT_TYPES) {
   });
 }
 
+test("restore checks only checkbox values present in a draft array and emits one change", () => {
+  const originalDocument = globalThis.document;
+  const originalCustomEvent = globalThis.CustomEvent;
+  globalThis.document = { dispatchEvent() {} };
+  globalThis.CustomEvent = class CustomEvent {
+    constructor(type, options = {}) { this.type = type; this.detail = options.detail; }
+  };
+
+  const changes = [];
+  const fields = [
+    checkboxField("vehicleIds", "uuid-a", changes),
+    checkboxField("vehicleIds", "uuid-b", changes),
+    checkboxField("vehicleIds", "uuid-c", changes),
+  ];
+  const form = createForm("MONTHLY_GOAL", "month:2026-07", "month", "2026-07");
+  form.elements = fields;
+
+  try {
+    const controller = new GuidedFormController(form, { client: {} });
+    controller.restore({
+      contextKey: "month:2026-07",
+      currentStep: 1,
+      version: 2,
+      payload: { vehicleIds: ["uuid-a", "uuid-c"] },
+    });
+
+    assert.deepEqual(fields.map((field) => field.checked), [true, false, true]);
+    assert.deepEqual(changes, ["uuid-a"]);
+  } finally {
+    restoreBrowserGlobals(originalDocument, originalCustomEvent);
+  }
+});
+
+function checkboxField(name, value, changes) {
+  return {
+    name, value, type: "checkbox", checked: false, disabled: false, readOnly: false, dataset: { draftArray: "" },
+    dispatchEvent(event) { if (event.type === "change") changes.push(value); },
+  };
+}
+
 function createForm(type, contextKey, fieldName, fieldValue) {
   return {
     dataset: {
@@ -219,6 +259,7 @@ function createForm(type, contextKey, fieldName, fieldValue) {
       },
     ],
     querySelectorAll() { return []; },
+    querySelector() { return null; },
   };
 }
 

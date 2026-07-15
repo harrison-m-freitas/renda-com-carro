@@ -54,6 +54,22 @@ test("serializes only editable safe fields", () => {
   });
 });
 
+test("serializes checkbox array groups including an empty group", () => {
+  const form = {
+    elements: [
+      fakeField({ name: "vehicleIds", value: "uuid-b", type: "checkbox", checked: true, draftArray: true }),
+      fakeField({ name: "vehicleIds", value: "uuid-a", type: "checkbox", checked: true, draftArray: true }),
+      fakeField({ name: "vehicleIds", value: "uuid-c", type: "checkbox", checked: false, draftArray: true }),
+      fakeField({ name: "categoryIds", value: "cat-a", type: "checkbox", checked: false, draftArray: true }),
+    ],
+  };
+
+  assert.deepEqual(serializeEditableFields(form), {
+    vehicleIds: ["uuid-b", "uuid-a"],
+    categoryIds: [],
+  });
+});
+
 test("excludes Spring infrastructure fields from draft payloads", () => {
   const form = {
     elements: [
@@ -77,6 +93,7 @@ function fakeField({
   readOnly = false,
   draftIgnore = false,
   draftInclude = false,
+  draftArray = false,
 }) {
   return {
     name,
@@ -88,6 +105,7 @@ function fakeField({
     dataset: {
       ...(draftIgnore ? { draftIgnore: "" } : {}),
       ...(draftInclude ? { draftInclude: "" } : {}),
+      ...(draftArray ? { draftArray: "" } : {}),
     },
   };
 }

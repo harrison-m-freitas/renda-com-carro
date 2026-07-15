@@ -67,6 +67,7 @@ export const initializeGoalWorkloadPlanner = (
   const reviewSummary = form.querySelector('[data-goal-summary-workload]');
 
   if (!hours || !minutes || !summary) return null;
+  let lastResult = null;
 
   const selectedPeriodicity = () => periodicityFields
     .find((field) => field.checked)?.value
@@ -172,6 +173,7 @@ export const initializeGoalWorkloadPlanner = (
 
     if (enteredMinutes <= 0) {
       renderPending(sourceText, 'Informe uma duração maior que zero.');
+      lastResult = null;
       return null;
     }
 
@@ -187,12 +189,15 @@ export const initializeGoalWorkloadPlanner = (
           sourceText,
           'Selecione os dias planejados para calcular a distribuição.'
         );
+        lastResult = result;
         return result;
       }
       renderReady(periodicity, enteredMinutes, result);
+      lastResult = result;
       return result;
     } catch (error) {
       renderPending(sourceText, error.message || 'Não foi possível calcular a jornada.');
+      lastResult = null;
       return null;
     }
   };
@@ -208,7 +213,7 @@ export const initializeGoalWorkloadPlanner = (
   });
 
   refresh();
-  return { refresh };
+  return { refresh, getResult: () => lastResult };
 };
 
 function formatDate(value) {

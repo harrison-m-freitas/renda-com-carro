@@ -139,20 +139,25 @@ class GoalFormSubmissionServiceTest extends PostgresIntegrationTest {
     }
 
     private void seedDraft(GoalForm form) {
+        var payload = mapper.createObjectNode()
+            .put("month", form.getMonth().toString())
+            .put("personalNetGoal", "2500,00")
+            .put("operationalGoal", "4000,00")
+            .put("workloadPeriodicity", form.getWorkloadPeriodicity().name())
+            .put("workloadHours", form.getWorkloadHours())
+            .put("workloadMinutes", form.getWorkloadMinutes())
+            .put("plannedDates", form.getPlannedDates());
+        payload.set(
+            "vehicleIds",
+            mapper.createArrayNode().add(primaryVehicle.getId().toString())
+        );
         drafts.save("goal-submission-owner", new SaveDraftCommand(
             FormDraftType.MONTHLY_GOAL,
             form.draftContextKey(),
-            2,
+            3,
             2,
             null,
-            mapper.createObjectNode()
-                .put("month", form.getMonth().toString())
-                .put("personalNetGoal", "2500,00")
-                .put("operationalGoal", "4000,00")
-                .put("workloadPeriodicity", form.getWorkloadPeriodicity().name())
-                .put("workloadHours", form.getWorkloadHours())
-                .put("workloadMinutes", form.getWorkloadMinutes())
-                .put("plannedDates", form.getPlannedDates()),
+            payload,
             false
         ));
     }
