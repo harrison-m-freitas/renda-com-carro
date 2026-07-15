@@ -53,7 +53,7 @@ class MonthlyGoalVehiclePersistenceTest extends PostgresIntegrationTest {
             new BigDecimal("4100.00"),
             WorkloadPeriodicity.MONTHLY,
             4_800,
-            Set.of(LocalDate.of(2028, 7, 2))
+            Set.of(LocalDate.of(2028, 7, 3))
         );
 
         assertThat(vehicles.getActiveVehicle().getId()).isEqualTo(newlyActive.getId());

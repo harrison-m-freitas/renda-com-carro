@@ -22,7 +22,6 @@ import dev.harrison.rendacomcarro.vehicle.domain.Vehicle;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
-import java.util.Set;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -51,8 +50,8 @@ class OperationalSuggestionRepositoryTest extends PostgresIntegrationTest {
 
     @BeforeEach
     void setUpVehicles() {
-        selectedVehicle = vehicle("Selecionado");
         unselectedVehicle = vehicle("Não selecionado");
+        selectedVehicle = vehicle("Selecionado");
     }
 
     @Test
@@ -149,6 +148,9 @@ class OperationalSuggestionRepositoryTest extends PostgresIntegrationTest {
         LocalDate paidDate,
         String amount
     ) {
+        if (vehicle != null) {
+            vehicleService.activate(vehicle.getId());
+        }
         var category = categories.findAllByActiveTrueOrderByNameAsc().getFirst();
         return expenseService.create(new ExpenseService.CreateExpenseCommand(
             vehicle == null ? null : vehicle.getId(),
@@ -175,6 +177,7 @@ class OperationalSuggestionRepositoryTest extends PostgresIntegrationTest {
         LocalDate firstDue,
         int months
     ) {
+        vehicleService.activate(vehicle.getId());
         return obligationService.create(new FinancialObligationService.CreateCommand(
             vehicle.getId(),
             ObligationType.BANK_FINANCING,
@@ -192,6 +195,9 @@ class OperationalSuggestionRepositoryTest extends PostgresIntegrationTest {
     }
 
     private FinancialObligation flexible(Vehicle vehicle, String creditor, String target) {
+        if (vehicle != null) {
+            vehicleService.activate(vehicle.getId());
+        }
         return obligationService.create(new FinancialObligationService.CreateCommand(
             vehicle == null ? null : vehicle.getId(),
             ObligationType.FAMILY_LOAN,
