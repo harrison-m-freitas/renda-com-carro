@@ -27,6 +27,9 @@ public class ExpenseForm {
         }
     }
 
+    private String draftContextKey;
+    private String previousDraftContextKey;
+
     @NotNull
     private UUID vehicleId;
     private UUID operationalDayId;
@@ -72,6 +75,12 @@ public class ExpenseForm {
             : professionalPercentagePercent.movePointLeft(2);
     }
 
+    public String getDraftContextKey() { return draftContextKey; }
+    public void setDraftContextKey(String draftContextKey) { this.draftContextKey = draftContextKey; }
+    public String getPreviousDraftContextKey() { return previousDraftContextKey; }
+    public void setPreviousDraftContextKey(String previousDraftContextKey) {
+        this.previousDraftContextKey = previousDraftContextKey;
+    }
     public UUID getVehicleId() { return vehicleId; }
     public void setVehicleId(UUID vehicleId) { this.vehicleId = vehicleId; }
     public UUID getOperationalDayId() { return operationalDayId; }
