@@ -4,238 +4,257 @@ Data: 2026-07-14
 
 ## Contexto
 
-Os formulários guiados compartilham o mesmo framework de autosave e recuperação. O comportamento atual causa problemas diferentes em Gastos e Obrigações:
+Os formulários guiados compartilham o mesmo mecanismo de autosave, recuperação e conflito. O comportamento atual causa problemas diferentes:
 
-1. o usuário descarta um rascunho, mas o evento `pagehide` pode salvá-lo novamente;
-2. a cópia de emergência local pode ser interpretada como conflito mesmo quando pertence ao mesmo navegador e já foi sincronizada;
-3. o formulário de gastos usa uma chave estática e pergunta repetidamente sobre o mesmo rascunho;
-4. cada acesso a “Nova obrigação” pode gerar outra chave, e a listagem oferece apenas `Continuar`, acumulando rascunhos sem um encerramento claro;
-5. o cadastro de gastos oferece apenas “Cancelar”, embora o caso de uso real seja excluir um lançamento digitado por engano e, eventualmente, restaurá-lo.
+1. um rascunho descartado pode ser salvo novamente pelo evento `pagehide`;
+2. uma cópia local já sincronizada pode ser interpretada como conflito;
+3. Gastos pergunta repetidamente sobre uma chave estática e não diferencia um preenchimento novo do rascunho anterior;
+4. Obrigações gera chaves independentes a cada tentativa e acumula vários rascunhos sem ação clara para encerrá-los;
+5. gastos salvos oferecem “Cancelar”, embora o caso de uso seja excluir um lançamento equivocado e poder restaurá-lo.
 
-A solução deve corrigir o ciclo de vida compartilhado, aplicar políticas diferentes por tipo de formulário e introduzir exclusão lógica restaurável para gastos.
+A solução aplica regras compartilhadas de ciclo de vida, políticas específicas para Gastos e Obrigações e exclusão lógica restaurável para gastos.
 
-## Objetivos
+## Decisões aprovadas
 
-- Criar rascunho somente após uma alteração real do usuário.
-- Impedir que um rascunho descartado seja recriado ao sair da página.
-- Reduzir falsos conflitos e abrir diálogo apenas quando duas versões da mesma chave possuem alterações materiais diferentes.
-- Abrir o formulário de novo gasto sempre com valores padrão, preservando um rascunho anterior separadamente até uma decisão do usuário ou a criação bem-sucedida.
-- Permitir no máximo um rascunho ativo de obrigação por usuário.
-- Oferecer uma tela de decisão antes de abrir “Nova obrigação” quando já existir uma obrigação em andamento.
-- Limpar os rascunhos antigos de obrigação, mantendo somente o mais recentemente alterado.
-- Substituir o conceito de “cancelamento” de gasto por exclusão lógica restaurável.
-- Migrar gastos atualmente `CANCELLED` para `DELETED`.
+- Rascunho só é criado após alteração real do usuário.
+- Descartar é definitivo e não pode ser desfeito por autosave de saída.
+- Conflito só aparece quando há diferença material.
+- Gastos abre vazio e pode preservar temporariamente um rascunho anterior separado.
+- Obrigações permite no máximo um rascunho ativo por usuário.
+- Ao abrir Nova obrigação com rascunho existente, aparece uma tela para continuar, descartar e começar novamente ou voltar.
+- Entre rascunhos antigos de obrigação, somente o mais recentemente alterado será preservado.
+- Gastos `CANCELLED` serão migrados para `DELETED`, com restauração disponível.
 
 ## Fora de escopo
 
 - Exclusão física de gastos pela interface.
-- Histórico completo de auditoria por usuário nesta primeira versão.
 - Edição de gastos já salvos.
-- Reembolso ou estorno financeiro como entidade própria.
-- Redesenho visual integral dos formulários guiados.
+- Histórico completo de auditoria por usuário.
+- Reembolso ou estorno como entidade financeira própria.
 - Vários rascunhos simultâneos de obrigação.
+- Redesenho visual completo dos demais formulários guiados.
 
-# Regras compartilhadas de rascunho
+# 1. Regras compartilhadas de rascunho
 
-## Estado interno do controlador
+## 1.1 Estado do controlador
 
-O controlador compartilhado deve distinguir:
+O controlador compartilhado distinguirá:
 
-- `dirty`: o payload atual difere do último estado persistido;
-- `saving`: há uma operação de salvamento em andamento;
-- `discarding`: um descarte foi iniciado;
-- `submitting`: o formulário está sendo enviado definitivamente;
-- `disposed`: o controlador não deve mais salvar;
+- `initialPayload`: payload normalizado após a inicialização programática;
 - `lastPersistedPayload`: último payload confirmado pelo servidor;
-- `initialPayload`: payload normalizado após toda inicialização programática do formulário.
+- `dirty`: o payload atual difere da base aplicável;
+- `saving`: existe salvamento em andamento;
+- `discarding`: descarte definitivo iniciado;
+- `submitting`: submissão final iniciada;
+- `disposed`: nenhum novo salvamento é permitido.
 
-## Alteração real
+## 1.2 Alteração real
 
-Apenas abrir o formulário não cria nem atualiza rascunho.
+Abrir um formulário não cria nem atualiza rascunho.
 
-O controlador captura `initialPayload` depois que scripts específicos do formulário terminarem de preencher valores padrão e ajustar campos condicionais. Eventos programáticos de restauração, máscara, sincronização de datas ou mudança de visibilidade não contam como edição do usuário.
+O controlador captura `initialPayload` somente depois que os scripts específicos terminarem de preencher valores padrão, aplicar máscaras e configurar campos condicionais.
 
-Eventos `input` e `change` originados do usuário recalculam o payload e marcam `dirty = true` somente quando ele difere de `lastPersistedPayload` ou, antes do primeiro salvamento, de `initialPayload`.
+Eventos programáticos de inicialização, restauração, formatação, sincronização de datas ou mudança de visibilidade não contam como edição do usuário.
 
-Se o usuário desfizer as alterações e retornar ao estado persistido, `dirty` volta para `false` e nenhum salvamento desnecessário é feito.
+Eventos reais de `input` e `change` recalculam o payload:
 
-## Autosave e saída da página
+- antes do primeiro salvamento, a comparação usa `initialPayload`;
+- depois do primeiro salvamento, usa `lastPersistedPayload`;
+- voltar exatamente ao estado-base define `dirty = false`.
 
-- O primeiro autosave só ocorre após uma alteração real.
-- Um salvamento bem-sucedido atualiza `lastPersistedPayload` e marca `dirty = false`.
-- `pagehide` salva apenas se `dirty` for verdadeiro e o controlador não estiver em `discarding`, `submitting` ou `disposed`.
-- Descarte cancela o timer e bloqueia novos salvamentos antes de chamar a API.
-- Submissão final cancela o timer e impede um autosave paralelo com o POST principal.
-- Salvamentos concorrentes continuam serializados para nunca reutilizar uma versão obsoleta.
+## 1.3 Autosave e saída
 
-## Descarte definitivo
+- O primeiro autosave ocorre somente depois de alteração real.
+- Salvamentos continuam serializados para não reutilizar versão obsoleta.
+- Sucesso atualiza `lastPersistedPayload` e define `dirty = false`.
+- `pagehide` salva somente quando `dirty = true` e o controlador não está em `discarding`, `submitting` ou `disposed`.
+- A submissão final cancela o timer e impede autosave paralelo ao POST principal.
 
-O descarte explícito do proprietário será idempotente e não exigirá uma versão atual. A versão continuará protegendo salvamentos concorrentes, mas não impedirá o usuário de eliminar o próprio rascunho.
+## 1.4 Descarte definitivo
 
-O fluxo deve:
+O descarte explícito do proprietário é idempotente e não exige versão atual. A versão continua protegendo salvamentos, mas não impede que o usuário elimine o próprio rascunho.
 
-1. apresentar uma única confirmação;
-2. marcar o controlador como `discarding`;
-3. cancelar o timer;
-4. aguardar a operação em andamento e excluir a chave de forma idempotente;
-5. remover a cópia de emergência local;
-6. marcar o controlador como limpo e `disposed` antes de navegar;
-7. impedir que `pagehide` recrie o rascunho.
+O fluxo:
 
-A API nunca permitirá excluir rascunho pertencente a outro usuário.
+1. apresenta uma única confirmação;
+2. define `discarding = true`;
+3. cancela o timer;
+4. aguarda o salvamento em andamento;
+5. exclui a chave de forma idempotente;
+6. remove a cópia local de emergência;
+7. define `dirty = false` e `disposed = true` antes de navegar;
+8. impede que `pagehide` recrie o rascunho.
 
-## Cópia local de emergência
+A API limita listagem, leitura e descarte ao proprietário autenticado.
 
-A cópia de emergência continua existindo para falhas de rede e incluirá:
+## 1.5 Cópia local de emergência
 
-- tipo e chave do rascunho;
+A cópia local permanece como proteção contra falha de rede e contém:
+
+- tipo e chave;
 - versão conhecida;
 - payload normalizado;
 - `savedAt` real;
-- identificador da aba, gerado uma vez e mantido em `sessionStorage`.
+- identificador da aba mantido em `sessionStorage`.
 
-Após resposta de salvamento bem-sucedida, a cópia local correspondente é removida.
+Após resposta bem-sucedida, a cópia correspondente é removida.
 
-Se uma requisição `keepalive` puder ter sido concluída sem retorno ao JavaScript, a reconciliação seguinte compara o conteúdo, não apenas a versão.
+Quando um `keepalive` pode ter sido concluído sem retorno ao JavaScript, a reconciliação compara conteúdo, não apenas versão.
 
-## Detecção de conflitos
+## 1.6 Conflitos
 
-O diálogo de conflito só aparece para duas versões da mesma chave com conteúdos materiais diferentes.
+O diálogo compartilhado aparece somente para versões da mesma chave com conteúdos materiais diferentes.
 
-### Casos sem diálogo
+Não há diálogo quando:
 
-- payload local igual ao payload do servidor;
-- diferença apenas em versão ou horário;
-- cópia local antiga já representada integralmente no servidor;
-- rascunhos com chaves diferentes;
-- formulário vazio diante de um rascunho anterior;
-- cópia de emergência de uma chave que foi descartada e não está mais ativa.
+- os payloads são equivalentes;
+- a diferença é apenas de versão ou horário;
+- a cópia local já está integralmente representada no servidor;
+- as chaves são diferentes;
+- a cópia pertence a uma chave definitivamente descartada.
 
-### Casos com diálogo
-
-O diálogo aparece quando:
-
-1. o servidor possui alterações não presentes na base conhecida localmente;
-2. o cliente possui alterações diferentes ainda não persistidas;
-3. não é possível escolher uma versão silenciosamente sem perda de dados.
-
-O título será:
+Quando há conflito real, o título será:
 
 > **Existem alterações diferentes neste rascunho**
 
-As opções serão:
+Ações:
 
 - `Usar versão salva`;
 - `Manter minhas alterações`;
 - `Revisar antes de decidir`.
 
-A interface mostrará o `savedAt` real da cópia local e o `updatedAt` informado pelo servidor. Não usará o horário atual como substituto.
+A interface mostra o `savedAt` real da cópia local e o `updatedAt` do servidor.
 
-# Política de rascunho para Gastos
+# 2. Política de rascunho para Gastos
 
-## Chaves independentes
+## 2.1 Chaves independentes
 
-O formulário não usará mais uma única chave estática `current` para todas as tentativas.
-
-Cada abertura de `/expenses/new` receberá uma chave de sessão exclusiva, gerada pelo servidor e renderizada no formulário:
+Cada abertura de `/expenses/new` recebe uma chave candidata exclusiva:
 
 ```text
 expense:new:<uuid>
 ```
 
-Um rascunho anterior continua com a própria chave. Assim, o usuário pode iniciar um novo preenchimento sem sobrescrever o anterior.
+Ela só é persistida após alteração real.
 
-O formulário enviará duas chaves ocultas:
+O formulário envia:
 
-- `draftContextKey`: chave da sessão atual;
-- `previousDraftContextKey`: chave do rascunho anterior mostrado no aviso, quando existir.
+- `draftContextKey`: chave da tentativa atual;
+- `previousDraftContextKey`: rascunho anterior apresentado ao usuário, quando existir.
 
-## Abrir com rascunho anterior
+## 2.2 Abertura
 
-O cliente consulta a listagem de rascunhos `EXPENSE` e escolhe o ativo mais recentemente atualizado, excluindo a chave da sessão atual.
+O formulário sempre abre vazio, com os valores padrão.
 
-O formulário permanece vazio, com valores padrão, e mostra uma região não modal:
+A listagem de rascunhos `EXPENSE` identifica o mais recentemente atualizado, excluindo a chave atual. Quando existe, aparece uma região não modal:
 
 > **Existe um rascunho anterior**  
 > Salvo em 14/07/2026 às 19:43.  
 > **Continuar rascunho** · **Descartar rascunho**
 
-Não haverá modal automático de recuperação.
+Não há modal automático.
 
-## Continuar o rascunho anterior
+## 2.3 Continuar rascunho anterior
 
-Se o formulário atual não possui alterações:
+Sem alterações na sessão atual, o sistema restaura o rascunho diretamente e passa a usar sua chave e versão.
 
-1. o rascunho anterior é restaurado diretamente;
-2. o controlador passa a usar sua chave e versão;
-3. o aviso é removido.
+Com alterações na sessão atual, uma única confirmação informa que o preenchimento atual será descartado. O sistema interrompe timers, elimina o rascunho temporário atual quando existir e restaura o anterior.
 
-Se o formulário atual possui alterações:
+## 2.4 Descartar
 
-1. uma única confirmação informa que o preenchimento atual será descartado;
-2. timers e salvamentos pendentes da sessão atual são interrompidos;
-3. o rascunho temporário da sessão atual é removido, quando existir;
-4. o rascunho anterior é restaurado;
-5. o controlador passa a usar sua chave e versão.
+- Descartar o rascunho anterior remove apenas aquela chave e mantém o formulário atual.
+- Descartar a sessão atual aplica o descarte definitivo e navega para uma nova abertura vazia.
 
-## Descartar rascunho anterior
+## 2.5 Criação bem-sucedida
 
-O rascunho anterior é excluído do servidor e do armazenamento local, o aviso desaparece e o formulário atual permanece inalterado.
+A criação do gasto remove na mesma transação:
 
-## Descartar a sessão atual
+- a chave da sessão atual;
+- a chave anterior mostrada na abertura, quando ainda existir.
 
-A ação visível `Descartar rascunho` aplica o descarte definitivo compartilhado e navega para `/expenses/new`, gerando uma nova chave de sessão e mantendo o formulário vazio.
+As remoções são idempotentes. Erro de validação ou domínio preserva os rascunhos.
 
-## Criar gasto com sucesso
+# 3. Política de rascunho para Obrigações
 
-A criação bem-sucedida remove na mesma transação:
+## 3.1 Invariante
 
-- o rascunho da sessão atual;
-- o rascunho anterior apresentado na abertura, se ainda existir.
+Cada usuário pode possuir no máximo um rascunho persistido do tipo `OBLIGATION`.
 
-As remoções são idempotentes. Se uma chave já não existir, a criação continua normalmente.
-
-Em caso de erro de validação ou domínio, nenhum rascunho é removido.
-
-# Política de rascunho para Obrigações
-
-## Invariante de unicidade
-
-Cada usuário pode possuir no máximo um rascunho ativo do tipo `OBLIGATION`.
-
-Não será criada restrição global que afete outros tipos de formulário. A unicidade será aplicada pelo serviço de rascunhos para o par:
+A chave continua no formato atual:
 
 ```text
-proprietário + OBLIGATION
+draft:<uuid>
 ```
 
-A chave continua no formato existente `draft:<uuid>`. Isso evita migração desnecessária do schema e permite reutilizar a validação atual. Uma nova chave só é persistida após a primeira alteração real.
+Uma chave candidata pode existir apenas no HTML ou na memória antes da primeira alteração; ela não representa um registro persistido.
 
-## Limpeza dos rascunhos acumulados
+## 3.2 Limpeza dos rascunhos existentes
 
-Na primeira consulta da listagem de obrigações, na abertura de `/obligations/new` e antes de criar ou atualizar um rascunho `OBLIGATION`, o backend normaliza os rascunhos do usuário:
+Uma migração Flyway elimina as duplicatas existentes, preservando o rascunho mais recentemente alterado por usuário:
 
-1. ordena por `updatedAt` decrescente;
-2. usa o identificador do registro como desempate determinístico;
-3. preserva apenas o mais recentemente alterado;
-4. exclui todos os anteriores na mesma transação.
+```sql
+WITH ranked AS (
+    SELECT id,
+           ROW_NUMBER() OVER (
+               PARTITION BY owner_id
+               ORDER BY updated_at DESC, id DESC
+           ) AS position
+    FROM form_draft
+    WHERE form_type = 'OBLIGATION'
+)
+DELETE FROM form_draft
+WHERE id IN (
+    SELECT id
+    FROM ranked
+    WHERE position > 1
+);
+```
 
-A limpeza é idempotente e restrita ao usuário autenticado.
+O desempate por `id DESC` torna o resultado determinístico quando `updated_at` é igual.
 
-A resposta da normalização informa as chaves removidas. O cliente elimina as cópias de emergência correspondentes do `localStorage`, evitando que uma cópia antiga tente recriar um rascunho descartado.
+## 3.3 Garantia atômica
 
-## Acesso a “Nova obrigação” sem rascunho
+Depois da limpeza, a mesma migração cria um índice único parcial:
+
+```sql
+CREATE UNIQUE INDEX ux_form_draft_single_obligation_owner
+    ON form_draft (owner_id)
+    WHERE form_type = 'OBLIGATION';
+```
+
+Esse índice garante a regra mesmo com duas abas ou requisições concorrentes.
+
+Antes de criar um rascunho de obrigação, o serviço exclui rascunhos expirados daquele usuário. Assim, uma linha vencida não bloqueia uma nova obrigação pelo índice.
+
+Se duas abas tentarem criar chaves diferentes:
+
+1. o primeiro insert confirmado vence;
+2. o segundo é rejeitado pelo índice;
+3. o serviço captura a violação de unicidade e devolve conflito específico `OBLIGATION_DRAFT_ALREADY_EXISTS`, incluindo o resumo do rascunho ativo;
+4. nenhum segundo registro é criado.
+
+## 3.4 Limpeza das cópias locais antigas
+
+Ao entrar na listagem ou nos fluxos de obrigação, o cliente varre apenas as chaves de emergência do tipo `OBLIGATION`:
+
+- preserva a chave ativa devolvida pelo servidor;
+- remove as demais chaves locais;
+- nunca toca nas cópias de Gastos, Metas ou Fechamentos.
+
+Isso evita que rascunhos removidos pela migração reapareçam por `localStorage`.
+
+## 3.5 Nova obrigação sem rascunho
 
 Quando não existe rascunho ativo:
 
 1. `/obligations/new` abre o formulário vazio;
-2. o servidor gera uma chave candidata `draft:<uuid>` e a renderiza no formulário;
-3. nenhum registro é criado apenas pela abertura;
-4. o primeiro autosave após alteração real cria o único rascunho ativo.
+2. o servidor gera uma chave candidata `draft:<uuid>`;
+3. abrir ou sair sem editar não cria registro;
+4. a primeira alteração real cria o único rascunho.
 
-## Acesso a “Nova obrigação” com rascunho
+## 3.6 Nova obrigação com rascunho
 
-Quando existe um rascunho ativo, `/obligations/new` não abre o formulário diretamente. Exibe uma tela curta:
+Quando existe rascunho ativo, `/obligations/new` mostra uma tela curta em vez do formulário:
 
 > **Você já possui uma obrigação em andamento**  
 > Salva em 14/07/2026 às 19:43.
@@ -244,58 +263,61 @@ Quando existe um rascunho ativo, `/obligations/new` não abre o formulário dire
 > **Descartar e começar novamente**  
 > **Voltar para obrigações**
 
-Essa tela não cria uma nova chave nem dispara autosave.
+A tela não gera chave candidata e não dispara autosave.
 
-## Continuar rascunho
+## 3.7 Continuar
 
-`Continuar rascunho` abre o formulário usando a chave e a versão do único rascunho ativo. O controlador restaura o payload sem marcar o formulário como alterado.
+`Continuar rascunho` abre o formulário com a chave e versão ativas. A restauração não marca o formulário como alterado.
 
-O backend valida que a chave pertence ao usuário e ainda é o rascunho ativo. Uma URL antiga não pode reabrir ou recriar uma chave removida.
+O backend valida propriedade e atividade. URL antiga não reabre nem recria chave removida.
 
-## Descartar e começar novamente
+## 3.8 Descartar e começar novamente
 
 A ação:
 
-1. apresenta uma única confirmação explicando que o preenchimento salvo será perdido;
-2. exclui o rascunho ativo de forma idempotente;
-3. remove sua cópia local de emergência;
-4. navega para uma abertura explicitamente nova do formulário;
-5. gera outra chave candidata, ainda sem persistir rascunho;
-6. impede `pagehide` de recriar a chave descartada.
+1. apresenta uma única confirmação;
+2. descarta o rascunho ativo;
+3. remove sua cópia local;
+4. navega para uma abertura explicitamente nova;
+5. gera uma nova chave candidata ainda não persistida.
 
-## Sair do formulário
+## 3.9 Sair do formulário
 
-O botão ambíguo `Cancelar` será substituído por:
+O botão `Cancelar` é substituído por:
 
 > **Sair e manter rascunho**
 
-Se houver alterações sujas, a ação solicita um salvamento imediato e aguarda seu término antes de navegar para `/obligations`. Se não houver alteração real, apenas navega e nenhum rascunho é criado.
+Com alterações sujas, a ação solicita salvamento imediato e aguarda o resultado antes de navegar para `/obligations`. Sem alteração real, apenas navega e não cria rascunho.
 
-Uma ação separada `Descartar rascunho` ficará disponível dentro do formulário quando já houver rascunho persistido.
+Quando já existe rascunho persistido, o formulário também oferece `Descartar rascunho`.
 
-## Criar obrigação com sucesso
+## 3.10 Corrida entre abas antes do primeiro autosave
 
-A submissão final cria a obrigação e remove o único rascunho ativo na mesma transação.
+Quando uma segunda aba recebe `OBLIGATION_DRAFT_ALREADY_EXISTS`, suas alterações ainda não persistidas permanecem no formulário e em uma cópia local temporária. A interface apresenta:
 
-O serviço não confiará somente na chave enviada pelo navegador: após validar a propriedade, também eliminará qualquer rascunho `OBLIGATION` remanescente daquele usuário. Isso reforça a invariante de unicidade e encerra duplicatas antigas que tenham surgido por concorrência.
+> **Outra obrigação em andamento foi salva primeiro**
 
-Se a criação falhar, o rascunho permanece disponível.
+Ações:
 
-## Várias abas
+- `Continuar obrigação salva`: confirma o descarte do preenchimento desta aba e abre a chave ativa;
+- `Substituir pela obrigação desta aba`: confirma, descarta a chave ativa e salva o preenchimento atual como o único rascunho;
+- `Revisar minhas alterações`: fecha o aviso sem tentar novo autosave até nova decisão.
 
-Duas abas podem editar o mesmo rascunho ativo. Elas compartilham a mesma chave, portanto o controle de versão continua válido.
+A substituição é uma operação atômica do proprietário: remove a chave ativa e cria a nova na mesma transação. Nunca existem dois registros após o commit.
 
-- payload equivalente é reconciliado silenciosamente;
-- alterações materiais diferentes produzem o diálogo real de conflito;
-- nenhuma aba pode criar um segundo rascunho enquanto o primeiro existir.
+## 3.11 Criação bem-sucedida
 
-# API de rascunhos
+A submissão final cria a obrigação e remove a chave ativa na mesma transação.
 
-## Listagem
+Como defesa adicional, o serviço remove qualquer outro rascunho `OBLIGATION` do usuário antes de concluir. Com o índice parcial, isso só deve encontrar zero ou um registro.
 
-A API permitirá listar rascunhos ativos de `EXPENSE` e `OBLIGATION` do usuário autenticado.
+Erro de validação ou domínio preserva o rascunho.
 
-A resposta devolverá ao menos:
+# 4. API de rascunhos
+
+## 4.1 Listagem
+
+A API lista rascunhos `EXPENSE` e `OBLIGATION` do usuário autenticado e devolve:
 
 - `contextKey`;
 - `version`;
@@ -303,34 +325,31 @@ A resposta devolverá ao menos:
 - `updatedAt`;
 - `expiresAt`.
 
-Para `OBLIGATION`, a listagem será normalizada e retornará zero ou um item, junto das chaves antigas removidas durante a limpeza.
+A listagem `OBLIGATION` devolve zero ou um item.
 
-## Descarte
+## 4.2 Descarte
 
-O descarte explícito será idempotente e sem versão obrigatória. O endpoint sempre limita a operação ao proprietário autenticado.
+O descarte explícito é idempotente, não exige versão e atua somente sobre rascunho do proprietário.
 
-## Conclusão múltipla de gastos
+## 4.3 Substituição de obrigação
 
-O serviço de submissão do gasto receberá `draftContextKey` e `previousDraftContextKey` e removerá ambas na mesma transação.
+A API oferece uma operação específica e transacional para substituir o único rascunho de obrigação. Ela valida o usuário, elimina o ativo e persiste o novo payload dentro da mesma transação.
 
-## Conclusão de obrigação
+## 4.4 Conclusão
 
-O serviço de submissão da obrigação removerá a chave usada e qualquer outro rascunho `OBLIGATION` remanescente do mesmo usuário na mesma transação.
+- Gasto: remove `draftContextKey` e `previousDraftContextKey`.
+- Obrigação: remove o único rascunho `OBLIGATION` do usuário.
 
-# Exclusão lógica de gastos
+# 5. Exclusão lógica de gastos
 
-## Estados
+## 5.1 Estados e migração
 
-O estado persistido passa a usar:
+Estados válidos:
 
-- `ACTIVE` — lançamento vigente;
-- `DELETED` — lançamento excluído logicamente.
+- `ACTIVE`;
+- `DELETED`.
 
-O estado `CANCELLED` será removido do comportamento de negócio e migrado para `DELETED`.
-
-## Migração
-
-Uma migração Flyway executará:
+Uma migração adiciona `deleted_at` e converte registros antigos:
 
 ```sql
 ALTER TABLE expense ADD COLUMN deleted_at timestamp NULL;
@@ -341,145 +360,115 @@ SET status = 'DELETED',
 WHERE status = 'CANCELLED';
 ```
 
-Não será adicionada coluna `restored_at` nesta versão. Ao restaurar, `deleted_at` volta a `NULL`.
+Não haverá `restored_at` nesta versão. Restaurar define `deleted_at = NULL`.
 
-O registro do usuário responsável pela exclusão fica fora do escopo inicial.
+## 5.2 Excluir lançamento
 
-## Exclusão
+A ação:
 
-A ação `Excluir lançamento`:
-
-1. exige uma confirmação clara;
-2. altera o estado para `DELETED`;
+1. apresenta confirmação explicando que é reversível;
+2. define `status = 'DELETED'`;
 3. registra `deletedAt` com o relógio da aplicação;
-4. remove o gasto de relatórios, totais e listagens padrão;
+4. remove o gasto das consultas operacionais;
 5. preserva o registro e seus vínculos.
 
-A exclusão de um gasto já `DELETED` será idempotente.
+Excluir um gasto já excluído é idempotente.
 
-## Restauração
+## 5.3 Restaurar
 
-A ação `Restaurar`:
+A restauração define `status = 'ACTIVE'`, limpa `deletedAt` e devolve o gasto aos cálculos. Restaurar um ativo é idempotente.
 
-1. altera o estado de `DELETED` para `ACTIVE`;
-2. define `deletedAt = null`;
-3. faz o lançamento voltar a participar dos cálculos.
+## 5.4 Listagem e consultas
 
-A restauração de um gasto já `ACTIVE` será idempotente.
-
-## Listagem
-
-A página de gastos terá dois filtros:
+A página de gastos terá:
 
 - `Ativos` — padrão;
 - `Excluídos`.
 
-Nos ativos, a ação será `Excluir lançamento`.
+Ativos oferecem `Excluir lançamento`; excluídos oferecem `Restaurar`. O termo `Cancelar` não será usado.
 
-Nos excluídos, a ação será `Restaurar`.
+Dashboard, relatórios, rateios e totais excluem `DELETED` por padrão. A tela de restauração consulta excluídos explicitamente.
 
-O texto `Cancelar` não será usado para gastos.
+# 6. Acessibilidade e linguagem
 
-## Impacto em relatórios e consultas
+- O aviso de rascunho anterior de gasto será uma região não modal.
+- A decisão de obrigação terá título único, texto curto e três ações inequívocas.
+- Foco visível e navegação por teclado serão preservados.
+- Sucesso usa `role="status"`; erro relevante usa `role="alert"`.
+- Não haverá modal seguido de outro `window.confirm()` para a mesma decisão.
+- `Sair e manter rascunho`, `Descartar rascunho`, `Excluir lançamento` e `Restaurar` terão significados distintos.
 
-Toda consulta usada por dashboard, relatórios, rateios e totais deve excluir `DELETED` por padrão.
+# 7. Estratégia de implementação
 
-A listagem de restauração consultará excluídos explicitamente.
+A execução será sequencial:
 
-A verificação abrangerá repositórios e serviços que hoje assumem que qualquer registro encontrado está ativo.
+1. corrigir `dirty`, autosave, descarte e conflito no framework compartilhado;
+2. implementar o fluxo de Gastos;
+3. migrar, restringir e redesenhar o fluxo de Obrigações;
+4. implementar exclusão lógica e restauração de gastos;
+5. validar a CI completa e corrigir falhas com debugging sistemático.
 
-# Acessibilidade e UX
+# 8. Testes obrigatórios
 
-- O aviso de rascunho anterior de gasto será uma região não modal com título, data e ações nomeadas.
-- A tela de decisão de obrigação terá um título único, explicação curta e três ações inequívocas.
-- As ações funcionarão por teclado e terão foco visível.
-- Mensagens de sucesso ou erro de descarte usarão `role="status"` ou `role="alert"` conforme a gravidade.
-- Uma confirmação nunca será duplicada por outro `window.confirm()`.
-- `Sair e manter rascunho` não será apresentado como cancelamento.
-- A exclusão de gasto usará `Excluir lançamento` e `Restaurar` e explicará que a exclusão é reversível.
+## 8.1 JavaScript compartilhado
 
-# Estratégia de implementação
-
-A implementação será dividida em três trilhas sequenciais:
-
-1. corrigir estado, autosave, descarte e conflitos no framework compartilhado;
-2. aplicar as políticas específicas de Gastos e Obrigações, incluindo a limpeza do legado de obrigações;
-3. introduzir exclusão lógica, migração e restauração de gastos.
-
-As alterações compartilhadas serão cobertas por testes de regressão para os demais formulários guiados.
-
-# Testes obrigatórios
-
-## JavaScript compartilhado
-
-- abrir formulário não cria rascunho;
+- abrir não cria rascunho;
 - primeira alteração real cria rascunho;
-- eventos programáticos de inicialização não marcam o formulário como sujo;
-- desfazer uma edição volta a `dirty = false`;
-- `pagehide` não salva quando o formulário está limpo;
-- `pagehide` não salva durante descarte ou submissão final;
-- descartar remove servidor e cópia local;
-- payload igual com versões diferentes não abre conflito;
-- payloads materiais diferentes abrem conflito;
-- horário local exibido vem de `savedAt`;
-- salvamentos concorrentes continuam serializados.
+- eventos programáticos não marcam `dirty`;
+- desfazer edição volta a `dirty = false`;
+- `pagehide` respeita `dirty`, `discarding`, `submitting` e `disposed`;
+- descarte remove cópia local e não recria servidor;
+- payload equivalente não abre conflito;
+- diferença material abre conflito;
+- horário local usa `savedAt`;
+- salvamentos permanecem serializados.
 
-## Backend de rascunhos
+## 8.2 Gastos
 
-- listar rascunhos de gasto por usuário;
-- descarte idempotente sem versão;
-- usuário não pode listar ou excluir rascunho de outro usuário;
-- conclusão de gasto remove múltiplas chaves;
-- falha de criação preserva os rascunhos relacionados.
+- abre vazio com rascunho anterior;
+- mostra aviso sem modal automático;
+- sessão atual e anterior usam chaves diferentes;
+- continuar troca chave e versão;
+- criação remove as duas chaves;
+- erro preserva os rascunhos.
 
-## Obrigações
+## 8.3 Obrigações
 
-- zero rascunhos permite abrir o formulário vazio;
-- abrir o formulário sem editar não cria rascunho;
-- o primeiro autosave cria um único rascunho;
-- vários rascunhos legados são reduzidos ao mais recente;
-- empate de `updatedAt` usa critério determinístico;
-- as chaves antigas removidas são informadas ao cliente;
-- existir rascunho faz `/obligations/new` mostrar a tela de decisão;
-- `Continuar rascunho` abre somente a chave ativa do proprietário;
-- `Descartar e começar novamente` remove o rascunho e abre formulário vazio;
-- `Sair e manter rascunho` aguarda o salvamento quando necessário;
-- salvar obrigação remove todos os rascunhos `OBLIGATION` do usuário;
-- falha de criação mantém o rascunho;
-- duas abas editam a mesma chave e não criam um segundo rascunho;
-- cópias locais das chaves legadas removidas são apagadas.
+- migração preserva somente o rascunho mais recente por usuário;
+- empate usa `id DESC`;
+- índice parcial impede segundo rascunho;
+- rascunho expirado é removido antes de nova criação;
+- abrir sem editar não cria registro;
+- existir rascunho mostra a tela de decisão;
+- continuar aceita somente a chave ativa do proprietário;
+- descartar e começar abre formulário vazio;
+- sair e manter aguarda salvamento;
+- chaves locais antigas são removidas sem afetar outros tipos;
+- corrida entre abas retorna `OBLIGATION_DRAFT_ALREADY_EXISTS`;
+- substituir rascunho é atômico;
+- salvar obrigação remove o rascunho;
+- erro de criação preserva o rascunho.
 
-## Gastos
+## 8.4 Exclusão de gastos
 
-- formulário abre vazio mesmo com rascunho anterior;
-- aviso de rascunho anterior é renderizado sem modal automático;
-- rascunho anterior e sessão atual coexistem com chaves diferentes;
-- continuar rascunho troca corretamente chave e versão;
-- criar gasto remove rascunho antigo e rascunho da sessão;
-- erro de validação mantém os rascunhos;
-- `CANCELLED` é migrado para `DELETED`;
-- migração preenche `deleted_at` para registros antigos;
-- exclusão muda `ACTIVE` para `DELETED`;
-- restauração muda `DELETED` para `ACTIVE` e limpa `deleted_at`;
-- excluídos não aparecem na listagem padrão;
-- filtro de excluídos mostra somente `DELETED`;
-- excluídos não entram em dashboard e relatórios;
+- `CANCELLED` migra para `DELETED` com `deleted_at`;
+- exclusão e restauração são idempotentes;
+- excluídos somem da listagem padrão, dashboard e relatórios;
+- filtro mostra excluídos;
 - restaurados voltam aos cálculos;
-- listagem usa `Excluir lançamento` e `Restaurar`, nunca `Cancelar`;
-- exclusão física não é exposta pela interface.
+- interface nunca usa `Cancelar` para gasto.
 
-# Critérios de aceite
+# 9. Critérios de aceite
 
-- O usuário consegue descartar um rascunho e ele não reaparece após recarregar ou sair da página.
-- O sistema não pergunta repetidamente sobre o mesmo rascunho sem nova alteração material.
-- Um rascunho anterior de gasto pode ser preservado enquanto um novo formulário é preenchido.
-- A criação bem-sucedida de gasto remove todos os rascunhos relacionados ao fluxo.
-- Cada usuário possui no máximo um rascunho de obrigação.
-- Ao clicar em `Nova obrigação` com rascunho existente, o usuário escolhe entre continuar, descartar e começar novamente ou voltar.
-- Entre rascunhos antigos de obrigação, somente o mais recentemente alterado é preservado.
-- Salvar uma obrigação encerra seu rascunho e quaisquer duplicatas remanescentes.
-- Falsos conflitos causados apenas por versão ou `keepalive` deixam de aparecer.
-- Gastos podem ser excluídos e restaurados pela interface.
-- Gastos excluídos não afetam resultados, relatórios ou totais.
-- Registros antigos `CANCELLED` passam a aparecer como excluídos restauráveis.
+- Rascunho descartado não reaparece após recarregar ou sair.
+- O sistema não repete perguntas sem nova diferença material.
+- Gasto novo pode coexistir temporariamente com um rascunho anterior sem sobrescrevê-lo.
+- Criar gasto remove os rascunhos relacionados.
+- Cada usuário possui no máximo um rascunho persistido de obrigação, inclusive sob concorrência.
+- Nova obrigação com rascunho existente exige uma decisão explícita.
+- Dos rascunhos antigos de obrigação, somente o mais recente permanece.
+- Salvar obrigação encerra o rascunho.
+- Gastos podem ser excluídos e restaurados.
+- Gastos excluídos não afetam cálculos.
+- Registros antigos `CANCELLED` aparecem como excluídos restauráveis.
 - A CI completa passa antes de o trabalho ser considerado concluído.
