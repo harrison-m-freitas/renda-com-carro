@@ -8,12 +8,16 @@ import dev.harrison.rendacomcarro.draft.domain.FormDraft;
 import dev.harrison.rendacomcarro.draft.domain.FormDraftType;
 import dev.harrison.rendacomcarro.draft.infrastructure.FormDraftRepository;
 import dev.harrison.rendacomcarro.security.application.CurrentUserService;
+import dev.harrison.rendacomcarro.security.domain.AppUser;
 import dev.harrison.rendacomcarro.shared.domain.DomainConflictException;
 import dev.harrison.rendacomcarro.shared.domain.DomainValidationException;
 import jakarta.persistence.EntityManager;
+import jakarta.persistence.LockModeType;
 import java.nio.charset.StandardCharsets;
 import java.time.Clock;
 import java.time.LocalDateTime;
+import java.util.Collection;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -107,7 +111,7 @@ public class FormDraftService {
                 username, type, normalizedKey
             )
             .filter(draft -> draft.getExpiresAt().isAfter(now))
-            .map(this::toView);
+            .map(draft -> toView(draft, definition));
     }
 
     @Transactional
@@ -153,8 +157,31 @@ public class FormDraftService {
             if (command.expectedVersion() != null) {
                 throw new DomainConflictException("O rascunho informado não existe mais.");
             }
+            AppUser owner = currentUser.require(username);
+            if (command.formType() == FormDraftType.OBLIGATION) {
+                entityManager.lock(owner, LockModeType.PESSIMISTIC_WRITE);
+                repository.deleteByOwnerUsernameAndFormTypeAndExpiresAtLessThanEqual(
+                    username,
+                    FormDraftType.OBLIGATION,
+                    now
+                );
+                repository.flush();
+                Optional<FormDraft> active = repository
+                    .findFirstByOwnerUsernameAndFormTypeAndExpiresAtAfterOrderByUpdatedAtDescIdDesc(
+                        username,
+                        FormDraftType.OBLIGATION,
+                        now
+                    );
+                if (active.isPresent()
+                    && !active.orElseThrow().getContextKey().equals(contextKey)) {
+                    throw new FormDraftConflictException(
+                        "Já existe uma obrigação em andamento.",
+                        toView(active.orElseThrow(), definition)
+                    );
+                }
+            }
             FormDraft created = FormDraft.create(
-                currentUser.require(username),
+                owner,
                 command.formType(),
                 contextKey,
                 command.schemaVersion(),
@@ -163,14 +190,14 @@ public class FormDraftService {
                 now,
                 expiresAt
             );
-            return toView(repository.saveAndFlush(created));
+            return toView(repository.saveAndFlush(created), definition);
         }
 
         FormDraft draft = existing.orElseThrow();
         if (!command.force()
             && (command.expectedVersion() == null
                 || draft.getVersion() != command.expectedVersion())) {
-            throw new FormDraftConflictException(toView(draft));
+            throw new FormDraftConflictException(toView(draft, definition));
         }
 
         draft.update(
@@ -181,7 +208,7 @@ public class FormDraftService {
             expiresAt
         );
         try {
-            return toView(repository.saveAndFlush(draft));
+            return toView(repository.saveAndFlush(draft), definition);
         } catch (ObjectOptimisticLockingFailureException exception) {
             entityManager.clear();
             FormDraft current = repository
@@ -193,7 +220,7 @@ public class FormDraftService {
                 .orElseThrow(() -> new DomainConflictException(
                     "O rascunho informado não existe mais."
                 ));
-            throw new FormDraftConflictException(toView(current));
+            throw new FormDraftConflictException(toView(current, definition));
         }
     }
 
@@ -201,37 +228,74 @@ public class FormDraftService {
     public void discard(
         String username,
         FormDraftType type,
-        String contextKey,
-        Long expectedVersion
+        String contextKey
     ) {
         FormDraftDefinition definition = definitions.require(type);
         String normalizedKey = normalizeAndCheckKey(definition, contextKey);
-        Optional<FormDraft> existing = repository
-            .findByOwnerUsernameAndFormTypeAndContextKey(
-                username, type, normalizedKey
-            );
-        if (existing.isEmpty()) {
-            return;
-        }
-        FormDraft draft = existing.orElseThrow();
-        if (expectedVersion != null && draft.getVersion() != expectedVersion) {
-            throw new FormDraftConflictException(toView(draft));
-        }
-        repository.delete(draft);
+        repository.deleteByOwnerUsernameAndFormTypeAndContextKey(
+            username,
+            type,
+            normalizedKey
+        );
         repository.flush();
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
+    public void discard(
+        String username,
+        FormDraftType type,
+        String contextKey,
+        Long ignoredExpectedVersion
+    ) {
+        discard(username, type, contextKey);
+    }
+
+    @Transactional
     public List<DraftView> listActive(String username, FormDraftType type) {
-        definitions.require(type);
+        FormDraftDefinition definition = definitions.require(type);
         LocalDateTime now = LocalDateTime.now(clock);
+        repository.deleteByOwnerUsernameAndFormTypeAndExpiresAtLessThanEqual(
+            username,
+            type,
+            now
+        );
+        if (type == FormDraftType.OBLIGATION) {
+            return repository
+                .findFirstByOwnerUsernameAndFormTypeAndExpiresAtAfterOrderByUpdatedAtDescIdDesc(
+                    username,
+                    type,
+                    now
+                )
+                .map(draft -> List.of(toView(draft, definition)))
+                .orElseGet(List::of);
+        }
         return repository
-            .findAllByOwnerUsernameAndFormTypeAndExpiresAtAfterOrderByUpdatedAtDesc(
-                username, type, now
+            .findAllByOwnerUsernameAndFormTypeAndExpiresAtAfterOrderByUpdatedAtDescIdDesc(
+                username,
+                type,
+                now
             )
             .stream()
-            .map(this::toView)
+            .map(draft -> toView(draft, definition))
             .toList();
+    }
+
+    @Transactional
+    public Optional<DraftView> findLatestActive(String username, FormDraftType type) {
+        FormDraftDefinition definition = definitions.require(type);
+        LocalDateTime now = LocalDateTime.now(clock);
+        repository.deleteByOwnerUsernameAndFormTypeAndExpiresAtLessThanEqual(
+            username,
+            type,
+            now
+        );
+        return repository
+            .findFirstByOwnerUsernameAndFormTypeAndExpiresAtAfterOrderByUpdatedAtDescIdDesc(
+                username,
+                type,
+                now
+            )
+            .map(draft -> toView(draft, definition));
     }
 
     @Transactional
@@ -241,6 +305,38 @@ public class FormDraftService {
         repository.deleteByOwnerUsernameAndFormTypeAndContextKey(
             username, type, normalizedKey
         );
+    }
+
+    @Transactional
+    public void completeAll(
+        String username,
+        FormDraftType type,
+        Collection<String> contextKeys
+    ) {
+        FormDraftDefinition definition = definitions.require(type);
+        if (contextKeys == null || contextKeys.isEmpty()) {
+            return;
+        }
+        LinkedHashSet<String> normalizedKeys = new LinkedHashSet<>();
+        for (String contextKey : contextKeys) {
+            if (contextKey == null || contextKey.isBlank()) {
+                continue;
+            }
+            normalizedKeys.add(normalizeAndCheckKey(definition, contextKey));
+        }
+        if (!normalizedKeys.isEmpty()) {
+            repository.deleteByOwnerUsernameAndFormTypeAndContextKeyIn(
+                username,
+                type,
+                normalizedKeys
+            );
+        }
+    }
+
+    @Transactional
+    public void completeAllOfType(String username, FormDraftType type) {
+        definitions.require(type);
+        repository.deleteByOwnerUsernameAndFormType(username, type);
     }
 
     @Transactional
@@ -275,19 +371,28 @@ public class FormDraftService {
         }
     }
 
-    private DraftView toView(FormDraft draft) {
+    private DraftView toView(FormDraft draft, FormDraftDefinition definition) {
         try {
             JsonNode parsed = mapper.readTree(draft.getPayloadJson());
             if (!(parsed instanceof ObjectNode objectNode)) {
                 throw new IllegalStateException("Conteúdo de rascunho inválido no banco.");
             }
+            ObjectNode migrated = definition.migrate(
+                draft.getSchemaVersion(),
+                objectNode.deepCopy()
+            );
+            ObjectNode normalized = definition.normalizeAndValidate(
+                migrated,
+                draft.getCurrentStep(),
+                false
+            );
             return new DraftView(
                 draft.getId(),
                 draft.getFormType(),
                 draft.getContextKey(),
-                draft.getSchemaVersion(),
+                definition.schemaVersion(),
                 draft.getCurrentStep(),
-                objectNode.deepCopy(),
+                normalized,
                 draft.getVersion(),
                 draft.getUpdatedAt(),
                 draft.getExpiresAt()

@@ -55,3 +55,38 @@ export function serializeEditableFields(form) {
   }
   return payload;
 }
+
+export function draftPayloadsEqual(left, right) {
+  return stableJson(left ?? {}) === stableJson(right ?? {});
+}
+
+function stableJson(value) {
+  if (Array.isArray(value)) {
+    return `[${value.map(stableJson).join(",")}]`;
+  }
+  if (value && typeof value === "object") {
+    return `{${Object.keys(value)
+      .sort()
+      .map((key) => `${JSON.stringify(key)}:${stableJson(value[key])}`)
+      .join(",")}}`;
+  }
+  if (typeof value === "string") {
+    const decimal = canonicalDecimal(value);
+    if (decimal !== null) return JSON.stringify(decimal);
+  }
+  return JSON.stringify(value);
+}
+
+function canonicalDecimal(value) {
+  const text = value.trim();
+  if (/^-?\d{1,3}(?:\.\d{3})*(?:,\d+)?$/.test(text) && (text.includes(",") || text.includes("."))) {
+    const normalized = text.replace(/\./g, "").replace(",", ".");
+    const parsed = Number(normalized);
+    return Number.isFinite(parsed) ? String(parsed) : null;
+  }
+  if (/^-?\d+\.\d+$/.test(text)) {
+    const parsed = Number(text);
+    return Number.isFinite(parsed) ? String(parsed) : null;
+  }
+  return null;
+}

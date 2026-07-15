@@ -59,12 +59,7 @@ public class FinancialObligationController {
             "obligationDrafts",
             drafts.listActive(authentication.getName(), FormDraftType.OBLIGATION)
                 .stream()
-                .map(view -> new ObligationDraftCard(
-                    view.contextKey(),
-                    view.payload().path("creditor").asText("Obrigação sem credor"),
-                    view.currentStep(),
-                    view.updatedAt()
-                ))
+                .map(this::toCard)
                 .toList()
         );
         return "obligations/list";
@@ -73,21 +68,59 @@ public class FinancialObligationController {
     @GetMapping("/new")
     public String form(
         @RequestParam(required = false) String draftKey,
-        Model model
+        @RequestParam(defaultValue = "false") boolean fresh,
+        Model model,
+        Authentication authentication
     ) {
+        var activeDraft = drafts.findLatestActive(
+            authentication.getName(),
+            FormDraftType.OBLIGATION
+        );
+
+        if (draftKey != null && !draftKey.isBlank()) {
+            if (activeDraft.isEmpty()
+                || !activeDraft.orElseThrow().contextKey().equals(draftKey.trim())) {
+                return "redirect:/obligations/new";
+            }
+            ObligationForm form = model.containsAttribute("obligationForm")
+                ? (ObligationForm) model.getAttribute("obligationForm")
+                : new ObligationForm();
+            form.setDraftKey(activeDraft.orElseThrow().contextKey());
+            populateForm(model, form, "auto");
+            return "obligations/form";
+        }
+
+        if (activeDraft.isPresent()) {
+            model.addAttribute("obligationDraft", toCard(activeDraft.orElseThrow()));
+            return "obligations/draft-decision";
+        }
+
         ObligationForm form = model.containsAttribute("obligationForm")
             ? (ObligationForm) model.getAttribute("obligationForm")
             : new ObligationForm();
         if (form.getDraftKey() == null || form.getDraftKey().isBlank()) {
-            form.setDraftKey(
-                draftKey == null || draftKey.isBlank()
-                    ? "draft:" + UUID.randomUUID()
-                    : draftKey
-            );
+            form.setDraftKey("draft:" + UUID.randomUUID());
         }
-        model.addAttribute("obligationForm", form);
-        model.addAttribute("vehicles", vehicles.listAll());
+        populateForm(model, form, "none");
         return "obligations/form";
+    }
+
+    @PostMapping("/draft/discard")
+    public String discardDraft(
+        @RequestParam(defaultValue = "list") String next,
+        Authentication authentication,
+        RedirectAttributes redirect
+    ) {
+        drafts.findLatestActive(authentication.getName(), FormDraftType.OBLIGATION)
+            .ifPresent(draft -> drafts.discard(
+                authentication.getName(),
+                FormDraftType.OBLIGATION,
+                draft.contextKey()
+            ));
+        redirect.addFlashAttribute("successMessage", "Rascunho de obrigação descartado.");
+        return "new".equals(next)
+            ? "redirect:/obligations/new?fresh=true"
+            : "redirect:/obligations";
     }
 
     @PostMapping
@@ -107,7 +140,7 @@ public class FinancialObligationController {
                 result.reject("obligation", exception.getMessage());
             }
         }
-        model.addAttribute("vehicles", vehicles.listAll());
+        populateForm(model, form, "none");
         return "obligations/form";
     }
 
@@ -149,6 +182,25 @@ public class FinancialObligationController {
         );
         redirect.addFlashAttribute("successMessage", "Pagamento registrado.");
         return "redirect:/obligations/" + id;
+    }
+
+    private void populateForm(Model model, ObligationForm form, String recoveryMode) {
+        model.addAttribute("obligationForm", form);
+        model.addAttribute("vehicles", vehicles.listAll());
+        model.addAttribute("draftRecoveryMode", recoveryMode);
+    }
+
+    private ObligationDraftCard toCard(FormDraftService.DraftView view) {
+        String creditor = view.payload().path("creditor").asText("").trim();
+        if (creditor.isBlank()) {
+            creditor = "Obrigação sem credor";
+        }
+        return new ObligationDraftCard(
+            view.contextKey(),
+            creditor,
+            view.currentStep(),
+            view.updatedAt()
+        );
     }
 
     public record ObligationDraftCard(

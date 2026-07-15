@@ -106,7 +106,7 @@ test("legacy emergency payloads discard framework control fields", () => {
 test("http conflict exposes the server version", async () => {
   const client = new FormDraftClient({
     fetchImpl: async () => jsonResponse(409, {
-      message: "Este rascunho foi alterado em outro dispositivo.",
+      message: "Existem alterações diferentes neste rascunho.",
       current: { contextKey: "current", version: 4, payload: { amount: "140.00" } },
     }),
     storage: fakeStorage(),
@@ -146,7 +146,7 @@ test("discard includes csrf and list/load use encoded urls", async () => {
 
   await client.load("MONTHLY_GOAL", "month:2026-07");
   await client.list("OBLIGATION");
-  await client.discard("EXPENSE", "current", 2);
+  await client.discard("EXPENSE", "current");
 
   assert.equal(
     calls[0].url,
@@ -155,7 +155,7 @@ test("discard includes csrf and list/load use encoded urls", async () => {
   assert.equal(calls[1].url, "/api/form-drafts/OBLIGATION/list");
   assert.equal(
     calls[2].url,
-    "/api/form-drafts/EXPENSE?contextKey=current&version=2",
+    "/api/form-drafts/EXPENSE?contextKey=current",
   );
   assert.equal(calls[2].options.headers["X-CSRF-TOKEN"], "token");
 });

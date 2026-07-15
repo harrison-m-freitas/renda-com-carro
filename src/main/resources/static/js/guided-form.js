@@ -1,6 +1,7 @@
 import { DraftConflictError, FormDraftClient } from "./form-draft-client.js";
 import {
   clampStep,
+  draftPayloadsEqual,
   isMobileWizard,
   nextStep,
   previousStep,
@@ -25,20 +26,25 @@ export class GuidedFormController {
     this.saveTimer = null;
     this.savePromise = null;
     this.pendingConflict = null;
+    this.dirty = false;
+    this.discarding = false;
+    this.submitting = false;
+    this.disposed = false;
+    this.initialPayload = null;
+    this.lastPersistedPayload = null;
     this.resizeHandler = () => this.renderSteps();
     this.onlineHandler = () => this.reconcileEmergencyCopy();
-    this.pagehideHandler = () => {
-      this.save({ keepalive: true, quiet: true }).catch(() => {});
-    };
+    this.pagehideHandler = () => { this.handlePagehide().catch(() => {}); };
   }
 
   async connect() {
     this.form.classList.add("guided-form--enhanced");
     this.form.guidedFormController = this;
-    this.bindEvents();
     this.renderSteps();
     await this.checkRecovery();
     await this.reconcileEmergencyCopy();
+    this.captureInitialPayload();
+    this.bindEvents();
   }
 
   disconnect() {
@@ -50,10 +56,17 @@ export class GuidedFormController {
   }
 
   bindEvents() {
-    this.form.addEventListener("input", () => this.scheduleSave());
-    this.form.addEventListener("change", () => this.scheduleSave());
+    this.form.addEventListener("input", () => {
+      this.refreshDirtyState();
+      this.scheduleSave();
+    });
+    this.form.addEventListener("change", () => {
+      this.refreshDirtyState();
+      this.scheduleSave();
+    });
+    this.form.addEventListener("submit", () => this.markSubmitting());
     this.form.addEventListener("blur", (event) => {
-      if (event.target?.matches?.("[data-save-on-blur]")) {
+      if (this.dirty && event.target?.matches?.("[data-save-on-blur]")) {
         this.save().catch(() => {});
       }
     }, true);
@@ -88,13 +101,28 @@ export class GuidedFormController {
 
     this.form.querySelectorAll("[data-draft-discard]").forEach((button) => {
       button.addEventListener("click", async () => {
-        if (!globalThis.confirm?.("Descartar o rascunho salvo e começar novamente?")) return;
-        const key = this.contextKey();
-        await this.client.discard(this.type, key, this.recoveryDraft?.version ?? null);
-        this.version = null;
-        this.lastContextKey = key;
-        this.client.clearEmergency(this.type, key);
+        await this.discardCurrentDraft();
         this.hideDialog("recovery");
+        const redirect = button.dataset.draftRedirect || globalThis.location?.href;
+        if (redirect) globalThis.location?.assign?.(redirect);
+      });
+    });
+
+    this.form.querySelectorAll("[data-guided-discard-current]").forEach((button) => {
+      button.addEventListener("click", async () => {
+        const message = button.dataset.confirmMessage || "Descartar este rascunho?";
+        if (globalThis.confirm && !globalThis.confirm(message)) return;
+        await this.discardCurrentDraft();
+        const redirect = button.dataset.redirect;
+        if (redirect) globalThis.location?.assign?.(redirect);
+      });
+    });
+
+    this.form.querySelectorAll("[data-guided-exit]").forEach((element) => {
+      element.addEventListener("click", async (event) => {
+        event.preventDefault?.();
+        const url = element.dataset.redirect || element.getAttribute?.("href");
+        if (url) await this.exitKeepingDraft(url);
       });
     });
 
@@ -129,6 +157,7 @@ export class GuidedFormController {
 
   scheduleSave() {
     clearTimeout(this.saveTimer);
+    if (!this.dirty || this.discarding || this.submitting || this.disposed) return;
     this.saveTimer = setTimeout(() => {
       this.save().catch(() => {});
     }, AUTOSAVE_DELAY_MS);
@@ -142,7 +171,7 @@ export class GuidedFormController {
     validateCurrentStep = false,
   } = {}) {
     clearTimeout(this.saveTimer);
-    if (!this.type || !this.contextKey()) return null;
+    if (!this.type || !this.contextKey() || this.discarding || this.submitting || this.disposed) return null;
 
     const runSave = () => {
       const payload = serializeEditableFields(this.form);
@@ -152,7 +181,7 @@ export class GuidedFormController {
         currentStep: this.currentStep,
         contextKey: this.contextKey(),
       };
-      document.dispatchEvent(new CustomEvent("guided-form:before-save", { detail }));
+      globalThis.document?.dispatchEvent?.(new CustomEvent("guided-form:before-save", { detail }));
 
       if (!detail.contextKey) return Promise.resolve(null);
       if (detail.contextKey !== this.lastContextKey) {
@@ -179,6 +208,8 @@ export class GuidedFormController {
           this.lastContextKey = saved.contextKey;
           this.form.dataset.draftVersion = String(saved.version);
           this.form.dataset.draftContextKey = saved.contextKey;
+          this.lastPersistedPayload = structuredClone(state.payload);
+          this.dirty = false;
           if (!quiet) {
             this.setSaveStatus(
               `Rascunho salvo às ${formatTime(saved.updatedAt ?? new Date())}`,
@@ -209,6 +240,63 @@ export class GuidedFormController {
     return trackedOperation;
   }
 
+  captureInitialPayload() {
+    const payload = serializeEditableFields(this.form);
+    this.initialPayload = structuredClone(payload);
+    if (this.version !== null && this.lastPersistedPayload === null) {
+      this.lastPersistedPayload = structuredClone(payload);
+    }
+    this.dirty = false;
+    return payload;
+  }
+
+  refreshDirtyState() {
+    const payload = serializeEditableFields(this.form);
+    const baseline = this.lastPersistedPayload ?? this.initialPayload ?? {};
+    this.dirty = !draftPayloadsEqual(payload, baseline);
+    return this.dirty;
+  }
+
+  async handlePagehide() {
+    if (!this.dirty || this.discarding || this.submitting || this.disposed) return null;
+    return this.save({ keepalive: true, quiet: true });
+  }
+
+  markSubmitting() {
+    clearTimeout(this.saveTimer);
+    this.submitting = true;
+  }
+
+  async exitKeepingDraft(url) {
+    clearTimeout(this.saveTimer);
+    if (this.dirty && !this.discarding && !this.disposed) {
+      await this.save({ immediate: true });
+    }
+    this.disposed = true;
+    globalThis.location?.assign?.(url);
+  }
+
+  setDraftIdentity(contextKey, version = null) {
+    this.form.dataset.draftContextKey = contextKey ?? "";
+    this.form.dataset.draftVersion = version === null ? "" : String(version);
+    this.lastContextKey = contextKey ?? "";
+    this.version = version;
+  }
+
+  async discardCurrentDraft() {
+    if (this.discarding || this.disposed) return;
+    this.discarding = true;
+    clearTimeout(this.saveTimer);
+    if (this.savePromise) {
+      try { await this.savePromise; } catch { /* discard remains authoritative */ }
+    }
+    const key = this.contextKey();
+    if (this.type && key) await this.client.discard(this.type, key);
+    this.client.clearEmergency?.(this.type, key);
+    this.dirty = false;
+    this.disposed = true;
+  }
+
   validateCurrentStep() {
     const section = this.form.querySelector(`[data-form-step="${this.currentStep}"]`);
     if (!section) return true;
@@ -226,7 +314,7 @@ export class GuidedFormController {
     this.currentStep = clampStep(step, this.maxStep);
     this.form.dataset.draftCurrentStep = String(this.currentStep);
     this.renderSteps();
-    document.dispatchEvent(new CustomEvent("guided-form:step-changed", {
+    globalThis.document?.dispatchEvent?.(new CustomEvent("guided-form:step-changed", {
       detail: { form: this.form, currentStep: this.currentStep },
     }));
   }
@@ -256,10 +344,16 @@ export class GuidedFormController {
 
   async checkRecovery() {
     if (!this.type || !this.contextKey()) return;
+    const mode = this.form.dataset.draftRecoveryMode || "modal";
+    if (mode === "none") return;
     try {
       const draft = await this.client.load(this.type, this.contextKey());
       if (!draft) return;
       this.recoveryDraft = draft;
+      if (mode === "auto") {
+        this.restore(draft);
+        return;
+      }
       this.populateRecovery(draft);
       this.showDialog("recovery");
     } catch {
@@ -290,7 +384,10 @@ export class GuidedFormController {
     this.form.dataset.draftContextKey = this.lastContextKey;
     this.form.dataset.draftVersion = this.version === null ? "" : String(this.version);
     this.setStep(draft.currentStep ?? 1);
-    document.dispatchEvent(new CustomEvent("guided-form:restored", {
+    this.lastPersistedPayload = structuredClone(draft.payload ?? {});
+    this.initialPayload = structuredClone(draft.payload ?? {});
+    this.dirty = false;
+    globalThis.document?.dispatchEvent?.(new CustomEvent("guided-form:restored", {
       detail: { form: this.form, draft },
     }));
   }
@@ -301,12 +398,17 @@ export class GuidedFormController {
     if (!emergency?.state) return;
     try {
       const server = await this.client.load(this.type, this.contextKey());
+      if (server && draftPayloadsEqual(server.payload, emergency.state.payload)) {
+        this.restore(server);
+        this.client.clearEmergency(this.type, this.contextKey());
+        return;
+      }
       if (server && Number(server.version) > Number(emergency.state.version ?? -1)) {
         this.pendingConflict = new DraftConflictError(
-          "Este rascunho foi alterado em outro dispositivo.",
+          "Existem alterações diferentes neste rascunho.",
           server,
         );
-        this.populateConflict(server);
+        this.populateConflict(server, emergency.savedAt);
         this.showDialog("conflict");
         return;
       }
@@ -334,12 +436,12 @@ export class GuidedFormController {
     });
   }
 
-  populateConflict(current) {
+  populateConflict(current, localSavedAt = null) {
     this.form.querySelectorAll("[data-conflict-server-time]").forEach((element) => {
       element.textContent = formatDateTime(current?.updatedAt);
     });
     this.form.querySelectorAll("[data-conflict-local-time]").forEach((element) => {
-      element.textContent = formatDateTime(new Date());
+      element.textContent = formatDateTime(localSavedAt ?? new Date());
     });
   }
 

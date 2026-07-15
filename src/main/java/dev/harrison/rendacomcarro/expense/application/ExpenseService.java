@@ -62,9 +62,10 @@ public class ExpenseService {
     public Expense create(CreateExpenseCommand command) {
         Vehicle vehicle = command.vehicleId() == null
             ? null
-            : vehicles.get(command.vehicleId());
+            : vehicles.getActive(command.vehicleId());
         ExpenseCategory category = categories.findById(command.categoryId())
-            .orElseThrow(() -> new IllegalArgumentException("Categoria não encontrada"));
+            .filter(ExpenseCategory::isActive)
+            .orElseThrow(() -> new IllegalArgumentException("Categoria ativa não encontrada"));
         OperationalDay day = command.operationalDayId() == null
             ? null
             : days.get(command.operationalDayId());

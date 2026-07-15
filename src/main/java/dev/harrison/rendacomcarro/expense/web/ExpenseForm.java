@@ -12,6 +12,24 @@ import java.util.UUID;
 import org.springframework.format.annotation.DateTimeFormat;
 
 public class ExpenseForm {
+    public enum PaymentStatus {
+        PAID("Pago"),
+        PENDING("Pendente");
+
+        private final String label;
+
+        PaymentStatus(String label) {
+            this.label = label;
+        }
+
+        public String getLabel() {
+            return label;
+        }
+    }
+
+    private String draftContextKey;
+    private String previousDraftContextKey;
+
     private UUID vehicleId;
     private UUID operationalDayId;
     private UUID shiftId;
@@ -21,11 +39,14 @@ public class ExpenseForm {
 
     @NotNull
     @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
-    private LocalDate expenseDate = LocalDate.now();
+    private LocalDate expenseDate;
 
     @NotNull
     @DateTimeFormat(pattern = "yyyy-MM")
-    private YearMonth competenceMonth = YearMonth.now();
+    private YearMonth competenceMonth;
+
+    @NotNull
+    private PaymentStatus paymentStatus = PaymentStatus.PAID;
 
     @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
     private LocalDate paidDate;
@@ -36,7 +57,7 @@ public class ExpenseForm {
 
     @NotNull
     private ExpenseClassification classification = ExpenseClassification.PROFESSIONAL;
-    private AllocationMethod allocationMethod;
+    private AllocationMethod allocationMethod = AllocationMethod.MILEAGE_RATIO;
 
     @DecimalMin("0")
     @DecimalMax("100")
@@ -53,6 +74,12 @@ public class ExpenseForm {
             : professionalPercentagePercent.movePointLeft(2);
     }
 
+    public String getDraftContextKey() { return draftContextKey; }
+    public void setDraftContextKey(String draftContextKey) { this.draftContextKey = draftContextKey; }
+    public String getPreviousDraftContextKey() { return previousDraftContextKey; }
+    public void setPreviousDraftContextKey(String previousDraftContextKey) {
+        this.previousDraftContextKey = previousDraftContextKey;
+    }
     public UUID getVehicleId() { return vehicleId; }
     public void setVehicleId(UUID vehicleId) { this.vehicleId = vehicleId; }
     public UUID getOperationalDayId() { return operationalDayId; }
@@ -67,6 +94,8 @@ public class ExpenseForm {
     public void setCompetenceMonth(YearMonth competenceMonth) { this.competenceMonth = competenceMonth; }
     public LocalDate getPaidDate() { return paidDate; }
     public void setPaidDate(LocalDate paidDate) { this.paidDate = paidDate; }
+    public PaymentStatus getPaymentStatus() { return paymentStatus; }
+    public void setPaymentStatus(PaymentStatus paymentStatus) { this.paymentStatus = paymentStatus; }
     public BigDecimal getAmount() { return amount; }
     public void setAmount(BigDecimal amount) { this.amount = amount; }
     public ExpenseClassification getClassification() { return classification; }

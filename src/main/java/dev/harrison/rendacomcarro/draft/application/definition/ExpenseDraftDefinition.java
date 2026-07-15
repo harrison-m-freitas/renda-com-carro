@@ -9,12 +9,19 @@ import dev.harrison.rendacomcarro.expense.domain.ExpenseClassification;
 import dev.harrison.rendacomcarro.shared.domain.DomainValidationException;
 import java.math.BigDecimal;
 import java.util.Set;
+import java.util.UUID;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import org.springframework.stereotype.Component;
 
 @Component
 public class ExpenseDraftDefinition implements FormDraftDefinition {
+    private static final Pattern SESSION_KEY = Pattern.compile(
+        "^expense:new:([0-9a-fA-F-]{36})$"
+    );
     private static final Set<String> ALLOWED_FIELDS = Set.of(
-        "vehicleId", "categoryId", "expenseDate", "competenceMonth", "paidDate",
+        "vehicleId", "operationalDayId", "shiftId", "categoryId",
+        "expenseDate", "competenceMonth", "paymentStatus", "paidDate",
         "amount", "classification", "allocationMethod",
         "professionalPercentagePercent", "professionalFixedAmount",
         "adjustmentReason", "notes"
@@ -28,14 +35,37 @@ public class ExpenseDraftDefinition implements FormDraftDefinition {
     }
 
     @Override public FormDraftType type() { return FormDraftType.EXPENSE; }
-    @Override public int schemaVersion() { return 1; }
+    @Override public int schemaVersion() { return 2; }
     @Override public int maxStep() { return 3; }
+
+    @Override
+    public ObjectNode migrate(int sourceSchemaVersion, ObjectNode payload) {
+        if (sourceSchemaVersion == schemaVersion()) {
+            return payload.deepCopy();
+        }
+        if (sourceSchemaVersion != 1) {
+            throw new DomainValidationException("Versão de rascunho incompatível.");
+        }
+        ObjectNode migrated = payload.deepCopy();
+        String paidDate = validator.optionalText(migrated, "paidDate");
+        migrated.put("paymentStatus", paidDate == null ? "PENDING" : "PAID");
+        return migrated;
+    }
 
     @Override
     public String normalizeContextKey(String contextKey) {
         String normalized = contextKey == null ? "" : contextKey.trim();
-        if (!"current".equals(normalized)) {
-            throw new DomainValidationException("A chave do rascunho de gasto deve ser current.");
+        if ("current".equals(normalized)) {
+            return normalized;
+        }
+        Matcher matcher = SESSION_KEY.matcher(normalized);
+        if (!matcher.matches()) {
+            throw new DomainValidationException("A chave do rascunho de gasto é inválida.");
+        }
+        try {
+            UUID.fromString(matcher.group(1));
+        } catch (IllegalArgumentException exception) {
+            throw new DomainValidationException("A chave do rascunho de gasto é inválida.");
         }
         return normalized;
     }
@@ -50,15 +80,20 @@ public class ExpenseDraftDefinition implements FormDraftDefinition {
         ObjectNode normalized = validator.sanitizeTextFields(payload, TEXT_FIELDS);
 
         normalizeUuid(normalized, "vehicleId", "Veículo", validateCurrentStep && currentStep >= 1);
+        normalizeUuid(normalized, "operationalDayId", "Dia operacional", false);
+        normalizeUuid(normalized, "shiftId", "Turno", false);
         normalizeUuid(normalized, "categoryId", "Categoria", validateCurrentStep && currentStep >= 1);
         normalizeDate(normalized, "expenseDate", "Data do gasto", validateCurrentStep && currentStep >= 1);
         normalizePositiveDecimal(normalized, "amount", "Valor", validateCurrentStep && currentStep >= 1);
-        normalizeDate(normalized, "paidDate", "Data do pagamento", false);
 
         normalizeMonth(
             normalized,
             "competenceMonth",
-            "Competência",
+            "Mês de referência",
+            validateCurrentStep && currentStep >= 2
+        );
+        normalizePayment(
+            normalized,
             validateCurrentStep && currentStep >= 2
         );
 
@@ -159,6 +194,30 @@ public class ExpenseDraftDefinition implements FormDraftDefinition {
         }
     }
 
+    private void normalizePayment(ObjectNode payload, boolean required) {
+        String value = required
+            ? validator.requireText(payload, "paymentStatus", "Situação do pagamento")
+            : validator.optionalText(payload, "paymentStatus");
+        if (value == null) {
+            payload.remove("paymentStatus");
+            normalizeDate(payload, "paidDate", "Data do pagamento", false);
+            return;
+        }
+
+        PaymentStatus status;
+        try {
+            status = PaymentStatus.valueOf(value);
+        } catch (IllegalArgumentException exception) {
+            throw new DomainValidationException("Situação do pagamento inválida.");
+        }
+        payload.put("paymentStatus", status.name());
+        if (status == PaymentStatus.PENDING) {
+            payload.remove("paidDate");
+            return;
+        }
+        normalizeDate(payload, "paidDate", "Data do pagamento", required);
+    }
+
     private void normalizePositiveDecimal(
         ObjectNode payload,
         String field,
@@ -186,8 +245,15 @@ public class ExpenseDraftDefinition implements FormDraftDefinition {
             payload.remove("professionalPercentagePercent");
             return;
         }
-        if (value.signum() < 0 || value.compareTo(new BigDecimal("100")) > 0) {
-            throw new DomainValidationException("Percentual profissional deve estar entre 0 e 100.");
+        if (value.signum() <= 0) {
+            throw new DomainValidationException(
+                "Para 0%, classifique o gasto como Pessoal."
+            );
+        }
+        if (value.compareTo(new BigDecimal("100")) >= 0) {
+            throw new DomainValidationException(
+                "Para 100%, classifique o gasto como Profissional."
+            );
         }
         payload.put("professionalPercentagePercent", value.toPlainString());
     }
@@ -201,9 +267,19 @@ public class ExpenseDraftDefinition implements FormDraftDefinition {
             return;
         }
         BigDecimal total = validator.optionalDecimal(payload, "amount", "Valor");
-        if (fixed.signum() < 0 || (total != null && fixed.compareTo(total) > 0)) {
+        if (fixed.signum() <= 0) {
             throw new DomainValidationException(
-                "Valor profissional fixo deve estar entre zero e o valor do gasto."
+                "Para nenhum valor profissional, classifique o gasto como Pessoal."
+            );
+        }
+        if (total != null && fixed.compareTo(total) == 0) {
+            throw new DomainValidationException(
+                "Para atribuir todo o valor à operação, classifique o gasto como Profissional."
+            );
+        }
+        if (total != null && fixed.compareTo(total) > 0) {
+            throw new DomainValidationException(
+                "O valor profissional deve ser menor que o valor total do gasto."
             );
         }
         payload.put("professionalFixedAmount", fixed.toPlainString());
@@ -242,6 +318,11 @@ public class ExpenseDraftDefinition implements FormDraftDefinition {
         } catch (IllegalArgumentException exception) {
             throw new DomainValidationException("Método de rateio inválido.");
         }
+    }
+
+    private enum PaymentStatus {
+        PAID,
+        PENDING
     }
 
     private AllocationMethod requireAllocationMethod(ObjectNode payload) {

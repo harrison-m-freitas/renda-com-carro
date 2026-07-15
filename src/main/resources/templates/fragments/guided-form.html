@@ -44,14 +44,14 @@
       <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
           <div class="modal-header">
-            <h2 class="modal-title fs-5">Rascunho alterado em outro dispositivo</h2>
+            <h2 class="modal-title fs-5">Existem alterações diferentes neste rascunho</h2>
           </div>
           <div class="modal-body">
-            <p>Este rascunho foi alterado em outro dispositivo.</p>
+            <p>Há alterações locais e salvas que não podem ser combinadas automaticamente.</p>
             <dl class="row mb-0 small">
-              <dt class="col-6">Versão deste dispositivo</dt>
+              <dt class="col-6">Alterações locais</dt>
               <dd class="col-6" data-conflict-local-time>horário desconhecido</dd>
-              <dt class="col-6">Versão salva no servidor</dt>
+              <dt class="col-6">Versão salva</dt>
               <dd class="col-6" data-conflict-server-time>horário desconhecido</dd>
             </dl>
           </div>
@@ -62,11 +62,11 @@
             </button>
             <button class="btn btn-outline-danger" type="button"
                     data-conflict-force-local>
-              Substituir versão do servidor
+              Manter minhas alterações
             </button>
             <button class="btn btn-primary" type="button"
                     data-conflict-use-server>
-              Usar versão mais recente
+              Usar versão salva
             </button>
           </div>
         </div>

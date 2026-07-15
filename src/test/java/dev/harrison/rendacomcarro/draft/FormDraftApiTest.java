@@ -13,10 +13,13 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import dev.harrison.rendacomcarro.draft.application.FormDraftService;
 import dev.harrison.rendacomcarro.draft.application.FormDraftService.SaveDraftCommand;
 import dev.harrison.rendacomcarro.draft.domain.FormDraftType;
+import dev.harrison.rendacomcarro.draft.domain.FormDraft;
+import dev.harrison.rendacomcarro.draft.infrastructure.FormDraftRepository;
 import dev.harrison.rendacomcarro.security.domain.AppUser;
 import dev.harrison.rendacomcarro.security.infrastructure.AppUserRepository;
 import dev.harrison.rendacomcarro.support.PostgresIntegrationTest;
 import java.util.UUID;
+import java.time.LocalDateTime;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -39,6 +42,7 @@ class FormDraftApiTest extends PostgresIntegrationTest {
     @Autowired ObjectMapper mapper;
     @Autowired FormDraftService drafts;
     @Autowired AppUserRepository users;
+    @Autowired FormDraftRepository repository;
 
     @BeforeEach
     void ensureOtherOwner() {
@@ -59,7 +63,7 @@ class FormDraftApiTest extends PostgresIntegrationTest {
                 .content("""
                     {
                       "contextKey":"current",
-                      "schemaVersion":1,
+                      "schemaVersion":2,
                       "currentStep":1,
                       "version":null,
                       "force":false,
@@ -67,6 +71,7 @@ class FormDraftApiTest extends PostgresIntegrationTest {
                         "vehicleId":"%s",
                         "categoryId":"%s",
                         "expenseDate":"2026-07-13",
+                        "paymentStatus":"PENDING",
                         "amount":"100,00"
                       }
                     }
@@ -92,6 +97,31 @@ class FormDraftApiTest extends PostgresIntegrationTest {
                 .with(user("draft-api-owner").roles("OWNER"))
                 .param("contextKey", "current"))
             .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void legacyExpenseDraftIsReturnedAsSchemaTwoWithDerivedPaymentStatus() throws Exception {
+        AppUser owner = users.findByUsername("draft-api-owner").orElseThrow();
+        LocalDateTime now = LocalDateTime.now();
+        repository.saveAndFlush(FormDraft.create(
+            owner,
+            FormDraftType.EXPENSE,
+            "current",
+            1,
+            2,
+            """
+                {"expenseDate":"2026-07-13","paidDate":"2026-07-13","classification":"PROFESSIONAL"}
+                """,
+            now,
+            now.plusDays(7)
+        ));
+
+        mvc.perform(get("/api/form-drafts/EXPENSE")
+                .with(user("draft-api-owner").roles("OWNER"))
+                .param("contextKey", "current"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.schemaVersion").value(2))
+            .andExpect(jsonPath("$.payload.paymentStatus").value("PAID"));
     }
 
     @Test
@@ -161,13 +191,14 @@ class FormDraftApiTest extends PostgresIntegrationTest {
             .put("vehicleId", UUID.randomUUID().toString())
             .put("categoryId", UUID.randomUUID().toString())
             .put("expenseDate", "2026-07-13")
+            .put("paymentStatus", "PENDING")
             .put("amount", amount);
     }
 
     private String requestBody(ObjectNode payload, Long version, boolean force) throws Exception {
         ObjectNode request = mapper.createObjectNode()
             .put("contextKey", "current")
-            .put("schemaVersion", 1)
+            .put("schemaVersion", 2)
             .put("currentStep", 1)
             .put("force", force)
             .set("payload", payload);

@@ -1,0 +1,192 @@
+/* Monthly goal planner */
+.goal-form-page { max-width: 72rem; margin-inline: auto; }
+.goal-form .form-label,
+.goal-form legend { font-weight: 600; }
+.goal-form .form-control,
+.goal-form .form-select,
+.goal-form .input-group-text,
+.goal-form button { min-height: 44px; }
+.goal-picker { position: relative; }
+.goal-picker__trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: .75rem;
+  text-align: left;
+  background: var(--bs-body-bg);
+}
+.goal-picker__popover {
+  position: absolute;
+  z-index: 1050;
+  top: calc(100% + .35rem);
+  left: 0;
+  width: min(26rem, calc(100vw - 2rem));
+  padding: .75rem;
+  border: 1px solid var(--bs-border-color);
+  border-radius: var(--bs-border-radius-lg);
+  background: var(--bs-body-bg);
+  box-shadow: var(--bs-box-shadow-lg);
+}
+.goal-picker__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: .75rem;
+  margin-bottom: .75rem;
+}
+.goal-picker__month-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: .35rem;
+}
+.goal-picker__month {
+  min-height: 44px;
+  border: 1px solid transparent;
+  border-radius: var(--bs-border-radius);
+  background: transparent;
+  color: var(--bs-body-color);
+}
+.goal-picker__month:hover { background: var(--bs-tertiary-bg); }
+.goal-picker__month[aria-selected="true"] {
+  border-color: var(--bs-primary);
+  background: var(--bs-primary-bg-subtle);
+  font-weight: 700;
+}
+.goal-picker__vehicle-options { position: static; width: 100%; margin-top: .35rem; box-shadow: none; }
+.goal-picker__vehicle-option {
+  display: flex;
+  align-items: flex-start;
+  gap: .75rem;
+  min-height: 52px;
+  margin: 0;
+  padding: .65rem;
+  border-radius: var(--bs-border-radius);
+}
+.goal-picker__vehicle-option:hover { background: var(--bs-tertiary-bg); }
+.goal-picker__chips { display: flex; flex-wrap: wrap; gap: .35rem; }
+.goal-picker__chip {
+  display: inline-flex;
+  align-items: center;
+  gap: .25rem;
+  padding: .25rem .35rem .25rem .65rem;
+  border: 1px solid var(--bs-primary-border-subtle);
+  border-radius: 999px;
+  background: var(--bs-primary-bg-subtle);
+  color: var(--bs-primary-text-emphasis);
+  font-size: .875rem;
+  font-weight: 600;
+}
+.goal-picker__chip button {
+  min-width: 32px;
+  min-height: 32px;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: inherit;
+  font-size: 1.15rem;
+}
+.goal-financial-breakdown {
+  padding: 1rem;
+  border: 1px solid var(--bs-border-color);
+  border-radius: var(--bs-border-radius-lg);
+  background: var(--bs-tertiary-bg);
+}
+.goal-financial-breakdown__line,
+.goal-review > div {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: .55rem 0;
+  border-bottom: 1px solid var(--bs-border-color);
+}
+.goal-financial-breakdown__line.is-overdue { color: var(--bs-danger-text-emphasis); }
+.goal-financial-breakdown__line.is-total {
+  margin-top: .25rem;
+  border-top: 2px solid var(--bs-border-color);
+  border-bottom: 0;
+  font-size: 1.05rem;
+}
+.goal-financial-breakdown__items { margin-top: .75rem; font-size: .9rem; }
+.goal-calendar {
+  padding: 1rem;
+  border: 1px solid var(--bs-border-color);
+  border-radius: var(--bs-border-radius-lg);
+}
+.goal-calendar__grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: .35rem;
+}
+.goal-calendar__weekday {
+  padding-block: .35rem;
+  color: var(--bs-secondary-color);
+  font-size: .8rem;
+  font-weight: 700;
+  text-align: center;
+}
+.goal-calendar__day {
+  min-width: 0;
+  min-height: 44px;
+  border: 1px solid var(--bs-border-color);
+  border-radius: var(--bs-border-radius);
+  background: var(--bs-body-bg);
+  color: var(--bs-body-color);
+  font-variant-numeric: tabular-nums;
+}
+.goal-calendar__day:hover:not(:disabled) { background: var(--bs-tertiary-bg); }
+.goal-calendar__day[aria-pressed="true"] {
+  border: 2px solid var(--bs-primary);
+  background: var(--bs-primary-bg-subtle);
+  color: var(--bs-primary-text-emphasis);
+  font-weight: 700;
+}
+.goal-calendar__day[aria-pressed="true"]::after { content: " ✓"; }
+.goal-calendar__day:disabled {
+  border-style: dashed;
+  background: var(--bs-secondary-bg);
+  color: var(--bs-secondary-color);
+  cursor: not-allowed;
+  opacity: .65;
+}
+.goal-calendar__day--empty { min-height: 44px; }
+.goal-calendar__weekday-toggle[aria-pressed="true"] {
+  border-width: 2px;
+  background: var(--bs-primary-bg-subtle);
+  color: var(--bs-primary-text-emphasis);
+  font-weight: 700;
+}
+.goal-workload-summary { background: var(--bs-tertiary-bg); border-color: var(--bs-border-color); }
+.goal-review {
+  padding: .75rem 1rem;
+  border: 1px solid var(--bs-border-color);
+  border-radius: var(--bs-border-radius-lg);
+  background: var(--bs-tertiary-bg);
+}
+.goal-review > div:last-child { border-bottom: 0; }
+.goal-review strong { text-align: right; }
+.goal-rate-card {
+  height: 100%;
+  padding: 1rem;
+  border: 1px solid var(--bs-border-color);
+  border-radius: var(--bs-border-radius-lg);
+  background: var(--bs-body-bg);
+}
+.goal-rate-card span { display: block; margin-bottom: .35rem; color: var(--bs-secondary-color); }
+.goal-rate-card strong { display: block; font-size: 1.35rem; font-variant-numeric: tabular-nums; }
+.goal-picker__trigger:focus-visible,
+.goal-picker__month:focus-visible,
+.goal-calendar__day:focus-visible,
+.goal-picker__chip button:focus-visible {
+  outline: 3px solid rgba(var(--bs-primary-rgb), .3);
+  outline-offset: 2px;
+}
+
+@media (max-width: 575.98px) {
+  .goal-picker__month-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .goal-calendar { padding: .75rem; }
+  .goal-calendar__grid { gap: .2rem; }
+  .goal-calendar__day { min-height: 42px; font-size: .875rem; }
+  .goal-review > div { align-items: flex-start; flex-direction: column; gap: .1rem; }
+  .goal-review strong { text-align: left; }
+}

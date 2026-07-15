@@ -43,8 +43,10 @@ class FormDraftDefinitionTest {
             .put("expenseDate", "2026-07-13")
             .put("competenceMonth", "2026-07")
             .put("amount", "120,50")
-            .put("classification", "PROFESSIONAL");
+            .put("classification", "PROFESSIONAL")
+            .put("paymentStatus", "PENDING");
 
+        assertThat(expense.schemaVersion()).isEqualTo(2);
         assertThat(expense.normalizeContextKey(" current ")).isEqualTo("current");
         assertThatNoException().isThrownBy(() -> expense.normalizeAndValidate(payload, 2));
 
@@ -52,6 +54,58 @@ class FormDraftDefinitionTest {
         assertThatThrownBy(() -> expense.normalizeAndValidate(payload, 2))
             .isInstanceOf(DomainValidationException.class)
             .hasMessageContaining("Campo de rascunho não permitido");
+    }
+
+    @Test
+    void expenseMigratesLegacyPaymentStateAndAcceptsOperationalContext() {
+        UUID dayId = UUID.randomUUID();
+        UUID shiftId = UUID.randomUUID();
+        ObjectNode legacy = mapper.createObjectNode()
+            .put("vehicleId", UUID.randomUUID().toString())
+            .put("categoryId", UUID.randomUUID().toString())
+            .put("operationalDayId", dayId.toString())
+            .put("shiftId", shiftId.toString())
+            .put("expenseDate", "2026-07-13")
+            .put("paidDate", "2026-07-13")
+            .put("amount", "120,50")
+            .put("classification", "PROFESSIONAL");
+
+        ObjectNode migrated = expense.migrate(1, legacy);
+        ObjectNode normalized = expense.normalizeAndValidate(migrated, 2, false);
+
+        assertThat(normalized.path("paymentStatus").asText()).isEqualTo("PAID");
+        assertThat(normalized.path("operationalDayId").asText()).isEqualTo(dayId.toString());
+        assertThat(normalized.path("shiftId").asText()).isEqualTo(shiftId.toString());
+    }
+
+    @Test
+    void pendingExpenseDraftRemovesPaidDateAndManualExtremesAreRejected() {
+        ObjectNode pending = mapper.createObjectNode()
+            .put("paymentStatus", "PENDING")
+            .put("paidDate", "2026-07-13")
+            .put("classification", "PROFESSIONAL");
+
+        ObjectNode normalized = expense.normalizeAndValidate(pending, 1, false);
+        assertThat(normalized.has("paidDate")).isFalse();
+
+        ObjectNode percentage = mapper.createObjectNode()
+            .put("classification", "MIXED")
+            .put("allocationMethod", "MANUAL_PERCENTAGE")
+            .put("professionalPercentagePercent", "100")
+            .put("adjustmentReason", "Rateio manual");
+        assertThatThrownBy(() -> expense.normalizeAndValidate(percentage, 2, false))
+            .isInstanceOf(DomainValidationException.class)
+            .hasMessageContaining("Profissional");
+
+        ObjectNode fixed = mapper.createObjectNode()
+            .put("amount", "100,00")
+            .put("classification", "MIXED")
+            .put("allocationMethod", "FIXED_AMOUNT")
+            .put("professionalFixedAmount", "100,00")
+            .put("adjustmentReason", "Rateio manual");
+        assertThatThrownBy(() -> expense.normalizeAndValidate(fixed, 2, false))
+            .isInstanceOf(DomainValidationException.class)
+            .hasMessageContaining("Profissional");
     }
 
     @Test
