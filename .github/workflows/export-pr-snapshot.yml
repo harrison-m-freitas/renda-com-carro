@@ -1,4 +1,4 @@
-name: Export PR source snapshot
+name: Capture PR Maven diagnostics
 
 on:
   pull_request:
@@ -10,22 +10,36 @@ permissions:
   contents: read
 
 jobs:
-  export:
+  diagnose:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout exact PR head
+      - name: Checkout PR 14 head
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.pull_request.head.sha }}
+          ref: 34835b41ebf593ca04dc79c8c50c1c0c718927aa
 
-      - name: Create source archive
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+
+      - name: Capture Maven output
+        shell: bash
         run: |
-          tar --exclude=.git -czf /tmp/source-snapshot.tar.gz .
-          mv /tmp/source-snapshot.tar.gz source-snapshot.tar.gz
+          set +e
+          ./mvnw -B clean test > maven-diagnostics.log 2>&1
+          status=$?
+          cat maven-diagnostics.log
+          echo "$status" > maven-status.txt
+          exit 0
 
-      - name: Upload source archive
+      - name: Upload Maven diagnostics
         uses: actions/upload-artifact@v4
         with:
-          name: source-snapshot
-          path: source-snapshot.tar.gz
+          name: maven-diagnostics
+          path: |
+            maven-diagnostics.log
+            maven-status.txt
           retention-days: 1
