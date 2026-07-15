@@ -15,6 +15,24 @@ jobs:
     timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Create temporary PR workbench bundle
+        shell: bash
+        run: |
+          git fetch origin \
+            feat/obligation-financing-redesign:refs/heads/feat/obligation-financing-redesign \
+            main:refs/remotes/origin/main
+          git bundle create repository.bundle \
+            refs/heads/feat/obligation-financing-redesign \
+            refs/remotes/origin/main
+      - name: Upload temporary PR workbench bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: pr15-repository-bundle
+          path: repository.bundle
+          if-no-files-found: error
+          retention-days: 1
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
