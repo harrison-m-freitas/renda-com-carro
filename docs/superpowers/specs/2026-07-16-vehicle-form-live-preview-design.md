@@ -80,7 +80,7 @@ Rules:
 
 - Characters are normalized to uppercase.
 - Only characters accepted by the existing plate field behavior are displayed.
-- The old Brazilian format may render as `ABC-1234`.
+- The old Brazilian format renders as `ABC-1234` when complete.
 - The Mercosur format renders as `ABC1D23` without an inserted hyphen.
 - While incomplete, missing positions use a muted placeholder character instead of shifting the plate layout unpredictably.
 - The live preview is decorative and does not replace field validation.
@@ -103,14 +103,14 @@ Values update live from inputs and selects. Formatting reuses existing localized
 
 ### Derived estimates
 
-The preview may show two derived values when enough data exists:
+The preview shows the following advisory values whenever enough data exists:
 
 - Expected range = tank capacity × expected consumption
 - Actual estimated range = tank capacity × actual consumption
 
-A derived value is hidden or replaced by `Ainda sem dados suficientes` when one of its operands is absent, invalid, or non-positive.
+A derived value is replaced by `Ainda sem dados suficientes` when one of its operands is absent, invalid, or non-positive.
 
-These estimates are advisory and are not persisted in this change.
+These estimates are not persisted and are never accepted as authoritative request values.
 
 ## Data model
 
@@ -121,12 +121,13 @@ Add nullable decimal fields to the vehicle domain:
 - `tankCapacityLiters`
 - `expectedFuelEfficiencyKmPerLiter`
 
-Recommended semantics:
+Validation and persistence semantics:
 
-- Tank capacity: positive decimal, practical upper bound enforced by validation.
-- Expected efficiency: positive decimal, practical upper bound enforced by validation.
+- Tank capacity accepts `1.00` through `500.00` litres, with up to two decimal places.
+- Expected efficiency accepts `0.10` through `100.00` km/L, with up to two decimal places.
 - Both fields are optional for existing vehicles and during migration.
 - New and edit forms expose both fields.
+- Values outside these limits are rejected by server-side validation rather than silently clamped.
 
 Database column names should follow the repository's existing naming convention. The Flyway migration must be additive and backward compatible.
 
@@ -136,9 +137,11 @@ Actual consumption is a calculated operational metric, not a user-authored vehic
 
 The form view model exposes it separately as a read-only nullable value, for example `actualFuelEfficiencyKmPerLiter`.
 
-The initial calculation source should use authoritative historical fuel and odometer data already present in the application. If the current data model cannot calculate a reliable value yet, the service returns no value and the UI displays `Ainda sem dados suficientes`.
+The initial calculation source uses authoritative historical fuel-volume and odometer data only when the existing application model can identify a reliable completed consumption interval. A completed interval must have a valid positive travelled distance and valid positive consumed fuel volume. Partial or ambiguous refuelling records are not treated as complete intervals.
 
-A reliable future algorithm should prefer full-to-full refuelling intervals or another explicitly defined method that avoids treating partial fills as complete consumption cycles. This design does not invent a misleading number from insufficient history.
+If the current data model cannot identify such an interval, the service returns no value and the UI displays `Ainda sem dados suficientes`. The implementation must not invent a value from monetary fuel expenses alone.
+
+A future refinement may use multiple complete intervals for a weighted average, but the first implementation must keep the calculation method explicit and covered by tests.
 
 ## Form and validation behavior
 
@@ -207,14 +210,15 @@ The preview code should be implemented as small pure formatting and calculation 
 - Flyway migration applies to an existing schema.
 - Existing vehicles remain readable with null new fields.
 - Tank capacity and expected efficiency round-trip through create and edit flows.
-- Server-side validation rejects zero, negative, and values above the defined practical limits.
+- Server-side validation rejects zero, negative, over-limit, and over-scale values.
 
 ### Service calculation
 
 - No history returns no actual consumption.
 - Insufficient or ambiguous history returns no actual consumption.
 - Valid authoritative history returns the expected calculated value.
-- Partial-fill scenarios do not produce a falsely precise result unless the chosen algorithm explicitly supports them.
+- Partial-fill scenarios do not produce a falsely precise result.
+- Monetary fuel expense without volume and distance does not produce consumption.
 
 ### Controller and view
 
@@ -260,7 +264,7 @@ Unrelated shared-form refactoring is excluded unless a small reusable localized-
 - The plate preview updates while typing and supports old and Mercosur formats.
 - Tank capacity and expected consumption are persisted and editable.
 - Actual consumption is displayed separately as calculated or as insufficient data.
-- Expected and actual range estimates appear only when their required values exist.
+- Expected and actual range estimates appear when their required values exist and show a neutral insufficient-data state otherwise.
 - Mobile guided behavior and action bar continue to work.
 - Existing vehicle functionality and other forms do not regress.
 - The work is delivered in a branch and pull request without automatic merge.
