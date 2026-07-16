@@ -1,0 +1,41 @@
+name: Diagnose PR 14 JavaScript
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - .github/workflows/diagnose-pr14-js.yml
+
+permissions:
+  contents: read
+
+jobs:
+  diagnose-js:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout diagnostic head
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Capture JavaScript test output
+        id: tests
+        shell: bash
+        run: |
+          set +e
+          npm run test:js 2>&1 | tee js-test.log
+          status=${PIPESTATUS[0]}
+          printf 'exit_status=%s\n' "$status" >> "$GITHUB_OUTPUT"
+          exit "$status"
+
+      - name: Upload JavaScript diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pr14-js-diagnostics
+          path: js-test.log
+          if-no-files-found: error
+          retention-days: 1
