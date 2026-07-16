@@ -120,37 +120,37 @@ const createHarness = ({ dates = '' } = {}) => {
   };
 };
 
-test('goal workload planner: shows the source and waits for planned dates', () => {
+test('goal workload planner: keeps the compact summary empty and shows the source in review', () => {
   const harness = createHarness();
 
-  initializeGoalWorkloadPlanner(harness.form, harness.documentObject);
+  const planner = initializeGoalWorkloadPlanner(harness.form, harness.documentObject);
 
-  assert.match(allText(harness.summary), /40 h por semana/);
-  assert.match(allText(harness.summary), /Selecione os dias planejados/);
+  assert.equal(allText(harness.summary), '');
   assert.equal(harness.review.textContent, '40 h por semana');
+  assert.equal(planner.getResult().status, 'pending');
 });
 
-test('goal workload planner: recalculates a partial week and shows equivalents', () => {
+test('goal workload planner: recalculates a partial week and updates the compact review', () => {
   const harness = createHarness();
-  initializeGoalWorkloadPlanner(harness.form, harness.documentObject);
+  const planner = initializeGoalWorkloadPlanner(harness.form, harness.documentObject);
 
   harness.plannedDates.value = '2026-07-01, 2026-07-02';
   harness.plannedDates.fire('input');
 
-  const text = allText(harness.summary);
-  assert.match(text, /Total planejado no mês/);
-  assert.match(text, /16 h/);
-  assert.match(text, /Média por dia planejado/);
-  assert.match(text, /8 h/);
-  assert.match(text, /Média por semana ativa/);
-  assert.match(text, /referência provisória de 5 dias/);
+  const result = planner.getResult();
+  assert.equal(allText(harness.summary), '');
+  assert.equal(result.status, 'ready');
+  assert.equal(result.totalMinutes, 16 * 60);
+  assert.equal(result.averageDailyMinutes, 8 * 60);
+  assert.equal(result.averageWeeklyMinutes, 16 * 60);
+  assert.equal(result.weeks[0].expectedDays, 5);
   assert.equal(harness.review.textContent, '16 h no mês');
   assert.equal(harness.plannedDates.dispatched.length, 0);
 });
 
-test('goal workload planner: switches mode and restores the original source', () => {
+test('goal workload planner: switches mode and restores the source in the compact review', () => {
   const harness = createHarness({ dates: '2026-07-01,2026-07-02' });
-  initializeGoalWorkloadPlanner(harness.form, harness.documentObject);
+  const planner = initializeGoalWorkloadPlanner(harness.form, harness.documentObject);
 
   harness.weekly.checked = false;
   harness.daily.checked = true;
@@ -158,7 +158,8 @@ test('goal workload planner: switches mode and restores the original source', ()
   harness.minutes.value = '30';
   harness.daily.fire('change');
 
-  assert.match(allText(harness.summary), /8 h 30 min por dia/);
+  assert.equal(allText(harness.summary), '');
+  assert.equal(planner.getResult().totalMinutes, 17 * 60);
   assert.equal(harness.review.textContent, '17 h no mês');
 
   harness.daily.checked = false;
@@ -167,6 +168,7 @@ test('goal workload planner: switches mode and restores the original source', ()
   harness.minutes.value = '0';
   harness.documentObject.restore();
 
-  assert.match(allText(harness.summary), /40 h por semana/);
+  assert.equal(allText(harness.summary), '');
+  assert.equal(planner.getResult().totalMinutes, 16 * 60);
   assert.equal(harness.review.textContent, '16 h no mês');
 });

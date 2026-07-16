@@ -367,11 +367,16 @@ export class GuidedFormController {
       for (const field of fields) {
         if (field.type === "radio") {
           field.checked = String(field.value) === String(value);
+        } else if (field.type === "checkbox" && Array.isArray(value)) {
+          field.checked = value.map(String).includes(String(field.value));
         } else if (field.type === "checkbox") {
           field.checked = value === true || String(value) === "true";
         } else if (field.type !== "file") {
           field.value = value ?? "";
         }
+      }
+      if (Array.isArray(value) && fields[0]) {
+        fields[0].dispatchEvent(new Event("change", { bubbles: true }));
       }
     }
     this.version = draft.version ?? null;

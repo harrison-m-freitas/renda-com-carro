@@ -8,6 +8,9 @@ import dev.harrison.rendacomcarro.goal.domain.WorkloadPeriodicity;
 import dev.harrison.rendacomcarro.goal.infrastructure.MonthlyGoalRepository;
 import dev.harrison.rendacomcarro.goal.infrastructure.PlannedWorkDayRepository;
 import dev.harrison.rendacomcarro.shared.domain.DecimalPolicy;
+import dev.harrison.rendacomcarro.vehicle.domain.Vehicle;
+import dev.harrison.rendacomcarro.vehicle.domain.VehicleStatus;
+import dev.harrison.rendacomcarro.vehicle.infrastructure.VehicleRepository;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.DayOfWeek;
@@ -26,20 +29,23 @@ public class GoalService {
     private final MonthlyGoalRepository goals;
     private final PlannedWorkDayRepository days;
     private final WorkloadPlannerService workloadPlanner;
+    private final VehicleRepository vehicles;
 
     public GoalService(MonthlyGoalRepository goals, PlannedWorkDayRepository days) {
-        this(goals, days, new WorkloadPlannerService());
+        this(goals, days, new WorkloadPlannerService(), null);
     }
 
     @Autowired
     public GoalService(
         MonthlyGoalRepository goals,
         PlannedWorkDayRepository days,
-        WorkloadPlannerService workloadPlanner
+        WorkloadPlannerService workloadPlanner,
+        VehicleRepository vehicles
     ) {
         this.goals = goals;
         this.days = days;
         this.workloadPlanner = workloadPlanner;
+        this.vehicles = vehicles;
     }
 
     public GoalProjection project(
@@ -102,14 +108,16 @@ public class GoalService {
             enteredDurationMinutes,
             plannedDates
         );
-        MonthlyGoal goal = goals.save(MonthlyGoal.create(
+        MonthlyGoal goal = MonthlyGoal.create(
             month,
             personal,
             operational,
             periodicity,
             enteredDurationMinutes,
             calculation.totalMinutes()
-        ));
+        );
+        goal.assignVehicle(activeVehicle());
+        goal = goals.save(goal);
         savePlannedDays(goal, calculation);
         return goal;
     }
@@ -191,6 +199,18 @@ public class GoalService {
     @Transactional(readOnly = true)
     public List<PlannedWorkDay> plannedDays(UUID goalId) {
         return days.findAllByMonthlyGoalIdOrderByWorkDateAsc(goalId);
+    }
+
+    private Vehicle activeVehicle() {
+        if (vehicles == null) {
+            throw new IllegalArgumentException(
+                "Cadastre ou ative um veículo antes de criar a meta."
+            );
+        }
+        return vehicles.findByStatus(VehicleStatus.ACTIVE)
+            .orElseThrow(() -> new IllegalArgumentException(
+                "Cadastre ou ative um veículo antes de criar a meta."
+            ));
     }
 
     private WorkloadCalculation calculate(

@@ -41,8 +41,6 @@ public class Vehicle {
     @Column(nullable = false)
     private VehicleStatus status;
 
-    @Column(name = "primary_vehicle", nullable = false)
-    private boolean primaryVehicle;
 
     @Column(name = "initial_odometer", nullable = false, precision = 12, scale = 1)
     private BigDecimal initialOdometer;
@@ -91,7 +89,6 @@ public class Vehicle {
         this.plate = normalizePlate(plate);
         this.fuelType = requireFuelType(fuelType);
         this.status = VehicleStatus.ACTIVE;
-        this.primaryVehicle = false;
         this.initialOdometer = DecimalPolicy.distance(initialOdometer);
         this.currentOdometer = this.initialOdometer;
         this.purchasePrice = normalizeOptionalMoney(purchasePrice);
@@ -151,23 +148,29 @@ public class Vehicle {
         this.updatedAt = LocalDateTime.now();
     }
 
-    public void activateAsPrimary() {
-        if (status != VehicleStatus.ACTIVE) {
-            throw new IllegalStateException("Veículo arquivado não pode ser ativado");
+    public void activate() {
+        if (status == VehicleStatus.ARCHIVED) {
+            throw new IllegalStateException("Veículo arquivado não pode ser ativado.");
         }
-        this.primaryVehicle = true;
-        this.updatedAt = LocalDateTime.now();
+        status = VehicleStatus.ACTIVE;
+        updatedAt = LocalDateTime.now();
     }
 
-    public void clearPrimary() {
-        this.primaryVehicle = false;
-        this.updatedAt = LocalDateTime.now();
+    public void deactivate() {
+        if (status == VehicleStatus.ACTIVE) {
+            status = VehicleStatus.INACTIVE;
+            updatedAt = LocalDateTime.now();
+        }
     }
 
     public void archive() {
-        this.primaryVehicle = false;
-        this.status = VehicleStatus.ARCHIVED;
-        this.updatedAt = LocalDateTime.now();
+        if (status == VehicleStatus.ACTIVE) {
+            throw new IllegalStateException(
+                "Ative outro veículo antes de arquivar o veículo atual."
+            );
+        }
+        status = VehicleStatus.ARCHIVED;
+        updatedAt = LocalDateTime.now();
     }
 
     private static String requireText(String value, String field) {
@@ -219,7 +222,6 @@ public class Vehicle {
     public String getPlate() { return plate; }
     public FuelType getFuelType() { return fuelType; }
     public VehicleStatus getStatus() { return status; }
-    public boolean isPrimaryVehicle() { return primaryVehicle; }
     public BigDecimal getInitialOdometer() { return initialOdometer; }
     public BigDecimal getCurrentOdometer() { return currentOdometer; }
     public LocalDateTime getCurrentOdometerRecordedAt() { return currentOdometerRecordedAt; }

@@ -30,7 +30,6 @@ public class ExpenseForm {
     private String draftContextKey;
     private String previousDraftContextKey;
 
-    @NotNull
     private UUID vehicleId;
     private UUID operationalDayId;
     private UUID shiftId;

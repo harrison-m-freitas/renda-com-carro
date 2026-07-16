@@ -1,11 +1,14 @@
 package dev.harrison.rendacomcarro.goal.web;
 
 import dev.harrison.rendacomcarro.goal.application.GoalFormSubmissionService;
+import dev.harrison.rendacomcarro.goal.application.GoalMonthLabelFormatter;
 import dev.harrison.rendacomcarro.goal.application.GoalService;
 import dev.harrison.rendacomcarro.goal.domain.MonthlyGoal;
 import dev.harrison.rendacomcarro.goal.domain.WorkloadPeriodicity;
+import dev.harrison.rendacomcarro.vehicle.application.VehicleService;
 import jakarta.validation.Valid;
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.YearMonth;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -27,10 +30,19 @@ import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 public class GoalController {
     private final GoalService service;
     private final GoalFormSubmissionService submissions;
+    private final VehicleService vehicles;
+    private final GoalMonthLabelFormatter monthLabels;
 
-    public GoalController(GoalService service, GoalFormSubmissionService submissions) {
+    public GoalController(
+        GoalService service,
+        GoalFormSubmissionService submissions,
+        VehicleService vehicles,
+        GoalMonthLabelFormatter monthLabels
+    ) {
         this.service = service;
         this.submissions = submissions;
+        this.vehicles = vehicles;
+        this.monthLabels = monthLabels;
     }
 
     @ModelAttribute("workloadPeriodicities")
@@ -46,16 +58,22 @@ public class GoalController {
             return "redirect:/goals/new";
         }
         var entity = goal.orElseThrow();
+        var plannedDays = service.plannedDays(entity.getId());
+        int dayCount = plannedDays.size();
+        long totalMinutes = entity.getCalculatedMonthMinutes();
         model.addAttribute("goal", entity);
-        model.addAttribute("plannedDays", service.plannedDays(entity.getId()));
+        model.addAttribute("monthLabel", monthLabels.format(entity.getMonth()));
+        model.addAttribute("plannedDays", plannedDays);
         model.addAttribute("projection", service.project(
             month,
             entity.getPersonalNetGoal(),
             BigDecimal.ZERO,
-            service.plannedDays(entity.getId()).stream()
-                .map(day -> day.getWorkDate())
-                .collect(Collectors.toSet())
+            plannedDays.stream().map(day -> day.getWorkDate()).collect(Collectors.toSet())
         ));
+        model.addAttribute("operationalPerDay", perDay(entity.getOperationalGoal(), dayCount));
+        model.addAttribute("operationalPerHour", perHour(entity.getOperationalGoal(), totalMinutes));
+        model.addAttribute("personalPerDay", perDay(entity.getPersonalNetGoal(), dayCount));
+        model.addAttribute("personalPerHour", perHour(entity.getPersonalNetGoal(), totalMinutes));
         return "goals/detail";
     }
 
@@ -72,6 +90,7 @@ public class GoalController {
             form.setMonth(month);
         }
         model.addAttribute("goalForm", form);
+        model.addAttribute("vehicle", vehicles.findActiveVehicle().orElse(null));
         model.addAttribute("editing", false);
         return "goals/form";
     }
@@ -92,6 +111,7 @@ public class GoalController {
 
         model.addAttribute("goalForm", form);
         model.addAttribute("goal", goal);
+        model.addAttribute("vehicle", goal.getVehicle());
         model.addAttribute("editing", true);
         return "goals/form";
     }
@@ -112,6 +132,7 @@ public class GoalController {
             }
         }
         if (result.hasErrors()) {
+            model.addAttribute("vehicle", vehicles.findActiveVehicle().orElse(null));
             model.addAttribute("editing", false);
             return "goals/form";
         }
@@ -138,6 +159,7 @@ public class GoalController {
         }
         if (result.hasErrors()) {
             model.addAttribute("goal", goal);
+            model.addAttribute("vehicle", goal.getVehicle());
             model.addAttribute("editing", true);
             return "goals/form";
         }
@@ -145,11 +167,26 @@ public class GoalController {
         return "redirect:/goals";
     }
 
+    private BigDecimal perDay(BigDecimal value, int dayCount) {
+        return dayCount <= 0
+            ? BigDecimal.ZERO.setScale(2)
+            : value.divide(BigDecimal.valueOf(dayCount), 2, RoundingMode.HALF_UP);
+    }
+
+    private BigDecimal perHour(BigDecimal value, long totalMinutes) {
+        return totalMinutes <= 0
+            ? BigDecimal.ZERO.setScale(2)
+            : value.multiply(BigDecimal.valueOf(60))
+                .divide(BigDecimal.valueOf(totalMinutes), 2, RoundingMode.HALF_UP);
+    }
+
     private void mapSubmissionError(BindingResult result, IllegalArgumentException exception) {
         String message = exception.getMessage() == null
             ? "Não foi possível salvar a meta."
             : exception.getMessage();
-        if (message.contains("data")
+        if (message.contains("veículo") || message.contains("Veículo")) {
+            result.reject("vehicle", message);
+        } else if (message.contains("data")
             || message.contains("Domingos")
             || message.contains("dia planejado")
             || message.contains("dias planejados")

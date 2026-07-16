@@ -44,7 +44,7 @@ class ShiftServiceTest extends PostgresIntegrationTest {
             "Carro dos turnos", "Toyota", "Etios", 2015,
             "S" + UUID.randomUUID().toString().replace("-", "").substring(0, 6).toUpperCase(),
             FuelType.FLEX, new BigDecimal("1000.0"), new BigDecimal("30000.00")));
-        vehicleService.activateAsPrimary(vehicle.getId());
+        vehicleService.activate(vehicle.getId());
         vehicleId = vehicle.getId();
         startTime = vehicle.getCurrentOdometerRecordedAt().plusMinutes(1);
         dayId = dayService.openDay(

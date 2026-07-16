@@ -11,9 +11,14 @@ import dev.harrison.rendacomcarro.goal.application.GoalFormSubmissionService;
 import dev.harrison.rendacomcarro.goal.application.GoalService;
 import dev.harrison.rendacomcarro.goal.domain.WorkloadPeriodicity;
 import dev.harrison.rendacomcarro.goal.web.GoalForm;
+import dev.harrison.rendacomcarro.vehicle.application.VehicleService;
+import dev.harrison.rendacomcarro.vehicle.domain.FuelType;
+import dev.harrison.rendacomcarro.vehicle.domain.Vehicle;
 import dev.harrison.rendacomcarro.support.PostgresIntegrationTest;
 import java.math.BigDecimal;
 import java.time.YearMonth;
+import java.util.UUID;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -31,6 +36,19 @@ class GoalFormSubmissionServiceTest extends PostgresIntegrationTest {
     @Autowired GoalService goals;
     @Autowired FormDraftService drafts;
     @Autowired ObjectMapper mapper;
+    @Autowired VehicleService vehicles;
+
+    private Vehicle activeVehicle;
+
+    @BeforeEach
+    void createPrimaryVehicle() {
+        String plate = "G" + UUID.randomUUID().toString().replace("-", "")
+            .substring(0, 6).toUpperCase();
+        activeVehicle = vehicles.create(new VehicleService.CreateVehicleCommand(
+            "Veículo da meta", "Toyota", "Etios", 2018, plate, FuelType.FLEX,
+            new BigDecimal("10000.0"), new BigDecimal("35000.00")
+        ));
+    }
 
     @Test
     void createsGoalAndDeletesMonthDraft() {
@@ -116,20 +134,21 @@ class GoalFormSubmissionServiceTest extends PostgresIntegrationTest {
     }
 
     private void seedDraft(GoalForm form) {
+        var payload = mapper.createObjectNode()
+            .put("month", form.getMonth().toString())
+            .put("personalNetGoal", "2500,00")
+            .put("operationalGoal", "4000,00")
+            .put("workloadPeriodicity", form.getWorkloadPeriodicity().name())
+            .put("workloadHours", form.getWorkloadHours())
+            .put("workloadMinutes", form.getWorkloadMinutes())
+            .put("plannedDates", form.getPlannedDates());
         drafts.save("goal-submission-owner", new SaveDraftCommand(
             FormDraftType.MONTHLY_GOAL,
             form.draftContextKey(),
-            2,
+            4,
             2,
             null,
-            mapper.createObjectNode()
-                .put("month", form.getMonth().toString())
-                .put("personalNetGoal", "2500,00")
-                .put("operationalGoal", "4000,00")
-                .put("workloadPeriodicity", form.getWorkloadPeriodicity().name())
-                .put("workloadHours", form.getWorkloadHours())
-                .put("workloadMinutes", form.getWorkloadMinutes())
-                .put("plannedDates", form.getPlannedDates()),
+            payload,
             false
         ));
     }

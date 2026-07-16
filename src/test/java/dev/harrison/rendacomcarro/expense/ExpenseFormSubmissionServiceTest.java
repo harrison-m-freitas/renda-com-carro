@@ -135,6 +135,7 @@ class ExpenseFormSubmissionServiceTest extends PostgresIntegrationTest {
     @Test
     void archivedVehicleAndInactiveCategoryAreRejected() {
         var archived = createVehicle();
+        createVehicle();
         var category = categories.findAllByActiveTrueOrderByNameAsc().getFirst();
         vehicles.archive(archived.getId());
 

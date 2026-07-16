@@ -40,8 +40,18 @@ public class MonthlyGoalDraftDefinition implements FormDraftDefinition {
     }
 
     @Override public FormDraftType type() { return FormDraftType.MONTHLY_GOAL; }
-    @Override public int schemaVersion() { return 2; }
+    @Override public int schemaVersion() { return 4; }
     @Override public int maxStep() { return 3; }
+
+    @Override
+    public ObjectNode migrate(int sourceSchemaVersion, ObjectNode payload) {
+        if (sourceSchemaVersion == 3) {
+            ObjectNode migrated = payload.deepCopy();
+            migrated.remove("vehicleIds");
+            return migrated;
+        }
+        return FormDraftDefinition.super.migrate(sourceSchemaVersion, payload);
+    }
 
     @Override
     public String normalizeContextKey(String contextKey) {
@@ -64,6 +74,7 @@ public class MonthlyGoalDraftDefinition implements FormDraftDefinition {
         int currentStep,
         boolean validateCurrentStep
     ) {
+        payload.remove("vehicleIds");
         validator.rejectUnknownFields(payload, ALLOWED_FIELDS);
         ObjectNode normalized = validator.sanitizeTextFields(
             payload,

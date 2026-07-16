@@ -29,14 +29,15 @@ class ExpenseErrorSummaryWebTest extends PostgresIntegrationTest {
 
     @Test
     @WithMockUser(username = "expense-error-owner", roles = "OWNER")
-    void invalidSubmissionShowsCountedErrorSummaryWithFieldLinks() throws Exception {
+    void invalidSubmissionShowsCountedErrorSummaryWithRequiredFieldLinks() throws Exception {
         mvc.perform(post("/expenses")
                 .with(csrf()))
             .andExpect(status().isOk())
             .andExpect(view().name("expenses/form"))
             .andExpect(content().string(containsString("data-expense-error-count")))
-            .andExpect(content().string(containsString("href=\"#vehicleId\"")))
             .andExpect(content().string(containsString("href=\"#categoryId\"")))
-            .andExpect(content().string(containsString("href=\"#amount\"")));
+            .andExpect(content().string(containsString("href=\"#amount\"")))
+            .andExpect(content().string(containsString("href=\"#expenseDate\"")))
+            .andExpect(content().string(containsString("href=\"#competenceMonth\"")));
     }
 }

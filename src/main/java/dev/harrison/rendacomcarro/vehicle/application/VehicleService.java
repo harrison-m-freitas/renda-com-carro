@@ -9,12 +9,18 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class VehicleService {
+    private static final Set<VehicleStatus> OPERATIONAL_STATUSES = Set.of(
+        VehicleStatus.ACTIVE,
+        VehicleStatus.INACTIVE
+    );
+
     private final VehicleRepository repository;
     private final VehicleOdometerService odometerService;
 
@@ -49,10 +55,16 @@ public class VehicleService {
 
     @Transactional
     public Vehicle create(CreateVehicleCommand command) {
+        List<Vehicle> operational = lockOperationalVehicles();
+        operational.stream()
+            .filter(vehicle -> vehicle.getStatus() == VehicleStatus.ACTIVE)
+            .forEach(Vehicle::deactivate);
+        repository.saveAllAndFlush(operational);
+
         Vehicle vehicle = Vehicle.create(
             command.name(), command.make(), command.model(), command.year(), command.plate(),
             command.fuelType(), command.initialOdometer(), command.purchasePrice());
-        return repository.save(vehicle);
+        return repository.saveAndFlush(vehicle);
     }
 
     @Transactional(readOnly = true)
@@ -81,8 +93,14 @@ public class VehicleService {
     }
 
     @Transactional(readOnly = true)
-    public Optional<Vehicle> findPrimaryVehicle() {
-        return repository.findByPrimaryVehicleTrueAndStatus(VehicleStatus.ACTIVE);
+    public Optional<Vehicle> findActiveVehicle() {
+        return repository.findByStatus(VehicleStatus.ACTIVE);
+    }
+
+    @Transactional(readOnly = true)
+    public Vehicle getActiveVehicle() {
+        return findActiveVehicle()
+            .orElseThrow(() -> new IllegalStateException("Nenhum veículo ativo"));
     }
 
     @Transactional
@@ -103,28 +121,48 @@ public class VehicleService {
     }
 
     @Transactional
-    public void activateAsPrimary(UUID id) {
-        List<Vehicle> activeVehicles = repository.findAllByStatusForUpdate(VehicleStatus.ACTIVE);
-        Vehicle selected = activeVehicles.stream()
+    public void activate(UUID id) {
+        List<Vehicle> operational = lockOperationalVehicles();
+        Vehicle selected = operational.stream()
             .filter(vehicle -> vehicle.getId().equals(id))
             .findFirst()
-            .orElseThrow(() -> new IllegalArgumentException("Veículo ativo não encontrado"));
+            .orElseGet(() -> archivedOrMissing(id));
 
-        activeVehicles.forEach(Vehicle::clearPrimary);
-        selected.activateAsPrimary();
-        repository.saveAll(activeVehicles);
+        operational.stream()
+            .filter(vehicle -> vehicle.getStatus() == VehicleStatus.ACTIVE)
+            .forEach(Vehicle::deactivate);
+        repository.saveAllAndFlush(operational);
+
+        selected.activate();
+        repository.saveAndFlush(selected);
     }
 
     @Transactional
     public void archive(UUID id) {
-        Vehicle vehicle = get(id);
-        vehicle.archive();
-        repository.save(vehicle);
+        List<Vehicle> operational = lockOperationalVehicles();
+        Optional<Vehicle> selected = operational.stream()
+            .filter(vehicle -> vehicle.getId().equals(id))
+            .findFirst();
+        if (selected.isEmpty()) {
+            Vehicle existing = get(id);
+            if (existing.getStatus() == VehicleStatus.ARCHIVED) {
+                return;
+            }
+            throw new IllegalArgumentException("Veículo não encontrado");
+        }
+        selected.get().archive();
+        repository.save(selected.get());
     }
 
-    @Transactional(readOnly = true)
-    public Vehicle getPrimaryVehicle() {
-        return repository.findByPrimaryVehicleTrueAndStatus(VehicleStatus.ACTIVE)
-            .orElseThrow(() -> new IllegalStateException("Nenhum veículo principal ativo"));
+    private List<Vehicle> lockOperationalVehicles() {
+        return repository.findAllByStatusInForUpdate(OPERATIONAL_STATUSES);
+    }
+
+    private Vehicle archivedOrMissing(UUID id) {
+        Vehicle vehicle = get(id);
+        if (vehicle.getStatus() == VehicleStatus.ARCHIVED) {
+            throw new IllegalStateException("Veículo arquivado não pode ser ativado.");
+        }
+        throw new IllegalArgumentException("Veículo não encontrado");
     }
 }
