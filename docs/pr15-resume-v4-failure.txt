@@ -1,0 +1,52 @@
+integration_status=1
+
++ set -euo pipefail
++ git config user.name 'github-actions[bot]'
++ git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
++ git fetch origin main
+From https://github.com/harrison-m-freitas/renda-com-carro
+ * branch            main       -> FETCH_HEAD
++ set +e
++ git merge --no-commit --no-ff origin/main
+Auto-merging src/main/java/dev/harrison/rendacomcarro/finance/application/FinancialObligationService.java
+CONFLICT (content): Merge conflict in src/main/java/dev/harrison/rendacomcarro/finance/application/FinancialObligationService.java
+Auto-merging src/main/java/dev/harrison/rendacomcarro/finance/domain/FinancialObligation.java
+CONFLICT (content): Merge conflict in src/main/java/dev/harrison/rendacomcarro/finance/domain/FinancialObligation.java
+Auto-merging src/main/java/dev/harrison/rendacomcarro/finance/domain/ObligationInstallment.java
+CONFLICT (content): Merge conflict in src/main/java/dev/harrison/rendacomcarro/finance/domain/ObligationInstallment.java
+Auto-merging src/main/java/dev/harrison/rendacomcarro/finance/infrastructure/FinancialObligationRepository.java
+CONFLICT (content): Merge conflict in src/main/java/dev/harrison/rendacomcarro/finance/infrastructure/FinancialObligationRepository.java
+Auto-merging src/test/java/dev/harrison/rendacomcarro/AcceptanceFlowTest.java
+Auto-merging src/test/java/dev/harrison/rendacomcarro/draft/FormDraftDefinitionTest.java
+Automatic merge failed; fix conflicts and then commit the result.
++ merge_status=1
++ set -e
++ mapfile -t conflicts
+++ git diff --name-only --diff-filter=U
+++ sort
++ expected=("src/main/java/dev/harrison/rendacomcarro/finance/application/FinancialObligationService.java" "src/main/java/dev/harrison/rendacomcarro/finance/domain/FinancialObligation.java" "src/main/java/dev/harrison/rendacomcarro/finance/domain/ObligationInstallment.java" "src/main/java/dev/harrison/rendacomcarro/finance/infrastructure/FinancialObligationRepository.java")
++ mapfile -t expected_sorted
+++ printf '%s\n' src/main/java/dev/harrison/rendacomcarro/finance/application/FinancialObligationService.java src/main/java/dev/harrison/rendacomcarro/finance/domain/FinancialObligation.java src/main/java/dev/harrison/rendacomcarro/finance/domain/ObligationInstallment.java src/main/java/dev/harrison/rendacomcarro/finance/infrastructure/FinancialObligationRepository.java
+++ sort
++ '[' 1 -ne 0 ']'
+++ printf '%s\n' src/main/java/dev/harrison/rendacomcarro/finance/application/FinancialObligationService.java src/main/java/dev/harrison/rendacomcarro/finance/domain/FinancialObligation.java src/main/java/dev/harrison/rendacomcarro/finance/domain/ObligationInstallment.java src/main/java/dev/harrison/rendacomcarro/finance/infrastructure/FinancialObligationRepository.java
+++ printf '%s\n' src/main/java/dev/harrison/rendacomcarro/finance/application/FinancialObligationService.java src/main/java/dev/harrison/rendacomcarro/finance/domain/FinancialObligation.java src/main/java/dev/harrison/rendacomcarro/finance/domain/ObligationInstallment.java src/main/java/dev/harrison/rendacomcarro/finance/infrastructure/FinancialObligationRepository.java
++ '[' 'src/main/java/dev/harrison/rendacomcarro/finance/application/FinancialObligationService.java
+src/main/java/dev/harrison/rendacomcarro/finance/domain/FinancialObligation.java
+src/main/java/dev/harrison/rendacomcarro/finance/domain/ObligationInstallment.java
+src/main/java/dev/harrison/rendacomcarro/finance/infrastructure/FinancialObligationRepository.java' '!=' 'src/main/java/dev/harrison/rendacomcarro/finance/application/FinancialObligationService.java
+src/main/java/dev/harrison/rendacomcarro/finance/domain/FinancialObligation.java
+src/main/java/dev/harrison/rendacomcarro/finance/domain/ObligationInstallment.java
+src/main/java/dev/harrison/rendacomcarro/finance/infrastructure/FinancialObligationRepository.java' ']'
++ cat
++ cat
++ cat
++ cat
++ cat
++ python3 -
++ git mv src/main/resources/db/migration/V13__redesign_financial_obligations.sql src/main/resources/db/migration/V16__redesign_financial_obligations.sql
++ cat
++ grep -RIl V13__redesign_financial_obligations.sql docs
++ xargs -r sed -i 's/V13__redesign_financial_obligations\.sql/V16__redesign_financial_obligations.sql/g'
++ grep -RIl 'na V13' docs
++ xargs -r sed -i 's/na V13/na V16/g'
