@@ -1,0 +1,49 @@
+name: PR15 merge diagnostic
+
+on:
+  push:
+    branches:
+      - feat/obligation-financing-redesign
+    paths:
+      - .github/workflows/pr15-merge-diagnostic.yml
+
+permissions:
+  contents: read
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout PR branch
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Diagnose merge with main
+        shell: bash
+        run: |
+          set -uo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git fetch origin main
+
+          set +e
+          git merge --no-commit --no-ff origin/main
+          merge_status=$?
+          set -e
+
+          echo "MERGE_STATUS=${merge_status}"
+          echo "=== UNMERGED FILES ==="
+          git diff --name-only --diff-filter=U || true
+          echo "=== CONFLICT DETAILS ==="
+          git status --short
+
+          if [ "$merge_status" -ne 0 ]; then
+            echo "=== CONFLICT MARKERS ==="
+            while IFS= read -r file; do
+              [ -n "$file" ] || continue
+              echo "--- $file ---"
+              grep -n -C 4 -E '^(<<<<<<<|=======|>>>>>>>)' "$file" || true
+            done < <(git diff --name-only --diff-filter=U)
+            exit 1
+          fi
