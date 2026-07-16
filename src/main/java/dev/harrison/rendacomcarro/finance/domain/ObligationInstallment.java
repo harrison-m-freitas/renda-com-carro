@@ -91,7 +91,10 @@ public class ObligationInstallment {
 
     public UUID getId() { return id; }
     public FinancialObligation getObligation() { return obligation; }
+    public int getSequenceNumber() { return sequenceNumber; }
     public LocalDate getDueDate() { return dueDate; }
+    public BigDecimal getPrincipalAmount() { return principalAmount; }
+    public BigDecimal getInterestAmount() { return interestAmount; }
     public BigDecimal getExpectedAmount() { return expectedAmount; }
     public BigDecimal getPaidAmount() { return paidAmount; }
     public InstallmentStatus getStatus() { return status; }

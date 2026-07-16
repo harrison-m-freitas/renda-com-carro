@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import dev.harrison.rendacomcarro.finance.application.FinancialObligationService;
 import dev.harrison.rendacomcarro.finance.domain.InstallmentStatus;
+import dev.harrison.rendacomcarro.finance.domain.ObligationCalculationMethod;
 import dev.harrison.rendacomcarro.finance.domain.ObligationMode;
 import dev.harrison.rendacomcarro.finance.domain.ObligationType;
 import dev.harrison.rendacomcarro.support.PostgresIntegrationTest;
@@ -26,7 +27,7 @@ class ObligationInstallmentPaymentTest extends PostgresIntegrationTest {
 
     @Test
     void partialPaymentLeavesOnlyTheRemainingInstallmentAmount() {
-        var obligation = structuredObligation();
+        var obligation = fixedInstallmentObligation();
 
         service.pay(
             obligation.getId(),
@@ -46,7 +47,7 @@ class ObligationInstallmentPaymentTest extends PostgresIntegrationTest {
 
     @Test
     void paymentSettlesOldestInstallmentsBeforeNewerOnes() {
-        var obligation = structuredObligation();
+        var obligation = fixedInstallmentObligation();
 
         service.pay(
             obligation.getId(),
@@ -65,18 +66,22 @@ class ObligationInstallmentPaymentTest extends PostgresIntegrationTest {
         assertThat(schedule.get(1).getStatus()).isEqualTo(InstallmentStatus.PARTIALLY_PAID);
     }
 
-    private dev.harrison.rendacomcarro.finance.domain.FinancialObligation structuredObligation() {
+    private dev.harrison.rendacomcarro.finance.domain.FinancialObligation fixedInstallmentObligation() {
         return service.create(new FinancialObligationService.CreateCommand(
             null,
+            null,
             ObligationType.BANK_FINANCING,
-            ObligationMode.STRUCTURED,
+            ObligationMode.FIXED_INSTALLMENTS,
+            ObligationCalculationMethod.INTEREST_FREE,
             "Banco",
             new BigDecimal("1000.00"),
-            BigDecimal.ZERO,
+            null,
+            null,
             LocalDate.of(2026, 6, 1),
             LocalDate.of(2026, 7, 5),
             2,
-            new BigDecimal("500.00"),
+            null,
+            null,
             null,
             null
         ));

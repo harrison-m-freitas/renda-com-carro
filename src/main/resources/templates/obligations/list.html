@@ -2,9 +2,15 @@
 <html lang="pt-BR" xmlns:th="http://www.thymeleaf.org"
       th:replace="~{layouts/app :: layout(~{::section}, 'Obrigações')}">
 <section th:attr="data-obligation-active-draft-key=${#lists.isEmpty(obligationDrafts) ? '' : obligationDrafts[0].contextKey}">
-  <div class="d-flex justify-content-between align-items-center mb-4">
-    <h1 class="h2 mb-0">Obrigações</h1>
-    <a class="btn btn-primary" th:href="@{/obligations/new}">Nova obrigação</a>
+  <div class="d-flex flex-column flex-sm-row justify-content-between gap-3 mb-4">
+    <div>
+      <h1 class="h2 mb-1">Obrigações financeiras</h1>
+      <p class="text-secondary mb-0">Dívidas, financiamentos, empréstimos e planos de compra.</p>
+    </div>
+    <div class="d-flex flex-column flex-sm-row gap-2 align-self-sm-start">
+      <a class="btn btn-outline-primary" th:href="@{/acquisition-plans/new}">Novo plano de compra</a>
+      <a class="btn btn-primary" th:href="@{/obligations/new}">Nova obrigação</a>
+    </div>
   </div>
 
   <section class="card mb-4" th:if="${!#lists.isEmpty(obligationDrafts)}"
@@ -27,9 +33,7 @@
         </span>
         <div class="d-flex flex-wrap gap-2">
           <a class="btn btn-sm btn-outline-primary"
-             th:href="@{/obligations/new(draftKey=${draft.contextKey})}">
-            Continuar
-          </a>
+             th:href="@{/obligations/new(draftKey=${draft.contextKey})}">Continuar</a>
           <form th:action="@{/obligations/draft/discard}" method="post"
                 data-obligation-draft-discard
                 th:attr="data-draft-key=${draft.contextKey}"
@@ -42,26 +46,51 @@
     </div>
   </section>
 
+  <section class="card mb-4" th:if="${!#lists.isEmpty(acquisitionPlans)}">
+    <div class="card-header d-flex justify-content-between align-items-center">
+      <div>
+        <h2 class="h5 mb-1">Planos de compra</h2>
+        <p class="text-secondary small mb-0">Compras que combinam recursos próprios e várias fontes.</p>
+      </div>
+      <a th:href="@{/acquisition-plans}">Ver todos</a>
+    </div>
+    <div class="list-group list-group-flush">
+      <a class="list-group-item list-group-item-action d-flex justify-content-between gap-3"
+         th:each="plan : ${acquisitionPlans}"
+         th:href="@{/acquisition-plans/{id}(id=${plan.id})}">
+        <span><strong th:text="${plan.title}">Compra do veículo</strong></span>
+        <span th:text="${#numbers.formatCurrency(plan.purchaseAmount)}">R$ 45.000,00</span>
+      </a>
+    </div>
+  </section>
+
   <div class="card">
     <div class="table-responsive">
-      <table class="table card-table mb-0">
-        <thead><tr><th>Credor</th><th>Tipo</th><th>Modo</th><th>Saldo</th><th>Status</th></tr></thead>
+      <table class="table card-table table-vcenter mb-0">
+        <thead>
+          <tr><th>Credor</th><th>Tipo</th><th>Pagamento</th><th>Valor recebido</th><th>Saldo</th><th>Status</th></tr>
+        </thead>
         <tbody>
           <tr th:if="${#lists.isEmpty(obligations)}">
-            <td colspan="5" class="text-center py-5">Nenhuma obrigação.</td>
+            <td colspan="6" class="text-center py-5 text-secondary">Nenhuma obrigação cadastrada.</td>
           </tr>
           <tr th:each="obligation : ${obligations}">
-            <td><a th:href="@{/obligations/{id}(id=${obligation.id})}" th:text="${obligation.creditor}"></a></td>
-            <td th:text="${obligation.type.label}"></td>
-            <td th:text="${obligation.mode.label}"></td>
-            <td th:text="${'R$ ' + obligation.currentBalance}"></td>
-            <td th:text="${obligation.status.label}"></td>
+            <td>
+              <a th:href="@{/obligations/{id}(id=${obligation.id})}"
+                 th:text="${obligation.creditor}">Banco</a>
+              <small class="d-block text-secondary" th:if="${obligation.acquisitionPlan != null}"
+                     th:text="${obligation.acquisitionPlan.title}">Plano de compra</small>
+            </td>
+            <td th:text="${obligation.type.label}">Financiamento</td>
+            <td th:text="${obligation.mode.label}">Parcelas fixas</td>
+            <td th:text="${#numbers.formatCurrency(obligation.principalAmount)}">R$ 35.000,00</td>
+            <td th:text="${#numbers.formatCurrency(obligation.currentBalance)}">R$ 35.000,00</td>
+            <td><span class="badge bg-secondary-lt" th:text="${obligation.status.label}">Ativa</span></td>
           </tr>
         </tbody>
       </table>
     </div>
   </div>
-
   <script type="module" th:src="@{/js/obligation-draft-actions.js}"></script>
 </section>
 </html>

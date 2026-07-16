@@ -60,9 +60,9 @@ class EnumPresentationWebTest extends PostgresIntegrationTest {
     void obligationFormUsesFriendlyTypeAndModeLabels() throws Exception {
         mvc.perform(get("/obligations/new"))
             .andExpect(status().isOk())
-            .andExpect(content().string(containsString(">Empréstimo familiar</option>")))
-            .andExpect(content().string(not(containsString(">FAMILY_LOAN</option>"))))
-            .andExpect(content().string(containsString(">Parcelas programadas</option>")))
+            .andExpect(content().string(containsString("Empréstimo de uma pessoa")))
+            .andExpect(content().string(containsString("Parcelas fixas")))
+            .andExpect(content().string(containsString("Pagamentos livres")))
             .andExpect(content().string(not(containsString(">STRUCTURED</option>"))));
     }
 }

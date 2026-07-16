@@ -3,8 +3,9 @@ package dev.harrison.rendacomcarro.finance.domain;
 import dev.harrison.rendacomcarro.shared.domain.LabeledEnum;
 
 public enum ObligationMode implements LabeledEnum {
-    STRUCTURED("Parcelas programadas"),
-    FLEXIBLE("Pagamentos flexíveis");
+    FIXED_INSTALLMENTS("Parcelas fixas"),
+    FLEXIBLE_PAYMENTS("Pagamentos livres"),
+    SINGLE_PAYMENT("Pagamento único");
 
     private final String label;
 

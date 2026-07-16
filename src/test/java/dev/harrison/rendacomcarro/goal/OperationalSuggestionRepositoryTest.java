@@ -10,6 +10,7 @@ import dev.harrison.rendacomcarro.expense.infrastructure.ExpenseRepository;
 import dev.harrison.rendacomcarro.expense.infrastructure.ExpenseSuggestionProjection;
 import dev.harrison.rendacomcarro.finance.application.FinancialObligationService;
 import dev.harrison.rendacomcarro.finance.domain.FinancialObligation;
+import dev.harrison.rendacomcarro.finance.domain.ObligationCalculationMethod;
 import dev.harrison.rendacomcarro.finance.domain.ObligationMode;
 import dev.harrison.rendacomcarro.finance.domain.ObligationType;
 import dev.harrison.rendacomcarro.finance.infrastructure.FinancialObligationRepository;
@@ -171,48 +172,56 @@ class OperationalSuggestionRepositoryTest extends PostgresIntegrationTest {
     }
 
     private FinancialObligation structured(
-        Vehicle vehicle,
-        String creditor,
-        String principal,
-        LocalDate firstDue,
-        int months
-    ) {
-        vehicleService.activate(vehicle.getId());
-        return obligationService.create(new FinancialObligationService.CreateCommand(
-            vehicle.getId(),
-            ObligationType.BANK_FINANCING,
-            ObligationMode.STRUCTURED,
-            creditor,
-            new BigDecimal(principal),
-            BigDecimal.ZERO,
-            firstDue.minusMonths(1),
-            firstDue,
-            months,
-            null,
-            null,
-            null
-        ));
-    }
+    Vehicle vehicle,
+    String creditor,
+    String principal,
+    LocalDate firstDue,
+    int months
+) {
+    vehicleService.activate(vehicle.getId());
+    return obligationService.create(new FinancialObligationService.CreateCommand(
+        vehicle.getId(),
+        null,
+        ObligationType.BANK_FINANCING,
+        ObligationMode.FIXED_INSTALLMENTS,
+        ObligationCalculationMethod.INTEREST_FREE,
+        creditor,
+        new BigDecimal(principal),
+        null,
+        null,
+        firstDue.minusMonths(1),
+        firstDue,
+        months,
+        null,
+        null,
+        null,
+        null
+    ));
+}
 
-    private FinancialObligation flexible(Vehicle vehicle, String creditor, String target) {
-        if (vehicle != null) {
-            vehicleService.activate(vehicle.getId());
-        }
-        return obligationService.create(new FinancialObligationService.CreateCommand(
-            vehicle == null ? null : vehicle.getId(),
-            ObligationType.FAMILY_LOAN,
-            ObligationMode.FLEXIBLE,
-            creditor,
-            new BigDecimal("5000.00"),
-            BigDecimal.ZERO,
-            LocalDate.of(2026, 1, 1),
-            null,
-            null,
-            null,
-            new BigDecimal(target),
-            null
-        ));
+private FinancialObligation flexible(Vehicle vehicle, String creditor, String target) {
+    if (vehicle != null) {
+        vehicleService.activate(vehicle.getId());
     }
+    return obligationService.create(new FinancialObligationService.CreateCommand(
+        vehicle == null ? null : vehicle.getId(),
+        null,
+        ObligationType.FAMILY_LOAN,
+        ObligationMode.FLEXIBLE_PAYMENTS,
+        ObligationCalculationMethod.INTEREST_FREE,
+        creditor,
+        new BigDecimal("5000.00"),
+        null,
+        null,
+        LocalDate.of(2026, 1, 1),
+        null,
+        null,
+        null,
+        null,
+        new BigDecimal(target),
+        null
+    ));
+}
 
     private Vehicle vehicle(String name) {
         String plate = "R" + UUID.randomUUID().toString().replace("-", "")

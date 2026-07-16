@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="pt-BR" xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{layouts/app :: layout(~{::section}, 'Planos de compra')}">
+<section>
+  <div class="d-flex flex-column flex-sm-row justify-content-between gap-3 mb-4">
+    <div>
+      <h1 class="h2 mb-1">Planos de compra</h1>
+      <p class="text-secondary mb-0">Compras compostas por recursos próprios e várias obrigações.</p>
+    </div>
+    <a class="btn btn-primary align-self-sm-start" th:href="@{/acquisition-plans/new}">Novo plano</a>
+  </div>
+
+  <div class="row g-3" th:if="${!plans.isEmpty()}">
+    <div class="col-md-6 col-xl-4" th:each="plan : ${plans}">
+      <a class="card card-link card-link-pop h-100 text-decoration-none"
+         th:href="@{/acquisition-plans/{id}(id=${plan.id})}">
+        <div class="card-body">
+          <h2 class="h4 mb-2" th:text="${plan.title}">Compra do veículo</h2>
+          <dl class="row mb-0 small">
+            <dt class="col-6 text-secondary">Valor da compra</dt>
+            <dd class="col-6 text-end" th:text="${#numbers.formatCurrency(plan.purchaseAmount)}">R$ 45.000,00</dd>
+            <dt class="col-6 text-secondary">Data</dt>
+            <dd class="col-6 text-end" th:text="${#temporals.format(plan.purchaseDate, 'dd/MM/yyyy')}">14/07/2026</dd>
+          </dl>
+        </div>
+      </a>
+    </div>
+  </div>
+
+  <div class="empty" th:if="${plans.isEmpty()}">
+    <p class="empty-title">Nenhum plano de compra</p>
+    <p class="empty-subtitle text-secondary">Use um plano quando uma compra possuir entrada, empréstimo e financiamento.</p>
+    <div class="empty-action"><a class="btn btn-primary" th:href="@{/acquisition-plans/new}">Criar primeiro plano</a></div>
+  </div>
+</section>
+</html>
