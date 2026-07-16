@@ -1,4 +1,4 @@
-name: Resume PR15 integration v6
+name: Resume PR15 integration v7
 
 on:
   push:
@@ -20,7 +20,7 @@ jobs:
           ref: feat/obligation-financing-redesign
           fetch-depth: 0
 
-      - name: Execute integration through compile verification
+      - name: Commit integration with diagnostic logs
         shell: bash
         run: |
           set -euo pipefail
@@ -173,15 +173,23 @@ jobs:
               'docs/pr15-resume-v2-failure.txt '
               'docs/pr15-resume-v3-failure.txt '
               'docs/pr15-resume-v4-failure.txt '
-              'docs/pr15-resume-v5-failure.txt\n'
+              'docs/pr15-resume-v5-failure.txt '
+              'docs/pr15-resume-v6-failure.txt\n'
               'git add -A\n',
+              1,
+          )
+          script = script.replace(
+              'git diff --cached --check\n',
+              "sed -i 's/[[:space:]]\\+$//' docs/pr15-integration-failure.txt 2>/dev/null || true\n"
+              'git add docs/pr15-integration-failure.txt 2>/dev/null || true\n'
+              'git diff --cached --check\n',
               1,
           )
           Path('/tmp/pr15-integrate.sh').write_text(script)
           PY
 
           set +e
-          bash -x /tmp/pr15-integrate.sh > /tmp/pr15-resume-v6.log 2>&1
+          bash -x /tmp/pr15-integrate.sh > /tmp/pr15-resume-v7.log 2>&1
           status=$?
           set -e
 
@@ -191,9 +199,9 @@ jobs:
             {
               echo "integration_status=$status"
               echo
-              tail -n 1200 /tmp/pr15-resume-v6.log
-            } > docs/pr15-resume-v6-failure.txt
-            git add docs/pr15-resume-v6-failure.txt
-            git commit -m "chore: record PR 15 integration v6 failure [skip ci]"
+              tail -n 1400 /tmp/pr15-resume-v7.log
+            } > docs/pr15-resume-v7-failure.txt
+            git add docs/pr15-resume-v7-failure.txt
+            git commit -m "chore: record PR 15 integration v7 failure [skip ci]"
             git push origin HEAD:feat/obligation-financing-redesign
           fi
