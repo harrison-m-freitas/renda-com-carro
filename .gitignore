@@ -12,6 +12,7 @@ replay_pid*
 
 # Environment and local data
 .env
+compose.dev.yaml
 infra/backup/restic.env
 var/
 
