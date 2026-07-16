@@ -2,6 +2,7 @@ import {
   initializeLocalizedInputs,
   formatLocalizedInputs
 } from './localized-inputs.js';
+import { initializeFormHelp } from './form-help.js';
 import {
   formatVehiclePlate,
   formatVehiclePlateEdit
@@ -144,6 +145,7 @@ export const initializeVehicleForm = (
   let initialFormState = '';
 
   initializeLocalizedInputs(form);
+  initializeFormHelp(form, documentObject);
 
   const markInputChanged = (input) => {
     if (input?.classList?.contains('is-invalid') && input.checkValidity?.()) {
