@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 
-const cssUrl = new URL('../../main/resources/static/css/app.css', import.meta.url);
+const cssUrl = new URL('../../main/resources/static/css/vehicle-form.css', import.meta.url);
 const loadCss = () => readFile(cssUrl, 'utf8');
 
 test('vehicle styles: declare responsive flow progress disclosure and hidden states', async () => {
