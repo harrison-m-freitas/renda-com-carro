@@ -88,8 +88,7 @@ public class FinancialObligation {
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
 
-    protected FinancialObligation() {
-    }
+    protected FinancialObligation() {}
 
     public static FinancialObligation create(
         Vehicle vehicle,
@@ -150,7 +149,9 @@ public class FinancialObligation {
 
     public void applyPrincipal(BigDecimal amount) {
         if (amount == null || amount.signum() <= 0 || amount.compareTo(currentBalance) > 0) {
-            throw new IllegalArgumentException("A amortização deve ser maior que zero e não pode ultrapassar o saldo");
+            throw new IllegalArgumentException(
+                "A amortização deve ser maior que zero e não pode ultrapassar o saldo"
+            );
         }
         currentBalance = DecimalPolicy.money(currentBalance.subtract(amount));
         if (currentBalance.signum() == 0) {

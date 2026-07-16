@@ -140,7 +140,7 @@ class FormDraftDefinitionTest {
     }
 
     @Test
-    void goalDraftSchemaTwoPreservesWeeklySourceWithoutRequiringDatesDuringAutosave() {
+    void goalDraftSchemaFourPreservesWeeklySourceWithoutRequiringDatesDuringAutosave() {
         ObjectNode payload = mapper.createObjectNode()
             .put("month", "2026-07")
             .put("personalNetGoal", "2000,00")
@@ -148,10 +148,9 @@ class FormDraftDefinitionTest {
             .put("workloadPeriodicity", "weekly")
             .put("workloadHours", "40")
             .put("workloadMinutes", "0");
-
         ObjectNode normalized = goal.normalizeAndValidate(payload, 2, false);
 
-        assertThat(goal.schemaVersion()).isEqualTo(2);
+        assertThat(goal.schemaVersion()).isEqualTo(4);
         assertThat(normalized.path("workloadPeriodicity").asText()).isEqualTo("WEEKLY");
         assertThat(normalized.path("workloadHours").asLong()).isEqualTo(40);
         assertThat(normalized.path("workloadMinutes").asInt()).isZero();
@@ -160,6 +159,36 @@ class FormDraftDefinitionTest {
         assertThatThrownBy(() -> goal.normalizeAndValidate(payload.deepCopy(), 2, true))
             .isInstanceOf(DomainValidationException.class)
             .hasMessageContaining("Dias planejados");
+    }
+
+    @Test
+    void monthlyGoalDraftMigratesSchemaThreeWithoutClientVehicleSelection() {
+        ObjectNode legacy = mapper.createObjectNode()
+            .put("month", "2026-07")
+            .put("personalNetGoal", "2000,00");
+        legacy.putArray("vehicleIds").add(UUID.randomUUID().toString());
+
+        ObjectNode migrated = goal.migrate(3, legacy);
+
+        assertThat(migrated.has("vehicleIds")).isFalse();
+        assertThat(migrated.path("month").asText()).isEqualTo("2026-07");
+    }
+
+    @Test
+    void monthlyGoalDraftDiscardsLegacyVehicleIds() {
+        ObjectNode payload = mapper.createObjectNode()
+            .put("month", "2026-07")
+            .put("personalNetGoal", "2000,00")
+            .put("operationalGoal", "3000,00")
+            .put("workloadPeriodicity", "MONTHLY")
+            .put("workloadHours", "160")
+            .put("workloadMinutes", "0")
+            .put("plannedDates", "2026-07-01");
+
+        ObjectNode normalized = goal.normalizeAndValidate(payload, 3, true);
+
+        assertThat(goal.schemaVersion()).isEqualTo(4);
+        assertThat(normalized.has("vehicleIds")).isFalse();
     }
 
     @Test

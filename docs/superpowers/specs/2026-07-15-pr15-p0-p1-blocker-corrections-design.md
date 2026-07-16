@@ -21,7 +21,7 @@ A branch deve incorporar a `main` atual. Nas resoluções, as funcionalidades re
 
 ### Flyway
 
-A `main` já possui `V11__add_user_time_zone.sql` e `V12__enforce_single_obligation_draft.sql`. A migration financeira deve passar a usar a próxima versão livre, atualmente `V13__redesign_financial_obligations.sql`.
+A `main` já possui `V11__add_user_time_zone.sql` e `V12__enforce_single_obligation_draft.sql`. A migration financeira deve passar a usar a próxima versão livre, atualmente `V16__redesign_financial_obligations.sql`.
 
 A V13 continua deliberadamente destrutiva apenas para as tabelas financeiras sem dados válidos a preservar. Ela também remove rascunhos antigos de `OBLIGATION` antes de o formulário passar a operar exclusivamente no schema 2. Os demais rascunhos e áreas permanecem intactos.
 

@@ -1,11 +1,15 @@
 package dev.harrison.rendacomcarro.goal.domain;
 
 import dev.harrison.rendacomcarro.shared.domain.DecimalPolicy;
+import dev.harrison.rendacomcarro.vehicle.domain.Vehicle;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
+import jakarta.persistence.FetchType;
 import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -41,6 +45,10 @@ public class MonthlyGoal {
 
     @Column(name = "calculated_month_minutes", nullable = false)
     private long calculatedMonthMinutes;
+
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "vehicle_id", nullable = false)
+    private Vehicle vehicle;
 
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
@@ -103,6 +111,17 @@ public class MonthlyGoal {
         updatedAt = LocalDateTime.now();
     }
 
+    public void assignVehicle(Vehicle selectedVehicle) {
+        if (selectedVehicle == null) {
+            throw new IllegalArgumentException("Veículo da meta é obrigatório.");
+        }
+        if (vehicle != null && !vehicle.getId().equals(selectedVehicle.getId())) {
+            throw new IllegalStateException("O veículo de uma meta existente não pode ser alterado.");
+        }
+        vehicle = selectedVehicle;
+        updatedAt = LocalDateTime.now();
+    }
+
     private void apply(
         YearMonth month,
         BigDecimal personal,
@@ -153,4 +172,5 @@ public class MonthlyGoal {
     public int getEnteredRemainderMinutes() { return (int) (enteredDurationMinutes % 60); }
     public long getCalculatedHours() { return calculatedMonthMinutes / 60; }
     public int getCalculatedRemainderMinutes() { return (int) (calculatedMonthMinutes % 60); }
+    public Vehicle getVehicle() { return vehicle; }
 }

@@ -144,15 +144,19 @@ public class VehicleController {
 
     @PostMapping("/{id}/activate")
     public String activate(@PathVariable UUID id, RedirectAttributes redirectAttributes) {
-        service.activateAsPrimary(id);
-        redirectAttributes.addFlashAttribute("successMessage", "Veículo definido como principal.");
+        service.activate(id);
+        redirectAttributes.addFlashAttribute("successMessage", "Veículo ativado. O veículo anterior foi inativado.");
         return "redirect:/vehicles";
     }
 
     @PostMapping("/{id}/archive")
     public String archive(@PathVariable UUID id, RedirectAttributes redirectAttributes) {
-        service.archive(id);
-        redirectAttributes.addFlashAttribute("successMessage", "Veículo arquivado.");
+        try {
+            service.archive(id);
+            redirectAttributes.addFlashAttribute("successMessage", "Veículo arquivado.");
+        } catch (IllegalStateException exception) {
+            redirectAttributes.addFlashAttribute("errorMessage", exception.getMessage());
+        }
         return "redirect:/vehicles";
     }
 }

@@ -37,6 +37,12 @@ export function serializeEditableFields(form) {
 
     const type = String(field.type ?? "").toLowerCase();
     if (["button", "submit", "reset", "file", "image"].includes(type)) continue;
+    if (type === "checkbox"
+        && Object.prototype.hasOwnProperty.call(field.dataset ?? {}, "draftArray")) {
+      payload[field.name] ??= [];
+      if (field.checked) payload[field.name].push(String(field.value ?? ""));
+      continue;
+    }
     if ((type === "checkbox" || type === "radio") && !field.checked) continue;
 
     const includeCalculated = Object.prototype.hasOwnProperty.call(

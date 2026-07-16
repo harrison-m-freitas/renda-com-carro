@@ -22,4 +22,11 @@ public interface MonthlyOdometerClosingRepository extends JpaRepository<MonthlyO
 
     @EntityGraph(attributePaths = "vehicle")
     List<MonthlyOdometerClosing> findAllByOrderByReferenceMonthDesc();
+
+    @EntityGraph(attributePaths = "vehicle")
+    List<MonthlyOdometerClosing>
+        findAllByVehicleIdAndReferenceMonthLessThanEqualOrderByReferenceMonthDesc(
+            UUID vehicleId,
+            LocalDate maximumMonth
+        );
 }

@@ -16,10 +16,15 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import dev.harrison.rendacomcarro.goal.application.GoalService;
 import dev.harrison.rendacomcarro.goal.domain.WorkloadPeriodicity;
 import dev.harrison.rendacomcarro.support.PostgresIntegrationTest;
+import dev.harrison.rendacomcarro.vehicle.application.VehicleService;
+import dev.harrison.rendacomcarro.vehicle.domain.FuelType;
+import dev.harrison.rendacomcarro.vehicle.domain.Vehicle;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.YearMonth;
 import java.util.Set;
+import java.util.UUID;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -33,12 +38,25 @@ import org.springframework.transaction.annotation.Transactional;
 @AutoConfigureMockMvc
 @TestPropertySource(properties = {
     "APP_ADMIN_USERNAME=goal-web-owner",
-    "APP_ADMIN_PASSWORD=goal-web-owner-password"
+    "APP_ADMIN_PASSWORD=goal-web-password"
 })
 @Transactional
 class GoalWebTest extends PostgresIntegrationTest {
     @Autowired MockMvc mvc;
     @Autowired GoalService goals;
+    @Autowired VehicleService vehicles;
+
+    private Vehicle activeVehicle;
+
+    @BeforeEach
+    void createActiveVehicle() {
+        String plate = "G" + UUID.randomUUID().toString().replace("-", "")
+            .substring(0, 6).toUpperCase();
+        activeVehicle = vehicles.create(new VehicleService.CreateVehicleCommand(
+            "Veículo da meta web", "Toyota", "Etios", 2018, plate, FuelType.FLEX,
+            new BigDecimal("10000.0"), new BigDecimal("35000.00")
+        ));
+    }
 
     @Test
     @WithMockUser(username = "goal-web-owner", roles = "OWNER")
@@ -48,7 +66,13 @@ class GoalWebTest extends PostgresIntegrationTest {
             .andExpect(content().string(containsString("data-guided-form")))
             .andExpect(content().string(containsString("data-draft-type=\"MONTHLY_GOAL\"")))
             .andExpect(content().string(containsString("data-draft-context-key=\"month:2027-03\"")))
-            .andExpect(content().string(containsString("data-draft-schema-version=\"2\"")))
+            .andExpect(content().string(containsString("data-draft-schema-version=\"4\"")))
+            .andExpect(content().string(containsString("data-goal-month-picker")))
+            .andExpect(content().string(containsString("aria-haspopup=\"dialog\"")))
+            .andExpect(content().string(containsString("data-goal-calendar")))
+            .andExpect(content().string(containsString("data-goal-financial-breakdown")))
+            .andExpect(content().string(containsString("data-goal-rate-operational-day")))
+            .andExpect(content().string(containsString(activeVehicle.getName())))
             .andExpect(content().string(containsString("name=\"workloadPeriodicity\"")))
             .andExpect(content().string(containsString("id=\"workload-DAILY\"")))
             .andExpect(content().string(containsString("for=\"workload-DAILY\"")))
@@ -90,6 +114,7 @@ class GoalWebTest extends PostgresIntegrationTest {
         mvc.perform(get("/goals/{id}/edit", goal.getId()))
             .andExpect(status().isOk())
             .andExpect(content().string(containsString("Editar meta mensal")))
+            .andExpect(content().string(containsString("data-draft-recovery-mode=\"none\"")))
             .andExpect(content().string(containsString(
                 "action=\"/goals/" + goal.getId() + "\""
             )))

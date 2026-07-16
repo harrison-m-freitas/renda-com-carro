@@ -27,7 +27,7 @@
 - Modify conflicts under `src/main/java/dev/harrison/rendacomcarro/finance/**`
 - Modify conflicts under `src/main/resources/templates/obligations/**`
 - Modify conflicts under `src/main/resources/static/js/guided-form*.js`
-- Rename: `src/main/resources/db/migration/V11__redesign_financial_obligations.sql` → `src/main/resources/db/migration/V13__redesign_financial_obligations.sql`
+- Rename: `src/main/resources/db/migration/V11__redesign_financial_obligations.sql` → `src/main/resources/db/migration/V16__redesign_financial_obligations.sql`
 
 **Interfaces:**
 - Consumes: `FormDraftService.findLatestActive`, `discard`, optimistic conflict handling, and the unique obligation-draft database rule from `main`.
@@ -54,7 +54,7 @@ The final controller must expose the redesigned enums and validators while retai
 
 ```bash
 git mv src/main/resources/db/migration/V11__redesign_financial_obligations.sql \
-  src/main/resources/db/migration/V13__redesign_financial_obligations.sql
+  src/main/resources/db/migration/V16__redesign_financial_obligations.sql
 ```
 
 Append before financial table recreation:

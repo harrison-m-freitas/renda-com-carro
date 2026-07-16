@@ -16,9 +16,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.view;
 
-import dev.harrison.rendacomcarro.expense.infrastructure.ExpenseCategoryRepository;
 import dev.harrison.rendacomcarro.expense.domain.AllocationMethod;
 import dev.harrison.rendacomcarro.expense.domain.ExpenseClassification;
+import dev.harrison.rendacomcarro.expense.infrastructure.ExpenseCategoryRepository;
 import dev.harrison.rendacomcarro.expense.infrastructure.ExpenseRepository;
 import dev.harrison.rendacomcarro.expense.web.ExpenseForm;
 import dev.harrison.rendacomcarro.security.application.UserTimeZoneService;
@@ -109,18 +109,17 @@ class ExpenseWebTest extends PostgresIntegrationTest {
 
     @Test
     @WithMockUser(username = "expense-owner", roles = "OWNER")
-    void newExpenseUsesPrimaryActiveVehicleAndUserZoneDefaults() throws Exception {
+    void newExpenseUsesActiveVehicleAndUserZoneDefaults() throws Exception {
         var archived = createVehicle();
+        var active = createVehicle();
         vehicles.archive(archived.getId());
-        var primary = createVehicle();
-        vehicles.activateAsPrimary(primary.getId());
         LocalDate expectedDate = timeZones.today("expense-owner");
 
         mvc.perform(get("/expenses/new"))
             .andExpect(status().isOk())
             .andExpect(model().attribute(
                 "expenseForm",
-                hasProperty("vehicleId", is(primary.getId()))
+                hasProperty("vehicleId", is(active.getId()))
             ))
             .andExpect(model().attribute(
                 "expenseForm",

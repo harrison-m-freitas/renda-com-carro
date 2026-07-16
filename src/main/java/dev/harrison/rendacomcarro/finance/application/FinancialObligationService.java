@@ -2,6 +2,7 @@ package dev.harrison.rendacomcarro.finance.application;
 
 import dev.harrison.rendacomcarro.finance.domain.AcquisitionPlan;
 import dev.harrison.rendacomcarro.finance.domain.FinancialObligation;
+import dev.harrison.rendacomcarro.finance.domain.InstallmentStatus;
 import dev.harrison.rendacomcarro.finance.domain.InterestRatePeriod;
 import dev.harrison.rendacomcarro.finance.domain.ObligationCalculationMethod;
 import dev.harrison.rendacomcarro.finance.domain.ObligationInstallment;
@@ -194,19 +195,51 @@ public class FinancialObligationService {
                 "Já existe um pagamento com essa referência"
             );
         }
-        BigDecimal principalPaid = principal == null ? BigDecimal.ZERO : principal;
-        BigDecimal interestPaid = interest == null ? BigDecimal.ZERO : interest;
-        BigDecimal extraPaid = extra == null ? BigDecimal.ZERO : extra;
+
+        BigDecimal principalPaid = zeroIfNull(principal);
+        BigDecimal interestPaid = zeroIfNull(interest);
+        BigDecimal extraPaid = zeroIfNull(extra);
+        BigDecimal scheduledPayment = principalPaid.add(interestPaid);
+        if (scheduledPayment.add(extraPaid).signum() <= 0) {
+            throw new IllegalArgumentException("Informe um valor de pagamento maior que zero");
+        }
+
+        if (obligation.getMode() != ObligationMode.FLEXIBLE_PAYMENTS
+            && scheduledPayment.signum() > 0) {
+            BigDecimal remainingPayment = scheduledPayment;
+            for (ObligationInstallment installment : installments
+                .findAllByObligationIdAndStatusNotOrderByDueDateAsc(id, InstallmentStatus.PAID)) {
+                remainingPayment = installment.applyPayment(remainingPayment);
+                installments.save(installment);
+                if (remainingPayment.signum() == 0) {
+                    break;
+                }
+            }
+            if (remainingPayment.signum() > 0) {
+                throw new IllegalArgumentException(
+                    "Pagamento excede o saldo das parcelas programadas"
+                );
+            }
+        }
+
         BigDecimal reduction = principalPaid.add(extraPaid);
         if (reduction.signum() > 0) {
             obligation.applyPrincipal(reduction);
             obligations.save(obligation);
-        } else if (interestPaid.signum() <= 0) {
-            throw new IllegalArgumentException("Informe um valor de pagamento maior que zero");
         }
         return payments.save(ObligationPayment.create(
-            obligation, date, principalPaid, interestPaid, extraPaid, normalizedReference, notes
+            obligation,
+            date,
+            principalPaid,
+            interestPaid,
+            extraPaid,
+            normalizedReference,
+            notes
         ));
+    }
+
+    private BigDecimal zeroIfNull(BigDecimal value) {
+        return value == null ? BigDecimal.ZERO : value;
     }
 
     @Transactional(readOnly = true)
