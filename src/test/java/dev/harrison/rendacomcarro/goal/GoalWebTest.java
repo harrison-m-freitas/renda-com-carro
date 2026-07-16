@@ -114,6 +114,7 @@ class GoalWebTest extends PostgresIntegrationTest {
         mvc.perform(get("/goals/{id}/edit", goal.getId()))
             .andExpect(status().isOk())
             .andExpect(content().string(containsString("Editar meta mensal")))
+            .andExpect(content().string(containsString("data-draft-recovery-mode=\"none\"")))
             .andExpect(content().string(containsString(
                 "action=\"/goals/" + goal.getId() + "\""
             )))

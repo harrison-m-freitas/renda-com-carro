@@ -2,18 +2,12 @@
 <html lang="pt-BR" xmlns:th="http://www.thymeleaf.org"
       th:replace="~{layouts/app :: layout(~{::section}, 'Meta mensal')}">
 <section class="goal-form-page">
-  <div class="mb-4">
-    <h1 class="h2 mb-1"
-        th:text="${editing} ? 'Editar meta mensal' : 'Nova meta mensal'">Nova meta mensal</h1>
-    <p class="text-secondary mb-0">Planeje quanto precisa gerar e em quais dias trabalhará com o veículo da meta.</p>
-  </div>
-
   <form id="goal-form" class="guided-form goal-form"
         th:action="${editing} ? @{/goals/{id}(id=${goal.id})} : @{/goals}"
         th:object="${goalForm}" method="post"
         data-guided-form
         data-draft-type="MONTHLY_GOAL"
-        th:attr="data-draft-context-key=${goalForm.draftContextKey()},data-goal-id=${editing ? goal.id : null}"
+        th:attr="data-draft-context-key=${goalForm.draftContextKey()},data-goal-id=${editing ? goal.id : null},data-draft-recovery-mode=${editing ? 'none' : 'modal'}"
         data-draft-schema-version="4"
         data-draft-current-step="1"
         data-form-max-step="3">
@@ -26,265 +20,387 @@
       </ul>
     </div>
 
-    <section class="guided-step" data-form-step="1" aria-labelledby="goal-step-1-title">
-      <div class="guided-step__header d-flex gap-3 align-items-start">
-        <span class="guided-step__number" aria-hidden="true">1</span>
-        <div>
-          <h2 class="h4 mb-1" id="goal-step-1-title">Objetivo financeiro</h2>
-          <p class="text-secondary mb-0">Escolha o mês e confira a sugestão baseada nos custos do veículo da meta.</p>
-        </div>
-      </div>
+    <div class="goal-layout">
+      <div class="goal-layout__main">
 
-      <div class="row g-3 align-items-start">
-        <div class="col-lg-4">
-          <label class="form-label" for="month">Mês da meta <span class="required-mark">*</span></label>
-          <div class="goal-picker" data-goal-month-picker>
-            <input class="form-control" id="month" type="month" th:field="*{month}"
-                   aria-describedby="month-help month-error" required data-save-on-blur>
-            <button class="form-control goal-picker__trigger" type="button" hidden
-                    data-goal-month-trigger aria-haspopup="dialog" aria-expanded="false"
-                    aria-controls="goal-month-dialog">
-              <span data-goal-month-label>Selecione o mês</span>
-              <span aria-hidden="true">▾</span>
-            </button>
-            <div class="goal-picker__popover" id="goal-month-dialog" role="dialog"
-                 aria-label="Selecionar mês da meta" data-goal-month-dialog hidden>
-              <div class="goal-picker__header">
-                <button type="button" class="btn btn-sm btn-outline-secondary"
-                        data-goal-month-previous aria-label="Ano anterior">‹</button>
-                <strong data-goal-month-year></strong>
-                <button type="button" class="btn btn-sm btn-outline-secondary"
-                        data-goal-month-next aria-label="Próximo ano">›</button>
-              </div>
-              <div class="goal-picker__month-grid" role="grid"
-                   aria-label="Meses do ano" data-goal-month-grid></div>
+        <div class="goal-form-title">
+          <h1 class="h2 mb-1"
+              th:text="${editing} ? 'Editar meta mensal' : 'Nova meta mensal'">Nova meta mensal</h1>
+          <p class="text-secondary mb-0">Planeje quanto precisa gerar e em quais dias vai rodar.</p>
+        </div>
+
+        <section class="guided-step" data-form-step="1" aria-labelledby="goal-step-1-title">
+          <div class="guided-step__header d-flex gap-3 align-items-start">
+            <span class="guided-step__number" aria-hidden="true">1</span>
+            <div>
+              <h2 class="h4 mb-1" id="goal-step-1-title">Objetivo financeiro</h2>
             </div>
           </div>
-          <div class="form-text" id="month-help">O mês define quais gastos, pendências e obrigações serão considerados.</div>
-          <div class="invalid-feedback d-block" id="month-error" th:errors="*{month}"></div>
-        </div>
 
-        <div class="col-lg-8">
-          <div class="card card-body h-100" data-goal-vehicle-summary>
-            <div class="d-flex justify-content-between gap-3 align-items-start">
-              <div>
-                <div class="text-secondary small">Veículo da meta</div>
-                <div class="fw-semibold" th:if="${vehicle != null}" th:text="${vehicle.name}">Veículo ativo</div>
-                <div class="small text-secondary" th:if="${vehicle != null}"
-                     th:text="${vehicle.make + ' ' + vehicle.model + ' · ' + vehicle.plate}"></div>
-                <div class="text-danger fw-semibold" th:if="${vehicle == null}">Nenhum veículo ativo</div>
-                <div class="small text-secondary" th:if="${vehicle == null}">
-                  Cadastre ou ative um veículo antes de salvar esta meta.
+          <div class="goal-vehicle-chip" data-goal-vehicle-summary>
+            <span class="goal-vehicle-chip__glyph" aria-hidden="true" th:text="${vehicle != null and vehicle.model != null and vehicle.model.length() >= 2 ? vehicle.model.substring(0,2).toUpperCase() : ''}"></span>
+            <div class="goal-vehicle-chip__body">
+              <div class="text-secondary small">Veículo da meta</div>
+              <div class="fw-semibold" th:if="${vehicle != null}" th:text="${vehicle.name}">Veículo ativo</div>
+              <div class="small text-secondary" th:if="${vehicle != null}"
+                   th:text="${vehicle.make + ' ' + vehicle.model + ' · ' + vehicle.plate}"></div>
+              <div class="text-danger fw-semibold" th:if="${vehicle == null}">Nenhum veículo ativo</div>
+              <div class="small text-secondary" th:if="${vehicle == null}">
+                Cadastre ou ative um veículo antes de salvar esta meta.
+              </div>
+              <a class="btn btn-sm btn-outline-secondary mt-2" th:if="${vehicle == null}"
+                 th:href="@{/vehicles}">Gerenciar veículos</a>
+            </div>
+            <span class="goal-status-pill goal-vehicle-chip__status" th:if="${vehicle != null and vehicle.status.name() == 'ACTIVE'}"><span class="goal-status-pill__dot" aria-hidden="true"></span>Em operação</span>
+            <span class="goal-status-pill goal-vehicle-chip__status" th:if="${vehicle != null and vehicle.status.name() != 'ACTIVE'}"
+                  th:text="${vehicle.status.label}"></span>
+          </div>
+
+          <div class="row g-3 align-items-start mt-1 mb-4">
+            <div class="col-12">
+              <div class="goal-field-label">
+                <label class="form-label" for="month">Mês da meta <span class="required-mark">*</span></label>
+                <span class="goal-help" data-goal-help>
+                  <button class="goal-help__trigger" type="button"
+                          aria-label="Explicar mês da meta"
+                          aria-expanded="false"
+                          aria-controls="goal-help-month"
+                          data-goal-help-trigger>
+                    <svg class="goal-help__icon" xmlns="http://www.w3.org/2000/svg"
+                         width="18" height="18" viewBox="0 0 24 24" fill="none"
+                         stroke="currentColor" stroke-width="1.8"
+                         stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                      <path d="M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20z"></path>
+                      <path d="M9.1 9a3 3 0 1 1 5.8 1c0 2-3 2-3 4"></path>
+                      <path d="M12 18h.01"></path>
+                    </svg>
+                  </button>
+                  <span class="goal-help__content" id="goal-help-month" role="tooltip" data-goal-help-content>
+                    <span class="goal-help__text">Mês usado para calcular os gastos e as obrigações da meta.</span>
+                  </span>
+                </span>
+              </div>
+              <div class="goal-picker" data-goal-month-picker>
+                <input class="form-control" id="month" type="month" th:field="*{month}"
+                       aria-describedby="month-error" required data-save-on-blur>
+                <button class="form-control goal-picker__trigger" type="button" hidden
+                        data-goal-month-trigger aria-haspopup="dialog" aria-expanded="false"
+                        aria-controls="goal-month-dialog">
+                  <span data-goal-month-label>Selecione o mês</span>
+                  <span aria-hidden="true">▾</span>
+                </button>
+                <div class="goal-picker__popover" id="goal-month-dialog" role="dialog"
+                     aria-label="Selecionar mês da meta" data-goal-month-dialog hidden>
+                  <div class="goal-picker__header">
+                    <button type="button" class="btn btn-sm btn-outline-secondary"
+                            data-goal-month-previous aria-label="Ano anterior">‹</button>
+                    <strong data-goal-month-year></strong>
+                    <button type="button" class="btn btn-sm btn-outline-secondary"
+                            data-goal-month-next aria-label="Próximo ano">›</button>
+                  </div>
+                  <div class="goal-picker__month-grid" role="grid"
+                       aria-label="Meses do ano" data-goal-month-grid></div>
                 </div>
               </div>
-              <span class="badge text-bg-success" th:if="${vehicle != null and vehicle.status.name() == 'ACTIVE'}">Em operação</span>
-              <span class="badge text-bg-secondary" th:if="${vehicle != null and vehicle.status.name() != 'ACTIVE'}"
-                    th:text="${vehicle.status.label}"></span>
+              <div class="invalid-feedback d-block" id="month-error" th:errors="*{month}"></div>
             </div>
-            <a class="btn btn-sm btn-outline-secondary align-self-start mt-3" th:if="${vehicle == null}"
-               th:href="@{/vehicles}">Gerenciar veículos</a>
-            <div class="form-text mt-2" th:if="${editing}">O veículo é preservado para manter o histórico desta meta.</div>
-          </div>
-        </div>
 
-        <div class="col-md-6">
-          <label class="form-label" for="personalNetGoal">Meta líquida pessoal <span class="required-mark">*</span></label>
-          <div class="input-group input-unit">
-            <span class="input-group-text">R$</span>
-            <input class="form-control" id="personalNetGoal" type="text" inputmode="decimal"
-                   placeholder="0,00" th:field="*{personalNetGoal}"
-                   data-money-input data-max-digits="14"
-                   aria-describedby="personalNetGoal-help personalNetGoal-error" required>
-          </div>
-          <div class="form-text" id="personalNetGoal-help">Valor pretendido antes de obrigações e gastos pessoais.</div>
-          <div class="invalid-feedback d-block" id="personalNetGoal-error" th:errors="*{personalNetGoal}"></div>
-        </div>
+            <div class="col-md-6">
+              <div class="goal-field-label">
+                <label class="form-label" for="personalNetGoal">Meta líquida pessoal <span class="required-mark">*</span></label>
+                <span class="goal-help" data-goal-help>
+                  <button class="goal-help__trigger" type="button"
+                          aria-label="Explicar meta líquida pessoal"
+                          aria-expanded="false"
+                          aria-controls="goal-help-personal"
+                          data-goal-help-trigger>
+                    <svg class="goal-help__icon" xmlns="http://www.w3.org/2000/svg"
+                         width="18" height="18" viewBox="0 0 24 24" fill="none"
+                         stroke="currentColor" stroke-width="1.8"
+                         stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                      <path d="M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20z"></path>
+                      <path d="M9.1 9a3 3 0 1 1 5.8 1c0 2-3 2-3 4"></path>
+                      <path d="M12 18h.01"></path>
+                    </svg>
+                  </button>
+                  <span class="goal-help__content" id="goal-help-personal" role="tooltip" data-goal-help-content>
+                    <span class="goal-help__text">Quanto você quer ter livre no mês.</span>
+                  </span>
+                </span>
+              </div>
+              <div class="input-group input-unit">
+                <span class="input-group-text">R$</span>
+                <input class="form-control" id="personalNetGoal" type="text" inputmode="decimal"
+                       placeholder="0,00" th:field="*{personalNetGoal}"
+                       data-money-input data-max-digits="14"
+                       aria-describedby="personalNetGoal-error" required>
+              </div>
+              <div class="invalid-feedback d-block" id="personalNetGoal-error" th:errors="*{personalNetGoal}"></div>
+            </div>
 
-        <div class="col-md-6">
-          <label class="form-label" for="operationalGoal">Meta operacional <span class="required-mark">*</span></label>
-          <div class="input-group input-unit">
-            <span class="input-group-text">R$</span>
-            <input class="form-control" id="operationalGoal" type="text" inputmode="decimal"
-                   placeholder="0,00" th:field="*{operationalGoal}"
-                   data-money-input data-max-digits="14"
-                   aria-describedby="operationalGoal-help operationalGoal-error" required>
+            <div class="col-md-6">
+              <div class="goal-field-label">
+                <label class="form-label" for="operationalGoal">Meta operacional <span class="required-mark">*</span></label>
+                <span class="goal-help" data-goal-help>
+                  <button class="goal-help__trigger" type="button"
+                          aria-label="Explicar meta operacional"
+                          aria-expanded="false"
+                          aria-controls="goal-help-operational"
+                          data-goal-help-trigger>
+                    <svg class="goal-help__icon" xmlns="http://www.w3.org/2000/svg"
+                         width="18" height="18" viewBox="0 0 24 24" fill="none"
+                         stroke="currentColor" stroke-width="1.8"
+                         stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                      <path d="M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20z"></path>
+                      <path d="M9.1 9a3 3 0 1 1 5.8 1c0 2-3 2-3 4"></path>
+                      <path d="M12 18h.01"></path>
+                    </svg>
+                  </button>
+                  <span class="goal-help__content" id="goal-help-operational" role="tooltip" data-goal-help-content>
+                    <span class="goal-help__text">Quanto precisa faturar para atingir sua meta e cobrir os custos do mês.</span>
+                  </span>
+                </span>
+              </div>
+              <div class="input-group input-unit">
+                <span class="input-group-text">R$</span>
+                <input class="form-control" id="operationalGoal" type="text" inputmode="decimal"
+                       placeholder="0,00" th:field="*{operationalGoal}"
+                       data-money-input data-max-digits="14"
+                       aria-describedby="operationalGoal-error" required>
+              </div>
+              <div class="invalid-feedback d-block" id="operationalGoal-error" th:errors="*{operationalGoal}"></div>
+            </div>
           </div>
-          <div class="form-text" id="operationalGoal-help">Você mantém o controle do valor; a recomendação nunca o substitui silenciosamente.</div>
-          <div class="invalid-feedback d-block" id="operationalGoal-error" th:errors="*{operationalGoal}"></div>
-        </div>
+
+          <div class="goal-suggestion" aria-labelledby="goal-financial-title">
+            <div class="goal-suggestion__info">
+              <div class="goal-suggestion__label" id="goal-financial-title">
+                Sugestão Financeira
+              </div>
+              <div
+                class="goal-num goal-suggestion__value"
+                data-goal-suggested-total>
+                —
+              </div>
+              <div
+                class="goal-suggestion__loading"
+                data-goal-financial-loading>
+                Calculando compromissos do mês…
+              </div>
+              <div
+                class="alert alert-warning mt-2 mb-0"
+                data-goal-financial-error
+                hidden>
+              </div>
+            </div>
+            <button
+              class="btn btn-primary goal-suggestion__apply"
+              type="button"
+              data-apply-goal-suggestion
+              disabled>
+              Aplicar sugestão
+            </button>
+            <details class="goal-suggestion-details">
+              <summary>Ver detalhamento</summary>
+              <div
+                class="goal-suggestion__breakdown"
+                data-goal-financial-breakdown>
+              </div>
+            </details>
+          </div>
+        </section>
+
+        <section class="guided-step" data-form-step="2" aria-labelledby="goal-step-2-title">
+          <div class="guided-step__header d-flex gap-3 align-items-start">
+            <span class="guided-step__number" aria-hidden="true">2</span>
+            <div>
+              <h2 class="h4 mb-1" id="goal-step-2-title">Disponibilidade de trabalho</h2>
+              <p class="text-secondary mb-0">Informe a jornada e marque no calendário os dias realmente disponíveis.</p>
+            </div>
+          </div>
+
+          <fieldset class="mb-3 goal-availability">
+            <legend class="form-label mb-2 goal-legend-label">
+              <span>Como deseja informar a jornada? <span class="required-mark">*</span></span>
+              <span class="goal-help" data-goal-help>
+                <button class="goal-help__trigger" type="button"
+                        aria-label="Explicar jornada de trabalho"
+                        aria-expanded="false"
+                        aria-controls="goal-help-workload"
+                        data-goal-help-trigger>
+                  <svg class="goal-help__icon" xmlns="http://www.w3.org/2000/svg"
+                       width="18" height="18" viewBox="0 0 24 24" fill="none"
+                       stroke="currentColor" stroke-width="1.8"
+                       stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20z"></path>
+                    <path d="M9.1 9a3 3 0 1 1 5.8 1c0 2-3 2-3 4"></path>
+                    <path d="M12 18h.01"></path>
+                  </svg>
+                </button>
+                <span class="goal-help__content" id="goal-help-workload" role="tooltip" data-goal-help-content>
+                  <span class="goal-help__text">Informe se essas horas são por dia, por semana ou por mês.</span>
+                </span>
+              </span>
+            </legend>
+            <div class="goal-availability-row">
+              <div class="btn-group workload-periodicity" role="group" aria-label="Periodicidade da jornada">
+                <th:block th:each="periodicity : ${workloadPeriodicities}">
+                  <input class="btn-check" type="radio" name="workloadPeriodicity"
+                         th:value="${periodicity}" th:id="${'workload-' + periodicity}"
+                         th:checked="${goalForm.workloadPeriodicity == periodicity}" required>
+                  <label class="btn btn-outline-primary" th:for="${'workload-' + periodicity}"
+                         th:text="${periodicity.label}"></label>
+                </th:block>
+              </div>
+              <div class="input-group input-unit goal-workload-input">
+                <input class="form-control" id="workloadHours" type="number" inputmode="numeric"
+                       min="0" step="1" placeholder="40" th:field="*{workloadHours}"
+                       aria-label="Horas" aria-describedby="workload-error" required>
+                <span class="input-group-text">h</span>
+                <input class="form-control" id="workloadMinutes" type="number" inputmode="numeric"
+                       min="0" max="59" step="1" placeholder="0" th:field="*{workloadMinutes}"
+                       aria-label="Minutos" aria-describedby="workload-error" required>
+                <span class="input-group-text">min</span>
+              </div>
+            </div>
+            <div class="invalid-feedback d-block" th:errors="*{workloadPeriodicity}"></div>
+            <div class="invalid-feedback d-block" id="workload-error" th:errors="*{workloadHours}"></div>
+            <div class="invalid-feedback d-block" th:errors="*{workloadMinutes}"></div>
+          </fieldset>
+
+          <div class="goal-calendar-section">
+
+            <div class="goal-calendar-toolbar">
+              <div class="goal-calendar-toolbar__intro">
+                <h3 class="goal-calendar-toolbar__title">
+                  Dias disponíveis
+                </h3>
+
+                <p class="goal-calendar-toolbar__description">
+                  Marque os dias
+                </p>
+              </div>
+
+              <div
+                class="goal-calendar__presets"
+                role="group"
+                aria-label="Atalhos para selecionar dias">
+
+                <button
+                  class="btn btn-outline-secondary"
+                  type="button"
+                  data-goal-calendar-preset="weekdays">
+                  Dias úteis
+                </button>
+
+                <button
+                  class="btn btn-outline-secondary"
+                  type="button"
+                  data-goal-calendar-preset="monday-saturday">
+                  Segunda a sábado
+                </button>
+
+                <button
+                  class="btn btn-outline-secondary"
+                  type="button"
+                  data-goal-calendar-preset="clear">
+                  Limpar
+                </button>
+              </div>
+            </div>
+
+            <div class="goal-calendar" data-goal-calendar>
+              <div
+                class="goal-calendar__grid"
+                role="grid"
+                aria-label="Calendário dos dias planejados"
+                data-goal-calendar-grid>
+              </div>
+
+              <p
+                class="visually-hidden"
+                aria-live="polite"
+                data-goal-calendar-live>
+              </p>
+            </div>
+
+            <div
+              class="invalid-feedback d-block mt-2"
+              id="plannedDates-error"
+              th:errors="*{plannedDates}">
+            </div>
+
+            <div class="goal-calendar-fallback mt-3" data-goal-calendar-fallback>
+              <label class="form-label" for="plannedDates"></label>
+
+              <textarea
+                class="form-control goal-calendar__fallback"
+                id="plannedDates"
+                rows="3"
+                th:field="*{plannedDates}"
+                required
+                placeholder="2026-07-01, 2026-07-02"
+                aria-describedby="plannedDates-help plannedDates-error">
+              </textarea>
+            </div>
+
+            <!-- Mantém o hook esperado pelo JavaScript, mas remove o resumo da interface -->
+            <div data-workload-summary hidden></div>
+          </div>
+        </section>
       </div>
 
-      <div class="goal-financial-breakdown mt-4" aria-labelledby="goal-financial-title">
-        <div class="d-flex flex-column flex-md-row justify-content-between gap-3 align-items-md-start">
-          <div>
-            <h3 class="h5 mb-1" id="goal-financial-title">Sugestão financeira transparente</h3>
-            <p class="text-secondary mb-0">Meta pessoal somada aos gastos profissionais e às obrigações do veículo da meta.</p>
+      <aside class="goal-layout__aside">
+        <section class="guided-step goal-result" data-form-step="3" aria-labelledby="goal-step-3-title">
+          <div class="guided-step__header d-flex gap-3 align-items-start">
+            <span class="guided-step__number" aria-hidden="true">3</span>
+            <div>
+              <h2 class="h5 mb-1" id="goal-step-3-title">Resultado do plano</h2>
+              <p class="text-secondary mb-0 small">Confira o veículo, a jornada e o ritmo necessário.</p>
+            </div>
           </div>
-          <div class="text-md-end">
-            <div class="text-secondary small">Meta operacional sugerida</div>
-            <div class="h3 mb-2" data-goal-suggested-total>—</div>
-            <button class="btn btn-outline-primary" type="button"
-                    data-apply-goal-suggestion disabled>Aplicar valor sugerido</button>
+
+          <div class="goal-result-hero">
+            <span class="goal-result-hero__label">Meta operacional</span>
+            <strong class="goal-num" data-goal-summary-operational>R$ 0,00</strong>
+            <span class="goal-result-hero__meta">
+              <span data-goal-summary-month>—</span>
+            </span>
           </div>
-        </div>
-        <div class="text-secondary mt-3" data-goal-financial-loading>Calculando compromissos do mês…</div>
-        <div class="alert alert-warning mt-3 mb-0" data-goal-financial-error hidden></div>
-        <div class="mt-3" data-goal-financial-breakdown></div>
-      </div>
-    </section>
 
-    <section class="guided-step" data-form-step="2" aria-labelledby="goal-step-2-title">
-      <div class="guided-step__header d-flex gap-3 align-items-start">
-        <span class="guided-step__number" aria-hidden="true">2</span>
-        <div>
-          <h2 class="h4 mb-1" id="goal-step-2-title">Disponibilidade de trabalho</h2>
-          <p class="text-secondary mb-0">Informe a jornada e marque no calendário os dias realmente disponíveis.</p>
-        </div>
-      </div>
-
-      <fieldset class="mb-3">
-        <legend class="form-label mb-2">Como deseja informar a jornada? <span class="required-mark">*</span></legend>
-        <div class="btn-group workload-periodicity" role="group" aria-label="Periodicidade da jornada">
-          <th:block th:each="periodicity : ${workloadPeriodicities}">
-            <input class="btn-check" type="radio" name="workloadPeriodicity"
-                   th:value="${periodicity}" th:id="${'workload-' + periodicity}"
-                   th:checked="${goalForm.workloadPeriodicity == periodicity}" required>
-            <label class="btn btn-outline-primary" th:for="${'workload-' + periodicity}"
-                   th:text="${periodicity.label}"></label>
-          </th:block>
-        </div>
-        <div class="invalid-feedback d-block" th:errors="*{workloadPeriodicity}"></div>
-      </fieldset>
-
-      <div class="row g-3 align-items-end">
-        <div class="col-7 col-md-3">
-          <label class="form-label" for="workloadHours">Horas <span class="required-mark">*</span></label>
-          <div class="input-group input-unit">
-            <input class="form-control" id="workloadHours" type="number" inputmode="numeric"
-                   min="0" step="1" placeholder="40" th:field="*{workloadHours}"
-                   aria-describedby="workloadHours-error" required>
-            <span class="input-group-text">h</span>
+          <div class="goal-rate-grid">
+            <div class="goal-rate-card">
+              <span>Op. / dia</span>
+              <strong class="goal-num" data-goal-rate-operational-day>—</strong>
+            </div>
+            <div class="goal-rate-card">
+              <span>Op. / hora</span>
+              <strong class="goal-num" data-goal-rate-operational-hour>—</strong>
+            </div>
+            <div class="goal-rate-card">
+              <span>Líq. / dia</span>
+              <strong class="goal-num" data-goal-rate-personal-day>—</strong>
+            </div>
+            <div class="goal-rate-card">
+              <span>Líq. / hora</span>
+              <strong class="goal-num" data-goal-rate-personal-hour>—</strong>
+            </div>
           </div>
-          <div class="invalid-feedback d-block" id="workloadHours-error" th:errors="*{workloadHours}"></div>
-        </div>
-        <div class="col-5 col-md-3">
-          <label class="form-label" for="workloadMinutes">Minutos <span class="required-mark">*</span></label>
-          <div class="input-group input-unit">
-            <input class="form-control" id="workloadMinutes" type="number" inputmode="numeric"
-                   min="0" max="59" step="1" placeholder="0" th:field="*{workloadMinutes}"
-                   aria-describedby="workloadMinutes-error" required>
-            <span class="input-group-text">min</span>
+
+          <div class="goal-review">
+            <div><span>Veículo</span><strong data-goal-summary-vehicle th:text="${vehicle != null ? vehicle.name : 'Nenhum veículo ativo'}">—</strong></div>
+            <div><span>Jornada</span><strong data-goal-summary-workload>—</strong></div>
+            <div><span>Dias planejados</span><strong data-goal-summary-days>0</strong></div>
           </div>
-          <div class="invalid-feedback d-block" id="workloadMinutes-error" th:errors="*{workloadMinutes}"></div>
-        </div>
-      </div>
 
-      <div class="goal-calendar mt-4" data-goal-calendar>
-        <div class="d-flex flex-column flex-lg-row justify-content-between gap-3 mb-3">
-          <div>
-            <h3 class="h5 mb-1">Dias planejados</h3>
-            <p class="text-secondary mb-0">Domingos permanecem indisponíveis. Desmarque datas específicas depois de aplicar um padrão.</p>
+          <div class="goal-aside-actions d-none d-md-flex">
+            <button class="btn btn-primary w-100" type="submit"
+                    th:text="${editing} ? 'Atualizar meta' : 'Salvar meta'">Salvar meta</button>
+            <a class="btn btn-outline-secondary w-100" th:href="${editing} ? @{/goals} : @{/}">Cancelar</a>
+            <span th:replace="~{fragments/guided-form :: draft-status}"></span>
           </div>
-          <div class="d-flex flex-wrap gap-2">
-            <button class="btn btn-outline-secondary" type="button"
-                    data-goal-calendar-preset="weekdays">Dias úteis</button>
-            <button class="btn btn-outline-secondary" type="button"
-                    data-goal-calendar-preset="monday-saturday">Segunda a sábado</button>
-            <button class="btn btn-outline-secondary" type="button"
-                    data-goal-calendar-preset="clear">Limpar</button>
-          </div>
-        </div>
-
-        <fieldset class="mb-3">
-          <legend class="form-label mb-2">Repetir por dia da semana</legend>
-          <div class="d-flex flex-wrap gap-2">
-            <button class="btn btn-outline-primary goal-calendar__weekday-toggle" type="button"
-                    data-goal-weekday="1" aria-pressed="false">Seg</button>
-            <button class="btn btn-outline-primary goal-calendar__weekday-toggle" type="button"
-                    data-goal-weekday="2" aria-pressed="false">Ter</button>
-            <button class="btn btn-outline-primary goal-calendar__weekday-toggle" type="button"
-                    data-goal-weekday="3" aria-pressed="false">Qua</button>
-            <button class="btn btn-outline-primary goal-calendar__weekday-toggle" type="button"
-                    data-goal-weekday="4" aria-pressed="false">Qui</button>
-            <button class="btn btn-outline-primary goal-calendar__weekday-toggle" type="button"
-                    data-goal-weekday="5" aria-pressed="false">Sex</button>
-            <button class="btn btn-outline-primary goal-calendar__weekday-toggle" type="button"
-                    data-goal-weekday="6" aria-pressed="false">Sáb</button>
-          </div>
-        </fieldset>
-
-        <div class="goal-calendar__grid" role="grid" aria-label="Calendário dos dias planejados"
-             data-goal-calendar-grid></div>
-        <p class="visually-hidden" aria-live="polite" data-goal-calendar-live></p>
-      </div>
-
-      <div class="mt-3">
-        <label class="form-label" for="plannedDates">Datas em formato textual</label>
-        <textarea class="form-control goal-calendar__fallback" id="plannedDates" rows="3"
-                  th:field="*{plannedDates}" required
-                  placeholder="2026-07-01, 2026-07-02"
-                  aria-describedby="plannedDates-help plannedDates-error"></textarea>
-        <div class="form-text" id="plannedDates-help">Este campo é substituído pelo calendário quando o JavaScript está disponível.</div>
-        <div class="invalid-feedback d-block" id="plannedDates-error" th:errors="*{plannedDates}"></div>
-      </div>
-
-      <div class="guided-summary goal-workload-summary mt-3" data-workload-summary>
-        <div class="text-secondary">Informe a jornada e selecione os dias planejados.</div>
-      </div>
-    </section>
-
-    <section class="guided-step" data-form-step="3" aria-labelledby="goal-step-3-title">
-      <div class="guided-step__header d-flex gap-3 align-items-start">
-        <span class="guided-step__number" aria-hidden="true">3</span>
-        <div>
-          <h2 class="h4 mb-1" id="goal-step-3-title">Resultado do planejamento</h2>
-          <p class="text-secondary mb-0">Confira o mês, o veículo, a jornada e o ritmo necessário.</p>
-        </div>
-      </div>
-
-      <div class="goal-review mb-3">
-        <div><span>Mês</span><strong data-goal-summary-month>—</strong></div>
-        <div><span>Veículo</span><strong data-goal-summary-vehicle th:text="${vehicle != null ? vehicle.name : 'Nenhum veículo ativo'}">—</strong></div>
-        <div><span>Meta operacional</span><strong data-goal-summary-operational>R$ 0,00</strong></div>
-        <div><span>Jornada planejada</span><strong data-goal-summary-workload>—</strong></div>
-        <div><span>Dias planejados</span><strong data-goal-summary-days>0</strong></div>
-      </div>
-
-      <div class="row g-3">
-        <div class="col-sm-6 col-lg-3">
-          <div class="goal-rate-card">
-            <span>Operacional por dia</span>
-            <strong data-goal-rate-operational-day>—</strong>
-          </div>
-        </div>
-        <div class="col-sm-6 col-lg-3">
-          <div class="goal-rate-card">
-            <span>Operacional por hora</span>
-            <strong data-goal-rate-operational-hour>—</strong>
-          </div>
-        </div>
-        <div class="col-sm-6 col-lg-3">
-          <div class="goal-rate-card">
-            <span>Líquido pessoal por dia</span>
-            <strong data-goal-rate-personal-day>—</strong>
-          </div>
-        </div>
-        <div class="col-sm-6 col-lg-3">
-          <div class="goal-rate-card">
-            <span>Líquido pessoal por hora</span>
-            <strong data-goal-rate-personal-hour>—</strong>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <div class="d-none d-md-flex justify-content-between align-items-center gap-2 mt-3">
-      <span th:replace="~{fragments/guided-form :: draft-status}"></span>
-      <div class="d-flex gap-2">
-        <a class="btn btn-outline-secondary" th:href="${editing} ? @{/goals} : @{/}">Cancelar</a>
-        <button class="btn btn-primary" type="submit"
-                th:text="${editing} ? 'Atualizar meta' : 'Salvar meta'">Salvar meta</button>
-      </div>
+        </section>
+      </aside>
     </div>
 
     <div th:replace="~{fragments/guided-form :: mobile-actions('Revisar e salvar')}"></div>

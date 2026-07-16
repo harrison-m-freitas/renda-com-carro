@@ -74,8 +74,20 @@ export function initializeGoalCalendarPicker(root, documentObject = globalThis.d
   const live = root.querySelector('[data-goal-calendar-live]');
   const weekdayButtons = Array.from(root.querySelectorAll('[data-goal-weekday]'));
   const presetButtons = Array.from(root.querySelectorAll('[data-goal-calendar-preset]'));
+
+  const fallbackContainer = root.querySelector(
+    '[data-goal-calendar-fallback]'
+  );
+
+  const fallbackWasHidden = Boolean(fallbackContainer?.hidden);
   const fallbackWasRequired = Boolean(datesField.required);
-  datesField.hidden = true;
+
+  if (fallbackContainer) {
+    fallbackContainer.hidden = true;
+  } else {
+    datesField.hidden = true;
+  }
+
   datesField.required = false;
 
   const selected = new Set(serializePlannedDates(
@@ -196,7 +208,12 @@ export function initializeGoalCalendarPicker(root, documentObject = globalThis.d
     dates: () => Array.from(selected).sort(),
     destroy() {
       monthField.removeEventListener('change', onMonthChange);
-      datesField.hidden = false;
+      if (fallbackContainer) {
+        fallbackContainer.hidden = fallbackWasHidden;
+      } else {
+        datesField.hidden = false;
+      }
+
       datesField.required = fallbackWasRequired;
     },
   };

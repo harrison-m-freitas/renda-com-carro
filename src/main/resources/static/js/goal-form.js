@@ -4,11 +4,13 @@ import { initializeGoalMonthPicker, formatGoalMonth } from './goal-month-picker.
 import { initializeGoalCalendarPicker } from './goal-calendar-picker.js';
 import { initializeGoalWorkloadPlanner } from './goal-workload-planner.js';
 import { initializeGoalFinancialPlanner } from './goal-financial-planner.js';
+import { initializeGoalHelp } from './goal-help.js';
 
 const form = document.getElementById('goal-form');
 
 if (form) {
   initializeLocalizedInputs(form);
+  initializeGoalHelp(form, document);
   form.classList.add('goal-form--enhanced');
 
   const month = form.querySelector('[name="month"]');

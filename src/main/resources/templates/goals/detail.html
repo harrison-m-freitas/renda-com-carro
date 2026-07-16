@@ -1,117 +1,225 @@
 <!doctype html>
 <html lang="pt-BR" xmlns:th="http://www.thymeleaf.org"
       th:replace="~{layouts/app :: layout(~{::section}, 'Meta mensal')}">
-<section>
-  <div class="d-flex flex-column flex-sm-row align-items-sm-start justify-content-between gap-3 mb-4">
-    <div>
+<section class="goal-detail-page">
+  <header class="goal-detail-head">
+    <div class="goal-detail-head__content">
       <h1 class="h2 mb-1" th:text="${'Meta de ' + monthLabel}">Meta de Julho de 2026</h1>
-      <p class="text-secondary mb-0">Planejamento financeiro, jornada informada e ritmo necessário.</p>
-      <div class="d-flex flex-wrap align-items-center gap-2 mt-2">
-        <span class="badge text-bg-light" th:text="${goal.vehicle.name}"></span>
-        <span class="small text-secondary" th:text="${goal.vehicle.plate}"></span>
+      <p class="text-secondary mb-0">Veja os valores, a jornada e os dias planejados.</p>
+
+      <div class="goal-vehicle-inline">
+        <span class="goal-vehicle-inline__glyph" aria-hidden="true"
+              th:text="${goal.vehicle != null and goal.vehicle.model != null and goal.vehicle.model.length() >= 2 ? goal.vehicle.model.substring(0,2).toUpperCase() : ''}"></span>
+        <strong th:text="${goal.vehicle.name}">Honda HB20</strong>
+        <span class="plate" th:text="${goal.vehicle.plate}">CDE2345</span>
       </div>
     </div>
-    <a class="btn btn-primary align-self-sm-start"
-       th:href="@{/goals/{id}/edit(id=${goal.id})}">Editar meta</a>
+
+    <a class="btn btn-primary goal-detail-head__action"
+       th:href="@{/goals/{id}/edit(id=${goal.id})}">
+      Editar meta
+    </a>
+  </header>
+
+  <section class="goal-detail-overview" aria-label="Visão geral da meta">
+    <article class="goal-detail-stat goal-detail-stat--accent">
+      <span class="goal-detail-stat__label">Meta operacional</span>
+      <strong class="goal-num"
+              th:text="${'R$ ' + #numbers.formatDecimal(goal.operationalGoal, 1, 'POINT', 2, 'COMMA')}">
+        R$ 4.500,00
+      </strong>
+      <span class="goal-detail-stat__meta" th:text="${monthLabel}">Julho de 2026</span>
+    </article>
+
+    <article class="goal-detail-stat">
+      <span class="goal-detail-stat__label">Meta líquida</span>
+      <strong class="goal-num"
+              th:text="${'R$ ' + #numbers.formatDecimal(goal.personalNetGoal, 1, 'POINT', 2, 'COMMA')}">
+        R$ 2.500,00
+      </strong>
+      <span class="goal-detail-stat__meta">Valor desejado no mês</span>
+    </article>
+
+    <article class="goal-detail-stat">
+      <span class="goal-detail-stat__label">Dias planejados</span>
+      <strong class="goal-num">
+        <span th:text="${#lists.size(plannedDays)}">23</span> dias
+      </strong>
+      <span class="goal-detail-stat__meta">Dias selecionados</span>
+    </article>
+
+    <article class="goal-detail-stat">
+      <span class="goal-detail-stat__label">Carga do mês</span>
+      <strong class="goal-num">
+        <span th:text="${goal.calculatedHours + ' h'}">207 h</span><span
+          th:if="${goal.calculatedRemainderMinutes > 0}"
+          th:text="${' ' + goal.calculatedRemainderMinutes + ' min'}"></span>
+      </strong>
+      <span class="goal-detail-stat__meta">
+        <span th:text="${goal.enteredHours + ' h'}">9 h</span><span
+          th:if="${goal.enteredRemainderMinutes > 0}"
+          th:text="${' ' + goal.enteredRemainderMinutes + ' min'}"></span> por dia
+      </span>
+    </article>
+  </section>
+
+  <div class="goal-detail-dashboard">
+    <section class="goal-detail-panel goal-detail-calendar-panel" data-detail-calendar>
+      <header class="goal-detail-panel__header">
+        <div>
+          <h2>Calendário de trabalho</h2>
+          <p>
+            <strong th:text="${#lists.size(plannedDays)}">23</strong> dias selecionados ·
+            <strong>
+              <span th:text="${goal.enteredHours + ' h'}">9 h</span><span
+                th:if="${goal.enteredRemainderMinutes > 0}"
+                th:text="${' ' + goal.enteredRemainderMinutes + ' min'}"></span>
+            </strong> por dia
+          </p>
+        </div>
+      </header>
+
+      <div class="goal-detail-panel__body">
+        <div class="goal-calendar goal-calendar--readonly" data-detail-cal hidden>
+          <div class="goal-calendar__grid goal-calendar__weekdays" data-detail-weekdays></div>
+          <div class="goal-calendar__grid" data-detail-grid></div>
+        </div>
+
+        <div class="goal-day-chips" data-detail-fallback>
+          <span class="goal-day-chip" th:each="day : ${plannedDays}"
+                th:attr="data-date=${#temporals.format(day.workDate, 'yyyy-MM-dd')},data-min=${day.allocatedDurationMinutes}"
+                th:text="${#temporals.format(day.workDate, 'dd/MM')}">01/07</span>
+        </div>
+
+        <div class="goal-calendar-legend" aria-label="Legenda do calendário">
+          <span><i class="goal-calendar-legend__swatch is-planned" aria-hidden="true"></i>Dia planejado</span>
+          <span><i class="goal-calendar-legend__swatch is-free" aria-hidden="true"></i>Dia livre</span>
+        </div>
+      </div>
+    </section>
+
+    <aside class="goal-detail-panel goal-detail-rhythm-panel" aria-labelledby="goal-rhythm-title">
+      <header class="goal-detail-panel__header">
+        <div>
+          <h2 id="goal-rhythm-title">Ritmo necessário</h2>
+          <p>Valores médios para cumprir a meta.</p>
+        </div>
+      </header>
+
+      <div class="goal-detail-panel__body">
+        <dl class="goal-rhythm-list">
+          <div class="goal-rhythm-item">
+            <dt>Faturamento por dia</dt>
+            <dd class="goal-num"
+                th:text="${'R$ ' + #numbers.formatDecimal(operationalPerDay, 1, 'POINT', 2, 'COMMA')}">
+              R$ 195,65
+            </dd>
+          </div>
+
+          <div class="goal-rhythm-item">
+            <dt>Faturamento por hora</dt>
+            <dd class="goal-num"
+                th:text="${'R$ ' + #numbers.formatDecimal(operationalPerHour, 1, 'POINT', 2, 'COMMA')}">
+              R$ 21,74
+            </dd>
+          </div>
+
+          <div class="goal-rhythm-item">
+            <dt>Valor líquido por dia</dt>
+            <dd class="goal-num"
+                th:text="${'R$ ' + #numbers.formatDecimal(personalPerDay, 1, 'POINT', 2, 'COMMA')}">
+              R$ 108,70
+            </dd>
+          </div>
+
+          <div class="goal-rhythm-item">
+            <dt>Valor líquido por hora</dt>
+            <dd class="goal-num"
+                th:text="${'R$ ' + #numbers.formatDecimal(personalPerHour, 1, 'POINT', 2, 'COMMA')}">
+              R$ 12,08
+            </dd>
+          </div>
+        </dl>
+      </div>
+    </aside>
   </div>
 
-  <div class="row g-3 mb-4">
-    <div class="col-md-3">
-      <div class="card card-body h-100">
-        <div class="text-secondary">Meta líquida pessoal</div>
-        <div class="h3 mb-0" th:text="${'R$ ' + #numbers.formatDecimal(goal.personalNetGoal, 1, 2)}"></div>
-      </div>
-    </div>
-    <div class="col-md-3">
-      <div class="card card-body h-100">
-        <div class="text-secondary">Meta operacional</div>
-        <div class="h3 mb-0" th:text="${'R$ ' + #numbers.formatDecimal(goal.operationalGoal, 1, 2)}"></div>
-      </div>
-    </div>
-    <div class="col-md-3">
-      <div class="card card-body h-100">
-        <div class="text-secondary">Dias planejados</div>
-        <div class="h3 mb-0" th:text="${#lists.size(plannedDays)}"></div>
-      </div>
-    </div>
-    <div class="col-md-3">
-      <div class="card card-body h-100">
-        <div class="text-secondary">Jornada total</div>
-        <div class="h3 mb-0">
-          <span th:text="${goal.calculatedHours + ' h'}"></span>
-          <span th:if="${goal.calculatedRemainderMinutes > 0}"
-                th:text="${' ' + goal.calculatedRemainderMinutes + ' min'}"></span>
-        </div>
-      </div>
-    </div>
-  </div>
+  <script th:inline="none">
+    (function () {
+      var root = document.querySelector('[data-detail-calendar]');
+      if (!root) return;
 
-  <div class="card mb-4">
-    <div class="card-header"><h2 class="card-title mb-0">Ritmo necessário</h2></div>
-    <div class="card-body">
-      <div class="row g-3">
-        <div class="col-sm-6 col-lg-3">
-          <div class="goal-rate-card">
-            <span>Operacional por dia</span>
-            <strong th:text="${'R$ ' + #numbers.formatDecimal(operationalPerDay, 1, 2)}"></strong>
-          </div>
-        </div>
-        <div class="col-sm-6 col-lg-3">
-          <div class="goal-rate-card">
-            <span>Operacional por hora</span>
-            <strong th:text="${'R$ ' + #numbers.formatDecimal(operationalPerHour, 1, 2)}"></strong>
-          </div>
-        </div>
-        <div class="col-sm-6 col-lg-3">
-          <div class="goal-rate-card">
-            <span>Líquido pessoal por dia</span>
-            <strong th:text="${'R$ ' + #numbers.formatDecimal(personalPerDay, 1, 2)}"></strong>
-          </div>
-        </div>
-        <div class="col-sm-6 col-lg-3">
-          <div class="goal-rate-card">
-            <span>Líquido pessoal por hora</span>
-            <strong th:text="${'R$ ' + #numbers.formatDecimal(personalPerHour, 1, 2)}"></strong>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
+      var chips = [].slice.call(root.querySelectorAll('[data-detail-fallback] [data-date]'));
+      if (!chips.length) return;
 
-  <div class="card mb-4">
-    <div class="card-header"><h2 class="card-title mb-0">Jornada planejada</h2></div>
-    <div class="card-body">
-      <div class="row g-3">
-        <div class="col-md-6">
-          <div class="text-secondary">Forma informada</div>
-          <div class="h3 mb-1">
-            <span th:text="${goal.enteredHours + ' h'}"></span>
-            <span th:if="${goal.enteredRemainderMinutes > 0}"
-                  th:text="${' ' + goal.enteredRemainderMinutes + ' min'}"></span>
-          </div>
-          <div class="text-secondary" th:text="${goal.workloadPeriodicity.label}"></div>
-        </div>
-        <div class="col-md-6">
-          <div class="text-secondary">Total calculado no mês</div>
-          <div class="h3 mb-1">
-            <span th:text="${goal.calculatedHours + ' h'}"></span>
-            <span th:if="${goal.calculatedRemainderMinutes > 0}"
-                  th:text="${' ' + goal.calculatedRemainderMinutes + ' min'}"></span>
-          </div>
-          <div class="text-secondary">Distribuído pelos dias selecionados.</div>
-        </div>
-      </div>
-    </div>
-  </div>
+      var selectedDates = {};
+      chips.forEach(function (chip) {
+        selectedDates[chip.getAttribute('data-date')] =
+          parseInt(chip.getAttribute('data-min'), 10) || 0;
+      });
 
-  <div class="card">
-    <div class="card-header"><h2 class="card-title mb-0">Dias selecionados</h2></div>
-    <div class="card-body">
-      <div class="d-flex flex-wrap gap-2">
-        <span class="badge text-bg-light" th:each="day : ${plannedDays}"
-              th:text="${#temporals.format(day.workDate, 'dd/MM') + ' · ' + day.allocatedDurationMinutes + ' min'}"></span>
-      </div>
-    </div>
-  </div>
+      var firstIso = chips
+        .map(function (chip) { return chip.getAttribute('data-date'); })
+        .sort()[0];
+      var parts = firstIso.split('-').map(Number);
+      var year = parts[0];
+      var month = parts[1];
+      var firstDayOfWeek = new Date(year, month - 1, 1).getDay();
+      var leadingCells = (firstDayOfWeek + 6) % 7;
+      var daysInMonth = new Date(year, month, 0).getDate();
+      var weekdayLabels = ['SEG', 'TER', 'QUA', 'QUI', 'SEX', 'SÁB', 'DOM'];
+      var weekdays = root.querySelector('[data-detail-weekdays]');
+      var grid = root.querySelector('[data-detail-grid]');
+
+      weekdayLabels.forEach(function (label) {
+        var weekday = document.createElement('div');
+        weekday.className = 'goal-calendar__weekday';
+        weekday.textContent = label;
+        weekdays.appendChild(weekday);
+      });
+
+      for (var index = 0; index < leadingCells; index += 1) {
+        var emptyCell = document.createElement('div');
+        emptyCell.className = 'goal-calendar__day--empty';
+        grid.appendChild(emptyCell);
+      }
+
+      for (var day = 1; day <= daysInMonth; day += 1) {
+        var iso = year + '-' + String(month).padStart(2, '0') + '-' + String(day).padStart(2, '0');
+        var date = new Date(year, month - 1, day);
+        var dayOfWeek = date.getDay();
+        var cell = document.createElement('div');
+
+        cell.className = 'goal-calendar__day';
+        cell.textContent = day;
+        cell.setAttribute('role', 'gridcell');
+
+        if (dayOfWeek === 0 || dayOfWeek === 6) {
+          cell.classList.add('is-weekend');
+        }
+
+        if (Object.prototype.hasOwnProperty.call(selectedDates, iso)) {
+          var minutes = selectedDates[iso];
+          var hours = Math.floor(minutes / 60);
+          var remainingMinutes = minutes % 60;
+          var duration = remainingMinutes ?
+            (hours + ' h ' + remainingMinutes + ' min') :
+            (hours + ' h');
+
+          cell.setAttribute('aria-pressed', 'true');
+          cell.setAttribute('aria-label', day + ', planejado para ' + duration);
+          cell.title = duration;
+        } else {
+          cell.classList.add('is-off');
+          cell.setAttribute('aria-label', day + ', dia livre');
+        }
+
+        grid.appendChild(cell);
+      }
+
+      root.querySelector('[data-detail-cal]').hidden = false;
+      root.querySelector('[data-detail-fallback]').hidden = true;
+    })();
+  </script>
 </section>
 </html>
