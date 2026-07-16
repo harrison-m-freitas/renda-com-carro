@@ -8,7 +8,7 @@ on:
       - .github/workflows/pr15-merge-diagnostic.yml
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   diagnose:
@@ -17,12 +17,13 @@ jobs:
       - name: Checkout PR branch
         uses: actions/checkout@v4
         with:
+          ref: feat/obligation-financing-redesign
           fetch-depth: 0
 
-      - name: Diagnose merge with main
+      - name: Diagnose merge with main and publish report
         shell: bash
         run: |
-          set -uo pipefail
+          set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git fetch origin main
@@ -32,18 +33,32 @@ jobs:
           merge_status=$?
           set -e
 
-          echo "MERGE_STATUS=${merge_status}"
-          echo "=== UNMERGED FILES ==="
-          git diff --name-only --diff-filter=U || true
-          echo "=== CONFLICT DETAILS ==="
-          git status --short
-
-          if [ "$merge_status" -ne 0 ]; then
-            echo "=== CONFLICT MARKERS ==="
+          report="docs/pr15-merge-diagnostic.txt"
+          mkdir -p docs
+          {
+            echo "PR15 merge diagnostic"
+            echo "feature_head=$(git rev-parse ORIG_HEAD 2>/dev/null || git rev-parse HEAD)"
+            echo "main_head=$(git rev-parse origin/main)"
+            echo "merge_status=${merge_status}"
+            echo
+            echo "UNMERGED FILES"
+            git diff --name-only --diff-filter=U || true
+            echo
+            echo "STATUS"
+            git status --short || true
+            echo
+            echo "CONFLICT MARKERS"
             while IFS= read -r file; do
               [ -n "$file" ] || continue
               echo "--- $file ---"
-              grep -n -C 4 -E '^(<<<<<<<|=======|>>>>>>>)' "$file" || true
+              grep -n -C 6 -E '^(<<<<<<<|=======|>>>>>>>)' "$file" || true
             done < <(git diff --name-only --diff-filter=U)
-            exit 1
+          } > "$report"
+
+          if [ -f .git/MERGE_HEAD ]; then
+            git merge --abort
           fi
+
+          git add "$report"
+          git commit -m "chore: record PR 15 merge conflicts [skip ci]" || true
+          git push origin HEAD:feat/obligation-financing-redesign
